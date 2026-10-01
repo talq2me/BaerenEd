@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Parent Progress Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(160deg, #5a7a9c 0%, #4a6a8a 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 12px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+            padding: 16px;
+            max-width: 480px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .page-header h1 {
+            color: #222;
+            font-size: 1.25em;
+            line-height: 1.25;
+            text-align: left;
+        }
+
+        .reload-button {
+            flex: 0 0 auto;
+            background: #eef2f6;
+            color: #4a6a8a;
+            border: 1px solid #c5d0dc;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .reload-button:active {
+            transform: scale(0.97);
+            background: #e2e8f0;
+        }
+
+        .section {
+            margin-top: 14px;
+        }
+
+        .section-label {
+            color: #888;
+            font-size: 0.72em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .nav-grid.single {
+            grid-template-columns: 1fr;
+        }
+
+        .kid-button {
+            background: #5a7a9c;
+            color: white;
+            border: none;
+            padding: 13px 10px;
+            border-radius: 11px;
+            font-size: 0.92em;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1.25;
+            min-height: 48px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        .kid-button:active {
+            transform: scale(0.98);
+            opacity: 0.92;
+        }
+
+        .kid-button.wide {
+            grid-column: 1 / -1;
+        }
+
+        /* Editable actions — slightly darker blue so they stand out */
+        .kid-button.editable {
+            background: #3d5a75;
+        }
+
+        .health-section {
+            margin-top: 4px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .health-section .section-label {
+            margin-bottom: 6px;
+        }
+
+        .health-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .health-status.healthy {
+            background: #16a34a;
+            color: white;
+        }
+
+        .health-status.unhealthy {
+            background: #dc2626;
+            color: white;
+        }
+
+        .health-status.unknown {
+            background: #6b7280;
+            color: white;
+        }
+
+        .health-status-title {
+            font-weight: 600;
+            font-size: 0.95em;
+            flex: 0 0 auto;
+        }
+
+        .health-status-time {
+            font-size: 0.78em;
+            opacity: 0.95;
+            text-align: right;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .health-details {
+            margin-top: 8px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            display: none;
+            text-align: left;
+        }
+
+        .health-details.show {
+            display: block;
+        }
+
+        .health-details h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .health-details p {
+            color: #666;
+            margin-bottom: 4px;
+            font-size: 0.85em;
+        }
+
+        .config-section {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+            text-align: left;
+        }
+
+        .config-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: none;
+            border: none;
+            padding: 4px 0;
+            cursor: pointer;
+            color: #555;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .config-toggle .chevron {
+            color: #999;
+            font-size: 0.9em;
+            transition: transform 0.15s;
+        }
+
+        .config-section.open .config-toggle .chevron {
+            transform: rotate(90deg);
+        }
+
+        .config-body {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .config-section.open .config-body {
+            display: block;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 11px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px; /* avoids iOS zoom on focus */
+            margin-bottom: 8px;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: #5a7a9c;
+        }
+
+        .save-config {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 2px;
+        }
+
+        .save-config:active {
+            background: #45a049;
+        }
+
+        .config-report-link {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 8px;
+            padding: 12px 16px;
+            text-align: center;
+            text-decoration: none;
+            background: #eee;
+            color: #333;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+        }
+
+        .config-report-link:active {
+            background: #ddd;
+        }
+
+        .info-text {
+            color: #777;
+            font-size: 0.78em;
+            margin-top: 8px;
+            line-height: 1.35;
+        }
+
+        .kid-card {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            background: #f4f7fa;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .kid-card:active {
+            transform: scale(0.99);
+        }
+
+        .kid-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .kid-card-name {
+            font-weight: 700;
+            color: #222;
+            font-size: 1.05em;
+        }
+
+        .kid-card-open {
+            color: #5a7a9c;
+            font-size: 0.78em;
+            font-weight: 700;
+        }
+
+        .summary-label {
+            color: #64748b;
+            font-size: 0.68em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .summary-label.chores {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .metric {
+            background: #eef2f6;
+            padding: 6px 4px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: #4a6a8a;
+            line-height: 1.1;
+            margin-bottom: 1px;
+        }
+
+        .metric-label {
+            font-size: 0.64em;
+            color: #64748b;
+            line-height: 1.15;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 16px;
+            background-color: #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #5a7a9c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.68em;
+            min-width: 2.2em;
+        }
+
+        .kid-block {
+            margin-bottom: 10px;
+        }
+
+        .kid-block .kid-card {
+            margin-bottom: 0;
+        }
+
+        .sentence-reads {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .sentence-reads[hidden] {
+            display: none;
+        }
+
+        .sentence-read-card {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            border-radius: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            font: inherit;
+        }
+
+        .sentence-read-card .sent {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: #1e3a8a;
+            line-height: 1.35;
+            margin: 0 0 4px;
+        }
+
+        .sentence-read-card .hint {
+            font-size: 0.82em;
+            color: #1d4ed8;
+        }
+
+        .media-fold {
+            margin-top: 8px;
+        }
+
+        .media-fold[hidden] {
+            display: none;
+        }
+
+        .media-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f4f7fa;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font: inherit;
+            font-size: 0.85em;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .media-chevron {
+            display: inline-block;
+            color: #5a7a9c;
+            transition: transform 0.15s ease;
+        }
+
+        .media-toggle[aria-expanded="true"] .media-chevron {
+            transform: rotate(90deg);
+        }
+
+        .media-loading {
+            margin: 8px 2px 0;
+            color: #64748b;
+            font-size: 0.82em;
+        }
+
+        .chore-photos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .chore-photo-card {
+            background: #f8fafc;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            padding: 0;
+            font: inherit;
+            text-align: left;
+            width: 100%;
+        }
+
+        .chore-photo-card img,
+        .chore-photo-card .video-thumb,
+        .chore-photo-card .media-pending {
+            width: 100%;
+            height: 96px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .chore-photo-card .video-thumb,
+        .chore-photo-card .media-pending {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            object-fit: unset;
+            font-size: 0.85em;
+            font-weight: 700;
+        }
+
+        .chore-photo-card .video-thumb {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .chore-photo-card .media-pending {
+            background: #e2e8f0;
+            color: #64748b;
+        }
+
+        .chore-photo-card .cap {
+            font-size: 0.68em;
+            padding: 4px 6px;
+            color: #334155;
+            line-height: 1.2;
+        }
+
+        .chore-photo-card .cap .paid {
+            color: #15803d;
+            font-weight: 700;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.82);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-sentence {
+            width: min(640px, 96vw);
+            background: #fff;
+            color: #0f172a;
+            font-size: 1.6rem;
+            font-weight: 800;
+            line-height: 1.4;
+            text-align: center;
+            padding: 24px 20px 8px;
+            border-radius: 12px 12px 0 0;
+            margin: 0;
+        }
+
+        .modal-content.audio-player {
+            width: min(520px, 96vw);
+            background: #fff;
+            border-radius: 0 0 12px 12px;
+            padding: 8px 12px 16px;
+        }
+
+        .modal-content.photo {
+            max-width: 96vw;
+            max-height: 82vh;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .modal-content.video-player {
+            width: min(520px, 96vw);
+            max-height: 80vh;
+            background: #000;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .grant-dialog {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            width: min(420px, 100%);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .grant-dialog h4 {
+            margin-bottom: 8px;
+            color: #334155;
+        }
+
+        .grant-dialog p {
+            font-size: 0.9em;
+            color: #475569;
+            margin-bottom: 10px;
+        }
+
+        .grant-dialog input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 12px;
+        }
+
+        .grant-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .grant-actions button {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .grant-no { background: #e2e8f0; color: #334155; }
+        .grant-resend { background: #c2410c; color: white; margin-right: auto; }
+        .grant-yes { background: #15803d; color: white; }
+
+        .config-body .section:first-child {
+            margin-top: 8px;
+        }
+
+        #pullRefreshIndicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            overflow: hidden;
+            background: rgba(90, 122, 156, 0.95);
+            color: #fff;
+            text-align: center;
+            font-size: 0.9em;
+            font-weight: 600;
+            line-height: 48px;
+            transition: height 0.15s ease;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        @media (min-width: 480px) {
+            body { padding: 20px; }
+            .container { padding: 20px; }
+            .page-header h1 { font-size: 1.4em; }
+            .kid-button { font-size: 0.95em; padding: 14px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="pullRefreshIndicator">Pull to refresh…</div>
+    <div class="container">
+        <div class="page-header">
+            <h1>Parent Reports</h1>
+            <button type="button" class="reload-button" onclick="hardReload()">↻ Reload</button>
+        </div>
+
+        <div class="health-section">
+            <div class="section-label">BaerenLock</div>
+            <div id="healthStatus" class="health-status unknown" onclick="toggleHealthDetails()">
+                <span class="health-status-title">Loading...</span>
+                <span class="health-status-time"></span>
+            </div>
+            <div id="healthDetails" class="health-details">
+                <h4>Health Check Details by Profile</h4>
+                <div id="healthProfiles"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-label">Progress</div>
+            <div class="kid-block">
+            <a class="kid-card" href="daily_progress_report.html?kid=AM">
+                <div class="kid-card-head">
+                    <span class="kid-card-name">AM</span>
+                    <span class="kid-card-open">Report ›</span>
+                </div>
+                <div class="summary-label">Required</div>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="AM-requiredComplete">–</div>
+                        <div class="metric-label">Complete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="AM-requiredIncomplete">–</div>
+                        <div class="metric-label">Incomplete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="AM-requiredCorrect">–</div>
+                        <div class="metric-label">Correct</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="AM-requiredIncorrect">–</div>
+                        <div class="metric-label">Incorrect</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="AM-progressFill" style="width: 0%">–</div>
+                </div>
+                <div class="summary-label chores">Chores</div>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="AM-choresComplete">–</div>
+                        <div class="metric-label">Complete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="AM-choresIncomplete">–</div>
+                        <div class="metric-label">Incomplete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="AM-choreEarnedToday">–</div>
+                        <div class="metric-label">Earned today</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="AM-choreTotal">–</div>
+                        <div class="metric-label">Total</div>
+                    </div>
+                </div>
+            </a>
+            <div id="AM-recordings" class="sentence-reads" hidden></div>
+            <div id="AM-media" class="media-fold" hidden></div>
+            </div>
+            <div class="kid-block">
+            <a class="kid-card" href="daily_progress_report.html?kid=BM">
+                <div class="kid-card-head">
+                    <span class="kid-card-name">BM</span>
+                    <span class="kid-card-open">Report ›</span>
+                </div>
+                <div class="summary-label">Required</div>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="BM-requiredComplete">–</div>
+                        <div class="metric-label">Complete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="BM-requiredIncomplete">–</div>
+                        <div class="metric-label">Incomplete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="BM-requiredCorrect">–</div>
+                        <div class="metric-label">Correct</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="BM-requiredIncorrect">–</div>
+                        <div class="metric-label">Incorrect</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="BM-progressFill" style="width: 0%">–</div>
+                </div>
+                <div class="summary-label chores">Chores</div>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="BM-choresComplete">–</div>
+                        <div class="metric-label">Complete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="BM-choresIncomplete">–</div>
+                        <div class="metric-label">Incomplete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="BM-choreEarnedToday">–</div>
+                        <div class="metric-label">Earned today</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="BM-choreTotal">–</div>
+                        <div class="metric-label">Total</div>
+                    </div>
+                </div>
+            </a>
+            <div id="BM-recordings" class="sentence-reads" hidden></div>
+            <div id="BM-media" class="media-fold" hidden></div>
+            </div>
+        </div>
+
+        <div class="config-section" id="navSection">
+            <button type="button" class="config-toggle" onclick="toggleNav()" aria-expanded="false">
+                <span>Buttons</span>
+                <span class="chevron">›</span>
+            </button>
+            <div class="config-body">
+                <div class="section">
+                    <div class="section-label">Today</div>
+                    <div class="nav-grid">
+                        <a href="behavior_log.html" class="kid-button editable">Behavior Log</a>
+                        <a href="banked_time.html" class="kid-button editable">Banked Time</a>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Progress Reports</div>
+                    <div class="nav-grid">
+                        <a href="daily_progress_report.html?kid=AM" class="kid-button">AM Report</a>
+                        <a href="daily_progress_report.html?kid=BM" class="kid-button">BM Report</a>
+                        <a href="collector_cards.html" class="kid-button">Collector Cards</a>
+                        <a href="kid_bank_balance.html" class="kid-button">Kids Bank</a>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Time &amp; Schedule</div>
+                    <div class="nav-grid">
+                        <a href="task_manager.html" class="kid-button editable">Task Manager</a>
+                        <a href="schedule_editor.html" class="kid-button editable">Edit Schedule</a>
+                        <a href="schedule.html" class="kid-button">Schedule</a>
+                        <a href="reward_time_day.html" class="kid-button">Reward Time</a>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Learning</div>
+                    <div class="nav-grid">
+                        <a href="spelling_photos.html" class="kid-button">Spelling Photos</a>
+                        <a href="spelling_ocr_report.html" class="kid-button">Spelling OCR</a>
+                        <a href="handwriting_practice_report.html" class="kid-button wide">Handwriting snapshot</a>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Help</div>
+                    <div class="nav-grid single">
+                        <a href="how_to.html" class="kid-button">How To</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-section" id="configSection">
+            <button type="button" class="config-toggle" onclick="toggleConfig()" aria-expanded="false">
+                <span>Configuration</span>
+                <span class="chevron">›</span>
+            </button>
+            <div class="config-body">
+                <input type="text" id="supabaseUrl" class="config-input" placeholder="Supabase URL" autocomplete="off" autocapitalize="off" spellcheck="false">
+                <input type="text" id="supabaseKey" class="config-input" placeholder="Supabase API Key" autocomplete="off" autocapitalize="off" spellcheck="false">
+                <input type="password" id="scheduleWriteKey" class="config-input" placeholder="Schedule editor write key (optional)" autocomplete="off">
+                <button class="save-config" onclick="saveConfig()">Save Configuration</button>
+                <a href="daily_progress_report.html?kid=TE" class="config-report-link">TE Progress Report</a>
+                <p class="info-text">Saved in this browser only. Write key must match <code>schedule_editor_write_key</code> in Supabase Vault.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="recordingModal" class="modal" aria-hidden="true">
+        <span class="modal-close" id="recordingModalClose">&times;</span>
+        <div id="recordingLayout">
+            <p class="modal-sentence" id="recordingSentence"></p>
+            <audio class="modal-content audio-player" id="recordingAudio" controls></audio>
+        </div>
+        <img class="modal-content photo" id="modalImage" alt="" style="display:none">
+        <video class="modal-content video-player" id="modalVideo" controls playsinline style="display:none"></video>
+    </div>
+
+    <div id="grantModal" class="modal" aria-hidden="true">
+        <div class="grant-dialog">
+            <h4 id="grantTitle">Grant chore reward?</h4>
+            <p id="grantMessage">Add this amount to the kid's bank.</p>
+            <input id="grantAmount" type="number" min="0" step="0.01" inputmode="decimal">
+            <div class="grant-actions">
+                <button type="button" class="grant-resend" id="grantResend">Resend</button>
+                <button type="button" class="grant-no" id="grantNo">No</button>
+                <button type="button" class="grant-yes" id="grantYes">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadConfig() {
+            const url = localStorage.getItem('supabaseUrl');
+            const key = localStorage.getItem('supabaseKey');
+            const writeKey = localStorage.getItem('scheduleWriteKey');
+            if (url) document.getElementById('supabaseUrl').value = url;
+            if (key) document.getElementById('supabaseKey').value = key;
+            if (writeKey) document.getElementById('scheduleWriteKey').value = writeKey;
+
+            // Auto-open config if credentials are missing
+            if (!url || !key) {
+                const section = document.getElementById('configSection');
+                section.classList.add('open');
+                section.querySelector('.config-toggle').setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const open = section.classList.toggle('open');
+            section.querySelector('.config-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function toggleNav() {
+            toggleSection('navSection');
+        }
+
+        function toggleConfig() {
+            toggleSection('configSection');
+        }
+
+        function saveConfig() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+            const writeKey = document.getElementById('scheduleWriteKey').value.trim();
+
+            if (url && key) {
+                localStorage.setItem('supabaseUrl', url);
+                localStorage.setItem('supabaseKey', key);
+                if (writeKey) {
+                    localStorage.setItem('scheduleWriteKey', writeKey);
+                } else {
+                    localStorage.removeItem('scheduleWriteKey');
+                }
+                alert('Configuration saved!');
+                loadHealthStatus();
+                loadKidSummaries();
+            } else {
+                alert('Please enter both Supabase URL and API Key');
+            }
+        }
+
+        async function loadHealthStatus() {
+            const url = localStorage.getItem('supabaseUrl');
+            const key = localStorage.getItem('supabaseKey');
+
+            if (!url || !key) {
+                updateHealthStatus('unknown', []);
+                const statusElement = document.getElementById('healthStatus');
+                statusElement.querySelector('.health-status-title').textContent = 'Unknown';
+                statusElement.querySelector('.health-status-time').textContent = 'Configuration required';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${url}/rest/v1/devices?select=device_id,device_name,active_profile,baerenlock_health_status,baerenlock_health_issues,baerenlock_last_health_check&order=active_profile,device_name`, {
+                    headers: {
+                        'apikey': key,
+                        'Authorization': `Bearer ${key}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    const devices = data.filter(d => {
+                        const name = (d.device_name || d.device_id || '').toLowerCase();
+                        return !name.includes('pixel');
+                    });
+                    const hasActualIssues = d => d.baerenlock_health_status === 'unhealthy' &&
+                        (d.baerenlock_health_issues && String(d.baerenlock_health_issues).trim() !== '');
+                    const overallStatus = devices.some(hasActualIssues) ? 'unhealthy' :
+                                         devices.some(d => d.baerenlock_health_status === 'healthy') ? 'healthy' : 'unknown';
+                    updateHealthStatus(overallStatus, devices);
+                } else {
+                    updateHealthStatus('unknown', []);
+                }
+            } catch (error) {
+                console.error('Error loading health status:', error);
+                updateHealthStatus('unknown', []);
+            }
+        }
+
+        function updateHealthStatus(status, profiles) {
+            const statusElement = document.getElementById('healthStatus');
+            const titleElement = statusElement.querySelector('.health-status-title');
+            const timeElement = statusElement.querySelector('.health-status-time');
+            const profilesElement = document.getElementById('healthProfiles');
+
+            statusElement.classList.remove('healthy', 'unhealthy', 'unknown');
+            statusElement.classList.add(status);
+
+            let title = 'Healthy';
+            if (status === 'unhealthy') {
+                title = 'Unhealthy';
+            } else if (status === 'unknown') {
+                title = 'Unknown';
+            }
+            titleElement.textContent = title;
+
+            const list = Array.isArray(profiles) ? profiles : [];
+            const allLastChecks = list
+                .map(d => d.baerenlock_last_health_check ? new Date(d.baerenlock_last_health_check).getTime() : 0)
+                .filter(t => t > 0);
+            if (allLastChecks.length > 0) {
+                const mostRecent = new Date(Math.max(...allLastChecks));
+                timeElement.textContent = mostRecent.toLocaleString();
+            } else {
+                timeElement.textContent = '—';
+            }
+
+            profilesElement.innerHTML = '';
+            if (list.length === 0) {
+                profilesElement.innerHTML = '<p>No health data available for any device</p>';
+            } else {
+                const devicesByProfile = {};
+                list.forEach(device => {
+                    const profile = device.active_profile || 'Unknown';
+                    if (!devicesByProfile[profile]) {
+                        devicesByProfile[profile] = [];
+                    }
+                    devicesByProfile[profile].push(device);
+                });
+
+                Object.keys(devicesByProfile).sort().forEach(profile => {
+                    const devices = devicesByProfile[profile];
+                    const profileDiv = document.createElement('div');
+                    profileDiv.style.marginBottom = '12px';
+                    profileDiv.style.padding = '10px';
+                    profileDiv.style.background = '#fff';
+                    profileDiv.style.borderRadius = '8px';
+                    profileDiv.style.border = '1px solid #ddd';
+
+                    const hasActualIssues = d => d.baerenlock_health_status === 'unhealthy' &&
+                        (d.baerenlock_health_issues && String(d.baerenlock_health_issues).trim() !== '');
+                    const profileStatus = devices.some(hasActualIssues) ? 'unhealthy' :
+                                         devices.some(d => d.baerenlock_health_status === 'healthy') ? 'healthy' : 'unknown';
+
+                    let statusColor = '#666';
+                    let statusText = 'Unknown';
+                    if (profileStatus === 'healthy') {
+                        statusColor = '#4CAF50';
+                        statusText = 'Healthy';
+                    } else if (profileStatus === 'unhealthy') {
+                        statusColor = '#f44336';
+                        statusText = 'Unhealthy';
+                    }
+
+                    let devicesHtml = '<div style="margin-top: 8px;">';
+                    devices.forEach(device => {
+                        const deviceStatus = device.baerenlock_health_status || 'unknown';
+                        const deviceIssues = device.baerenlock_health_issues || null;
+                        const deviceLastCheck = device.baerenlock_last_health_check || null;
+                        const deviceName = device.device_name || device.device_id || 'Unknown Device';
+                        const hasIssues = deviceStatus === 'unhealthy' && (deviceIssues && String(deviceIssues).trim() !== '');
+                        const isStale = deviceStatus === 'unhealthy' && !hasIssues;
+
+                        let deviceStatusColor = '#666';
+                        let deviceStatusText = 'Unknown';
+                        if (deviceStatus === 'healthy') {
+                            deviceStatusColor = '#4CAF50';
+                            deviceStatusText = 'Healthy';
+                        } else if (hasIssues) {
+                            deviceStatusColor = '#f44336';
+                            deviceStatusText = 'Unhealthy';
+                        } else if (isStale) {
+                            deviceStatusColor = '#ff9800';
+                            deviceStatusText = 'Stale – run check to refresh';
+                        }
+
+                        devicesHtml += `
+                            <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; border-radius: 6px; border-left: 3px solid ${deviceStatusColor};">
+                                <div style="font-weight: 600; color: #333; margin-bottom: 4px; font-size: 0.9em;">
+                                    ${deviceName}: <span style="color: ${deviceStatusColor}">${deviceStatusText}</span>
+                                </div>
+                                ${deviceIssues ? `<div style="color: #d32f2f; margin-bottom: 4px; font-size: 0.82em;">Issues: ${deviceIssues}</div>` : (isStale ? '<div style="color: #666; margin-bottom: 4px; font-size: 0.82em;">No recent check – open BaerenLock to refresh</div>' : '<div style="color: #666; margin-bottom: 4px; font-size: 0.82em;">No issues detected</div>')}
+                                ${deviceLastCheck ? `<div style="color: #666; font-size: 0.78em;">Last checked: ${new Date(deviceLastCheck).toLocaleString()}</div>` : '<div style="color: #999; font-size: 0.78em;">No check data available</div>'}
+                            </div>
+                        `;
+                    });
+                    devicesHtml += '</div>';
+
+                    profileDiv.innerHTML = `
+                        <div style="font-weight: 600; color: #333; margin-bottom: 4px; font-size: 0.95em;">
+                            Profile ${profile}: <span style="color: ${statusColor}">${statusText}</span>
+                            <span style="font-size: 0.8em; color: #666; font-weight: normal;">(${devices.length} device${devices.length > 1 ? 's' : ''})</span>
+                        </div>
+                        ${devicesHtml}
+                    `;
+
+                    profilesElement.appendChild(profileDiv);
+                });
+            }
+        }
+
+        function toggleHealthDetails() {
+            const details = document.getElementById('healthDetails');
+            details.classList.toggle('show');
+        }
+
+        function hardReload() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('_', String(Date.now()));
+            window.location.replace(url.toString());
+        }
+
+        (function setupPullToRefresh() {
+            const indicator = document.getElementById('pullRefreshIndicator');
+            const threshold = 72;
+            let startY = 0;
+            let tracking = false;
+
+            document.addEventListener('touchstart', (e) => {
+                if (window.scrollY > 4) return;
+                startY = e.touches[0].clientY;
+                tracking = true;
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!tracking) return;
+                const pull = Math.max(0, e.touches[0].clientY - startY);
+                if (pull <= 0) {
+                    indicator.style.height = '0';
+                    return;
+                }
+                const h = Math.min(pull * 0.45, 56);
+                indicator.style.height = h + 'px';
+                indicator.textContent = pull >= threshold ? 'Release to refresh' : 'Pull to refresh…';
+            }, { passive: true });
+
+            function endPull(e) {
+                if (!tracking) return;
+                tracking = false;
+                const endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : startY;
+                const pull = Math.max(0, endY - startY);
+                indicator.style.height = '0';
+                if (pull >= threshold && window.scrollY <= 4) {
+                    hardReload();
+                }
+            }
+
+            document.addEventListener('touchend', endPull, { passive: true });
+            document.addEventListener('touchcancel', endPull, { passive: true });
+        })();
+
+        const KID_PROFILES = ['AM', 'BM'];
+        let kidSummaryLoad = null;
+        let recordingsByProfile = { AM: [], BM: [] };
+        let choreMetaByProfile = { AM: {}, BM: {} };
+        let photoChoresByProfile = { AM: {}, BM: {} };
+        let openRecording = null;
+        let visualMetaByProfile = { AM: [], BM: [] };
+        let mediaOpenByProfile = { AM: false, BM: false };
+        const recordingAudioByKey = new Map();
+        const visualMediaByKey = new Map();
+
+        function todayTorontoYmd() {
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(new Date());
+        }
+
+        function formatMoney(amount) {
+            const n = Number(amount);
+            if (!isFinite(n)) return '$0.00';
+            return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
+
+        function parseChoreTaskKey(task) {
+            const withReward = String(task || '').match(/^chore_(.+)_r([0-9]+(?:\.[0-9]+)?)_(\d{4}-\d{2}-\d{2})$/);
+            if (withReward) {
+                return { choreId: withReward[1], rewardCash: Number(withReward[2]), date: withReward[3] };
+            }
+            const m = String(task || '').match(/^chore_(.+)_(\d{4}-\d{2}-\d{2})$/);
+            if (!m) return null;
+            return { choreId: m[1], rewardCash: null, date: m[2] };
+        }
+
+        const WEB_SKIP = { boukili: 1, googleReadAlong: 1 };
+        const WEB_QUIZ = {
+            jkmath: 1, gr1MathStrategies: 1, gr3algebra: 1, gr3fractions: 1, gr3math: 1,
+            gr3mixedproblems: 1, gr3wordproblems: 1, canadianMoneyEasy: 1, canadianMoneyHard: 1,
+            conjugation: 1, conjugation_limparfait: 1, translation: 1, duologicalGame: 1, frenchStories: 1
+        };
+        const WEB_LATER = { printing: 1, tappableText: 1, storyRead: 1 };
+
+        function torontoDayToken() {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Toronto',
+                weekday: 'short'
+            }).format(new Date()).toLowerCase();
+        }
+
+        function shownOnDay(displayDays, dayToken) {
+            const days = String(displayDays || '').trim();
+            if (!days) return true;
+            return days.toLowerCase().split(',').map(part => part.trim()).includes(dayToken);
+        }
+
+        function kidCanSee(row) {
+            if (!row || row.enabled === false) return false;
+            if (WEB_SKIP[row.launch] || row.chromePage || row.videoSequence) return false;
+            if (row.webGame && row.url) return true;
+            if (WEB_QUIZ[row.launch] || row.launch === 'spellingOCR' || WEB_LATER[row.launch]) return true;
+            return false;
+        }
+
+        async function fetchWebAssignments(url, key, profile) {
+            const response = await fetch(`${url}/rest/v1/rpc/af_web_report_assignments`, {
+                method: 'POST',
+                headers: {
+                    'apikey': key,
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ p_profile: profile })
+            });
+            if (!response.ok) throw new Error(`af_web_report_assignments ${profile}: ${response.status}`);
+            const rows = await response.json();
+            return Array.isArray(rows) ? rows : [];
+        }
+
+        function collectChoreTitles(rows) {
+            const titles = new Set();
+            for (const t of rows || []) {
+                if (t.section && t.section !== 'required') continue;
+                const launch = String(t.launch || '').toLowerCase();
+                const url = String(t.url || '').toLowerCase();
+                if (launch.startsWith('chore') || url.includes('chorephoto') || url.includes('choreaudio') || url.includes('chorevideo')) {
+                    const title = String(t.title || '').trim();
+                    if (title) titles.add(title.toLowerCase());
+                }
+            }
+            return titles;
+        }
+
+        function collectChoreMeta(rows) {
+            const meta = {};
+            for (const t of rows || []) {
+                if (t.section && t.section !== 'required') continue;
+                const launch = String(t.launch || '').toLowerCase();
+                const rawUrl = String(t.url || '');
+                const url = rawUrl.toLowerCase();
+                if (!(launch.startsWith('chore') || url.includes('chorephoto') || url.includes('choreaudio') || url.includes('chorevideo'))) continue;
+                try {
+                    const parsedUrl = new URL(rawUrl);
+                    const choreId = parsedUrl.searchParams.get('choreId');
+                    if (!choreId) continue;
+                    const urlTitle = parsedUrl.searchParams.get('title');
+                    const reward = parsedUrl.searchParams.get('rewardCash');
+                    meta[choreId] = {
+                        title: urlTitle || String(t.title || '').trim(),
+                        rewardCash: reward != null && reward !== '' ? Number(reward) : 0
+                    };
+                } catch (e) {}
+            }
+            return meta;
+        }
+
+        function isChoreRequiredTask(taskKey, task, choreTitleSet, photoChores) {
+            const keyNorm = String(taskKey).trim().toLowerCase();
+            if (choreTitleSet.has(keyNorm)) return true;
+            if (String(task?.launch || '').toLowerCase().startsWith('chore')) return true;
+            const taskUrl = String(task?.url || '').toLowerCase();
+            if (taskUrl.includes('chorephoto') || taskUrl.includes('choreaudio') || taskUrl.includes('chorevideo')) return true;
+            for (const [id, chore] of Object.entries(photoChores || {})) {
+                if (String(chore?.title || chore?.description || '').trim().toLowerCase() === keyNorm) return true;
+                if (String(id).replace(/_/g, ' ') === keyNorm) return true;
+            }
+            return false;
+        }
+
+        function summarizeProgress(userData, assignments, todayPhotos) {
+            const todayToken = torontoDayToken();
+            const requiredTasks = {};
+            (assignments || []).forEach(function (row) {
+                if (!row || row.section !== 'required' || !kidCanSee(row) || !shownOnDay(row.displayDays, todayToken)) return;
+                const stored = (userData.required_tasks || {})[row.title] || {};
+                requiredTasks[row.title] = Object.assign({}, stored, { launch: row.launch, url: row.url });
+            });
+            const choreTitleSet = collectChoreTitles(assignments);
+            const photoChores = userData.photo_chores || {};
+            const requiredTaskKeys = Object.keys(requiredTasks);
+            const isChore = key => isChoreRequiredTask(key, requiredTasks[key], choreTitleSet, photoChores);
+            const learningRequiredKeys = requiredTaskKeys.filter(key => !isChore(key));
+            const completedRequired = learningRequiredKeys.filter(key => {
+                const task = requiredTasks[key];
+                return task && (task.status === 'complete' || task.completed === true);
+            }).length;
+            const totalRequired = learningRequiredKeys.length;
+            const choreRequiredKeys = requiredTaskKeys.filter(isChore);
+            const choresCompleted = choreRequiredKeys.filter(key => {
+                const task = requiredTasks[key];
+                return task && (task.status === 'complete' || task.completed === true);
+            }).length;
+            const choreEarnedToday = todayPhotos.reduce((sum, row) => {
+                if (row.reward_granted !== true) return sum;
+                const amt = Number(row.granted_amount);
+                return sum + (isFinite(amt) ? amt : 0);
+            }, 0);
+
+            return {
+                requiredComplete: completedRequired,
+                requiredIncomplete: totalRequired - completedRequired,
+                requiredCorrect: learningRequiredKeys.reduce((sum, key) => sum + (Number(requiredTasks[key]?.correct) || 0), 0),
+                requiredIncorrect: learningRequiredKeys.reduce((sum, key) => sum + (Number(requiredTasks[key]?.incorrect) || 0), 0),
+                completionRate: totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : 0,
+                choresComplete: choresCompleted,
+                choresIncomplete: Math.max(0, choreRequiredKeys.length - choresCompleted),
+                choreEarnedToday: formatMoney(choreEarnedToday),
+                choreTotal: formatMoney(userData.kid_bank_balance)
+            };
+        }
+
+        function applyKidSummary(profile, summary) {
+            const set = (id, value) => {
+                const el = document.getElementById(profile + '-' + id);
+                if (el) el.textContent = value;
+            };
+            set('requiredComplete', summary.requiredComplete);
+            set('requiredIncomplete', summary.requiredIncomplete);
+            set('requiredCorrect', summary.requiredCorrect);
+            set('requiredIncorrect', summary.requiredIncorrect);
+            set('choresComplete', summary.choresComplete);
+            set('choresIncomplete', summary.choresIncomplete);
+            set('choreEarnedToday', summary.choreEarnedToday);
+            set('choreTotal', summary.choreTotal);
+            const fill = document.getElementById(profile + '-progressFill');
+            if (fill) {
+                fill.style.width = summary.completionRate + '%';
+                fill.style.background = '';
+                fill.textContent = summary.completionRate + '%';
+            }
+        }
+
+        function clearKidSummary(profile, message) {
+            applyKidSummary(profile, {
+                requiredComplete: '–',
+                requiredIncomplete: '–',
+                requiredCorrect: '–',
+                requiredIncorrect: '–',
+                completionRate: 0,
+                choresComplete: '–',
+                choresIncomplete: '–',
+                choreEarnedToday: '–',
+                choreTotal: '–'
+            });
+            const fill = document.getElementById(profile + '-progressFill');
+            if (fill) {
+                fill.style.width = '100%';
+                fill.style.background = '#94a3b8';
+                fill.textContent = message || '–';
+            }
+        }
+
+        async function fetchTodayChorePhotos(url, key) {
+            const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
+            const base = `${url}/rest/v1/image_uploads?profile=in.(AM,BM)&task=like.chore_*&order=capture_date_time.desc`;
+            let response = await fetch(`${base}&select=profile,task,capture_date_time,reward_granted,granted_amount`, { headers });
+            if (!response.ok) {
+                response = await fetch(`${base}&select=profile,task,capture_date_time`, { headers });
+            }
+            if (!response.ok) return [];
+            const rows = await response.json();
+            return (Array.isArray(rows) ? rows : []).filter(isTodayChoreUpload);
+        }
+
+        function isTodayChoreUpload(row) {
+            const parsed = parseChoreTaskKey(row.task);
+            const captureDay = String(row.capture_date_time || '').slice(0, 10);
+            const today = todayTorontoYmd();
+            return !!(parsed && (parsed.date === today || captureDay === today));
+        }
+
+        async function fetchTodayRecordingMeta(url, key) {
+            const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
+            const endpoint = `${url}/rest/v1/image_uploads?profile=in.(AM,BM)&task=like.chore_*&image=like.data:audio*&select=profile,task,capture_date_time,reward_granted,granted_amount&order=capture_date_time.desc`;
+            const response = await fetch(endpoint, { headers });
+            if (!response.ok) {
+                console.warn('Recordings unavailable', response.status);
+                return [];
+            }
+            const rows = await response.json();
+            return (Array.isArray(rows) ? rows : []).filter(isTodayChoreUpload);
+        }
+
+        async function ensureRecordingAudio(url, key, rows) {
+            const list = Array.isArray(rows) ? rows : [];
+            const needed = list.filter(row => row && row.task && !recordingAudioByKey.has(`${row.profile}|${row.task}`));
+            if (needed.length) {
+                const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
+                const orInner = needed.map(row => `task.eq."${String(row.task).replace(/"/g, '')}"`).join(',');
+                const response = await fetch(
+                    `${url}/rest/v1/image_uploads?profile=in.(AM,BM)&or=(${orInner})&select=profile,task,image`,
+                    { headers }
+                );
+                if (!response.ok) {
+                    console.warn('Recording audio unavailable', response.status);
+                } else {
+                    const data = await response.json();
+                    (Array.isArray(data) ? data : []).forEach(row => {
+                        if (row && row.image) recordingAudioByKey.set(`${row.profile}|${row.task}`, row.image);
+                    });
+                }
+            }
+            const live = new Set(list.map(row => `${row.profile}|${row.task}`));
+            for (const cacheKey of [...recordingAudioByKey.keys()]) {
+                if (!live.has(cacheKey)) recordingAudioByKey.delete(cacheKey);
+            }
+            return list.map(row => ({
+                ...row,
+                image: recordingAudioByKey.get(`${row.profile}|${row.task}`) || ''
+            }));
+        }
+
+        function isAudioPayload(image) {
+            return typeof image === 'string' && image.startsWith('data:audio');
+        }
+
+        function isVideoPayload(image) {
+            return typeof image === 'string' && (
+                image.startsWith('storage:chore-videos/') ||
+                image.startsWith('data:video')
+            );
+        }
+
+        function mediaSrc(image) {
+            if (!image) return '';
+            if (image.startsWith('storage:chore-videos/')) {
+                const objectPath = image.substring('storage:chore-videos/'.length);
+                const supabaseUrl = localStorage.getItem('supabaseUrl') || '';
+                return `${supabaseUrl}/storage/v1/object/public/chore-videos/${objectPath}`;
+            }
+            if (image.startsWith('data:')) return image;
+            return 'data:image/jpeg;base64,' + image;
+        }
+
+        function visualsReady(profile) {
+            const rows = visualMetaByProfile[profile] || [];
+            return rows.every(row => visualMediaByKey.has(`${row.profile}|${row.task}`));
+        }
+
+        async function ensureVisualMedia(url, key, rows) {
+            const list = Array.isArray(rows) ? rows : [];
+            const needed = list.filter(row => row && row.task && !visualMediaByKey.has(`${row.profile}|${row.task}`));
+            if (needed.length) {
+                const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
+                const orInner = needed.map(row => `task.eq."${String(row.task).replace(/"/g, '')}"`).join(',');
+                const response = await fetch(
+                    `${url}/rest/v1/image_uploads?profile=in.(AM,BM)&or=(${orInner})&select=profile,task,image`,
+                    { headers }
+                );
+                if (!response.ok) {
+                    console.warn('Chore photos unavailable', response.status);
+                } else {
+                    const data = await response.json();
+                    (Array.isArray(data) ? data : []).forEach(row => {
+                        if (row && row.image) visualMediaByKey.set(`${row.profile}|${row.task}`, row.image);
+                    });
+                    list.forEach(row => {
+                        const cacheKey = `${row.profile}|${row.task}`;
+                        if (row && row.task && !visualMediaByKey.has(cacheKey)) visualMediaByKey.set(cacheKey, '');
+                    });
+                }
+            }
+            const profiles = new Set(list.map(row => row.profile));
+            const live = new Set(list.map(row => `${row.profile}|${row.task}`));
+            for (const cacheKey of [...visualMediaByKey.keys()]) {
+                const profile = cacheKey.split('|')[0];
+                if (profiles.has(profile) && !live.has(cacheKey)) visualMediaByKey.delete(cacheKey);
+            }
+        }
+
+        function renderMediaFold(profile) {
+            const wrap = document.getElementById(profile + '-media');
+            if (!wrap) return;
+            const rows = visualMetaByProfile[profile] || [];
+            wrap.innerHTML = '';
+            if (!rows.length) {
+                wrap.hidden = true;
+                return;
+            }
+            const open = !!mediaOpenByProfile[profile];
+            wrap.hidden = false;
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'media-toggle';
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            toggle.innerHTML = `<span class="media-chevron">›</span><span>Photos &amp; videos (${rows.length})</span>`;
+            toggle.addEventListener('click', () => toggleMediaFold(profile));
+            wrap.appendChild(toggle);
+            if (!open) return;
+            const grid = document.createElement('div');
+            grid.className = 'chore-photos';
+            if (!visualsReady(profile)) {
+                grid.innerHTML = '<p class="media-loading">Loading…</p>';
+                wrap.appendChild(grid);
+                return;
+            }
+            rows.forEach((row, idx) => {
+                const image = visualMediaByKey.get(`${row.profile}|${row.task}`) || '';
+                if (isAudioPayload(image)) return;
+                const { title } = recordingTitle(profile, row, 'Chore');
+                const paid = row.reward_granted === true;
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'chore-photo-card';
+                const safeTitle = String(title).replace(/</g, '&lt;');
+                const thumb = !image
+                    ? `<div class="media-pending">Unavailable</div>`
+                    : isVideoPayload(image)
+                        ? `<div class="video-thumb">Video</div>`
+                        : `<img src="${mediaSrc(image)}" alt="${safeTitle}">`;
+                card.innerHTML = `
+                    ${thumb}
+                    <div class="cap">${safeTitle}${paid ? ` <span class="paid">Paid ${formatMoney(row.granted_amount)}</span>` : ''}</div>
+                `;
+                if (image) card.addEventListener('click', () => openVisual(profile, idx));
+                grid.appendChild(card);
+            });
+            wrap.appendChild(grid);
+        }
+
+        async function toggleMediaFold(profile) {
+            mediaOpenByProfile[profile] = !mediaOpenByProfile[profile];
+            renderMediaFold(profile);
+            if (!mediaOpenByProfile[profile] || visualsReady(profile)) return;
+            const url = localStorage.getItem('supabaseUrl');
+            const key = localStorage.getItem('supabaseKey');
+            if (!url || !key) return;
+            await ensureVisualMedia(url, key, visualMetaByProfile[profile] || []);
+            if (mediaOpenByProfile[profile]) renderMediaFold(profile);
+        }
+
+        function clearMedia(profile) {
+            visualMetaByProfile[profile] = [];
+            mediaOpenByProfile[profile] = false;
+            renderMediaFold(profile);
+        }
+
+        function recordingTitle(profile, row, fallback) {
+            const parsed = parseChoreTaskKey(row.task) || {};
+            const meta = (choreMetaByProfile[profile] && choreMetaByProfile[profile][parsed.choreId])
+                || (photoChoresByProfile[profile] && photoChoresByProfile[profile][parsed.choreId])
+                || {};
+            const title = meta.title || String(parsed.choreId || fallback || 'Chore').replace(/_/g, ' ');
+            const rewardCash = meta.rewardCash != null
+                ? Number(meta.rewardCash)
+                : (parsed.rewardCash != null ? Number(parsed.rewardCash) : 0);
+            return { title, rewardCash };
+        }
+
+        function renderRecordings(profile) {
+            const wrap = document.getElementById(profile + '-recordings');
+            if (!wrap) return;
+            const rows = recordingsByProfile[profile] || [];
+            wrap.innerHTML = '';
+            if (!rows.length) {
+                wrap.hidden = true;
+                return;
+            }
+            wrap.hidden = false;
+            rows.forEach((row, idx) => {
+                const { title } = recordingTitle(profile, row, 'Recording');
+                const paid = row.reward_granted === true;
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'sentence-read-card';
+                card.innerHTML = `
+                    <p class="sent">${String(title).replace(/</g, '&lt;')}</p>
+                    <div class="hint">▶ Play recording${paid ? ` · Paid ${formatMoney(row.granted_amount)}` : ''}</div>
+                `;
+                card.addEventListener('click', () => openRecordingPlayer(profile, idx));
+                wrap.appendChild(card);
+            });
+        }
+
+        function clearRecordings(profile) {
+            recordingsByProfile[profile] = [];
+            renderRecordings(profile);
+        }
+
+        function hidePlayerMedia() {
+            const layout = document.getElementById('recordingLayout');
+            if (layout) layout.style.display = 'none';
+            const audio = document.getElementById('recordingAudio');
+            audio.pause();
+            audio.removeAttribute('src');
+            const img = document.getElementById('modalImage');
+            img.style.display = 'none';
+            img.removeAttribute('src');
+            const video = document.getElementById('modalVideo');
+            video.pause();
+            video.style.display = 'none';
+            video.removeAttribute('src');
+        }
+
+        function showPlayerModal() {
+            const modal = document.getElementById('recordingModal');
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeRecordingModalOnly() {
+            const modal = document.getElementById('recordingModal');
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            hidePlayerMedia();
+            document.body.style.overflow = '';
+        }
+
+        function closeGrantModal() {
+            const modal = document.getElementById('grantModal');
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function openRecordingPlayer(profile, idx) {
+            const row = (recordingsByProfile[profile] || [])[idx];
+            if (!row || !row.image) return;
+            const info = recordingTitle(profile, row, 'Recording');
+            openRecording = { profile, idx, row, title: info.title, rewardCash: info.rewardCash, kind: 'audio' };
+            hidePlayerMedia();
+            document.getElementById('recordingLayout').style.display = '';
+            document.getElementById('recordingSentence').textContent = info.title;
+            const audio = document.getElementById('recordingAudio');
+            audio.src = row.image;
+            showPlayerModal();
+            audio.play().catch(() => {});
+        }
+
+        function openVisual(profile, idx) {
+            const row = (visualMetaByProfile[profile] || [])[idx];
+            if (!row) return;
+            const image = visualMediaByKey.get(`${row.profile}|${row.task}`) || '';
+            if (!image || isAudioPayload(image)) return;
+            const info = recordingTitle(profile, row, 'Chore');
+            const kind = isVideoPayload(image) ? 'video' : 'photo';
+            openRecording = { profile, idx, row, title: info.title, rewardCash: info.rewardCash, kind };
+            hidePlayerMedia();
+            if (kind === 'video') {
+                const video = document.getElementById('modalVideo');
+                video.style.display = '';
+                video.src = mediaSrc(image);
+            } else {
+                const img = document.getElementById('modalImage');
+                img.alt = info.title;
+                img.style.display = '';
+                img.src = mediaSrc(image);
+            }
+            showPlayerModal();
+        }
+
+        function requestCloseRecording() {
+            const modal = document.getElementById('recordingModal');
+            if (!modal.classList.contains('show')) return;
+            closeRecordingModalOnly();
+            const recording = openRecording;
+            if (!recording) return;
+            if (recording.row.reward_granted === true || !Number(recording.rewardCash || 0)) {
+                openRecording = null;
+                return;
+            }
+            document.getElementById('grantTitle').textContent = `Grant reward for ${recording.title}?`;
+            document.getElementById('grantMessage').textContent = `Add this amount to ${recording.profile}'s bank.`;
+            document.getElementById('grantAmount').value = Number(recording.rewardCash || 0).toFixed(2);
+            const grantModal = document.getElementById('grantModal');
+            grantModal.classList.add('show');
+            grantModal.setAttribute('aria-hidden', 'false');
+        }
+
+        async function reloadKidSummaries() {
+            if (kidSummaryLoad) await kidSummaryLoad;
+            return loadKidSummaries();
+        }
+
+        async function grantRecordingReward() {
+            const recording = openRecording;
+            if (!recording) {
+                closeGrantModal();
+                return;
+            }
+            const amount = Number(document.getElementById('grantAmount').value);
+            if (!isFinite(amount) || amount < 0) {
+                alert('Enter a valid amount (0 or more).');
+                return;
+            }
+            const yesBtn = document.getElementById('grantYes');
+            yesBtn.disabled = true;
+            try {
+                const url = localStorage.getItem('supabaseUrl');
+                const key = localStorage.getItem('supabaseKey');
+                const response = await fetch(`${url}/rest/v1/rpc/af_grant_chore_reward`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': key,
+                        'Authorization': `Bearer ${key}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        p_profile: recording.profile,
+                        p_task_key: recording.row.task,
+                        p_amount: amount
+                    })
+                });
+                if (!response.ok) throw new Error(await response.text() || response.statusText);
+                closeGrantModal();
+                openRecording = null;
+                await reloadKidSummaries();
+            } catch (err) {
+                alert('Could not grant reward: ' + (err.message || err));
+            } finally {
+                yesBtn.disabled = false;
+            }
+        }
+
+        async function resendRecording() {
+            const recording = openRecording;
+            if (!recording) {
+                closeGrantModal();
+                return;
+            }
+            if (!confirm(`Resend "${recording.title}"? This deletes the ${recording.kind === 'photo' ? 'photo' : recording.kind === 'video' ? 'video' : 'recording'} and marks the task incomplete so ${recording.profile} must redo it.`)) {
+                return;
+            }
+            const resendBtn = document.getElementById('grantResend');
+            resendBtn.disabled = true;
+            try {
+                const url = localStorage.getItem('supabaseUrl');
+                const key = localStorage.getItem('supabaseKey');
+                const headers = {
+                    'apikey': key,
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                };
+                const response = await fetch(`${url}/rest/v1/rpc/af_resend_chore_photo`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        p_profile: recording.profile,
+                        p_image_task: recording.row.task
+                    })
+                });
+                if (!response.ok) throw new Error(await response.text() || response.statusText);
+                const result = await response.json();
+                const storagePath = result && result.storage_path;
+                if (storagePath) {
+                    try {
+                        const del = await fetch(`${url}/storage/v1/object/chore-videos/${encodeURI(storagePath)}`, {
+                            method: 'DELETE',
+                            headers
+                        });
+                        if (!del.ok && del.status !== 404) {
+                            console.warn('Recording file delete failed', await del.text());
+                        }
+                    } catch (e) {
+                        console.warn('Recording file delete failed:', e);
+                    }
+                }
+                recordingAudioByKey.delete(`${recording.profile}|${recording.row.task}`);
+                visualMediaByKey.delete(`${recording.profile}|${recording.row.task}`);
+                closeGrantModal();
+                openRecording = null;
+                await reloadKidSummaries();
+            } catch (err) {
+                alert('Could not resend chore: ' + (err.message || err));
+            } finally {
+                resendBtn.disabled = false;
+            }
+        }
+
+        async function loadKidSummariesNow() {
+            const url = localStorage.getItem('supabaseUrl');
+            const key = localStorage.getItem('supabaseKey');
+            if (!url || !key) {
+                KID_PROFILES.forEach(profile => {
+                    clearKidSummary(profile, 'Setup');
+                    clearRecordings(profile);
+                    clearMedia(profile);
+                });
+                return;
+            }
+
+            try {
+                const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
+                const [usersRes, photoRows, recordingMeta, ...assignmentLists] = await Promise.all([
+                    fetch(`${url}/rest/v1/user_data?profile=in.(AM,BM)&select=profile,required_tasks,photo_chores,kid_bank_balance`, { headers }),
+                    fetchTodayChorePhotos(url, key),
+                    fetchTodayRecordingMeta(url, key),
+                    ...KID_PROFILES.map(profile => fetchWebAssignments(url, key, profile))
+                ]);
+                if (!usersRes.ok) throw new Error(`user_data: ${usersRes.status}`);
+                const users = await usersRes.json();
+                const byProfile = {};
+                (Array.isArray(users) ? users : []).forEach(row => { byProfile[row.profile] = row; });
+                const recordingRows = await ensureRecordingAudio(url, key, recordingMeta);
+
+                for (let i = 0; i < KID_PROFILES.length; i++) {
+                    const profile = KID_PROFILES[i];
+                    const userData = byProfile[profile];
+                    const assignments = assignmentLists[i] || [];
+                    choreMetaByProfile[profile] = collectChoreMeta(assignments);
+                    photoChoresByProfile[profile] = (userData && userData.photo_chores) || {};
+                    recordingsByProfile[profile] = recordingRows.filter(row => row.profile === profile);
+                    const audioTasks = new Set(recordingsByProfile[profile].map(row => row.task));
+                    visualMetaByProfile[profile] = photoRows.filter(row => row.profile === profile && !audioTasks.has(row.task));
+                    if (!userData) {
+                        clearKidSummary(profile, 'No data');
+                    } else {
+                        const photos = photoRows.filter(row => row.profile === profile);
+                        applyKidSummary(profile, summarizeProgress(userData, assignments, photos));
+                    }
+                    renderRecordings(profile);
+                    if (mediaOpenByProfile[profile] && !visualsReady(profile)) {
+                        await ensureVisualMedia(url, key, visualMetaByProfile[profile]);
+                    }
+                    renderMediaFold(profile);
+                }
+            } catch (error) {
+                console.error('Error loading kid summaries:', error);
+                KID_PROFILES.forEach(profile => {
+                    clearKidSummary(profile, 'Error');
+                    clearRecordings(profile);
+                    clearMedia(profile);
+                });
+            }
+        }
+
+        function loadKidSummaries() {
+            if (kidSummaryLoad) return kidSummaryLoad;
+            kidSummaryLoad = loadKidSummariesNow().finally(() => { kidSummaryLoad = null; });
+            return kidSummaryLoad;
+        }
+
+        document.getElementById('recordingModalClose').addEventListener('click', requestCloseRecording);
+        document.getElementById('recordingModal').addEventListener('click', function(e) {
+            if (e.target === this) requestCloseRecording();
+        });
+        document.getElementById('grantNo').addEventListener('click', function() {
+            closeGrantModal();
+            openRecording = null;
+        });
+        document.getElementById('grantYes').addEventListener('click', grantRecordingReward);
+        document.getElementById('grantResend').addEventListener('click', resendRecording);
+        document.getElementById('grantModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeGrantModal();
+                openRecording = null;
+            }
+        });
+
+        loadConfig();
+        loadHealthStatus();
+        loadKidSummaries();
+        setInterval(() => {
+            loadHealthStatus();
+            loadKidSummaries();
+        }, 30000);
+    </script>
+</body>
+</html>

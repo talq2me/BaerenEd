@@ -1,0 +1,4469 @@
+
+-- =============================================================================
+
+-- BaerenEd: Deploy all RPC/functions (drop + create)
+
+-- Run after schema tables exist (see sql/supabase_schema_create.sql).
+
+-- Regenerate from sql/regen_deploy_all_functions.ps1
+
+-- =============================================================================
+
+
+-- Drop existing function signatures first
+DROP FUNCTION IF EXISTS af_daily_reset(text);
+DROP FUNCTION IF EXISTS af_delete_behavior_log(bigint);
+DROP FUNCTION IF EXISTS af_delete_image_upload_by_id(bigint);
+DROP FUNCTION IF EXISTS af_delete_image_uploads_ilike(text, text);
+DROP FUNCTION IF EXISTS af_enqueue_spelling_ocr_review(text, text, date, int);
+DROP FUNCTION IF EXISTS af_get_battle_hub_counts(text);
+DROP FUNCTION IF EXISTS af_get_behavior_log(text, timestamp, timestamp);
+DROP FUNCTION IF EXISTS af_get_current_required_tasks(text);
+DROP FUNCTION IF EXISTS af_get_device_row(text);
+DROP FUNCTION IF EXISTS af_get_image_upload_id(text, text);
+DROP FUNCTION IF EXISTS af_get_or_unlock_daily_prize(text);
+DROP FUNCTION IF EXISTS af_get_required_progress_today(text);
+DROP FUNCTION IF EXISTS af_get_reward_time_state(text);
+DROP FUNCTION IF EXISTS af_get_settings_last_updated();
+DROP FUNCTION IF EXISTS af_get_settings_row();
+DROP FUNCTION IF EXISTS af_get_stars_to_minutes(int);
+DROP FUNCTION IF EXISTS af_get_tasks_bonus(text);
+DROP FUNCTION IF EXISTS af_get_tasks_photo_chores(text);
+DROP FUNCTION IF EXISTS af_get_tasks_practice(text);
+DROP FUNCTION IF EXISTS af_get_tasks_required(text);
+DROP FUNCTION IF EXISTS af_get_user_data(text);
+DROP FUNCTION IF EXISTS af_get_user_last_reset(text);
+DROP FUNCTION IF EXISTS af_get_user_last_updated(text);
+DROP FUNCTION IF EXISTS af_grant_chore_reward(text, text, numeric);
+DROP FUNCTION IF EXISTS af_insert_user_data_profile(text);
+DROP FUNCTION IF EXISTS af_log_behavior(text, text, text);
+DROP FUNCTION IF EXISTS af_maybe_advance_spelling_pools(text);
+DROP FUNCTION IF EXISTS af_maybe_record_collector_card_day(text);
+DROP FUNCTION IF EXISTS af_payout_collector_cards(text, int);
+DROP FUNCTION IF EXISTS af_push_profile_config_to_github(text, jsonb, text, jsonb);
+DROP FUNCTION IF EXISTS af_resend_chore_photo(text, text);
+DROP FUNCTION IF EXISTS af_reward_time_add(TEXT, INTEGER);
+DROP FUNCTION IF EXISTS af_reward_time_expire(TEXT, BOOLEAN);
+DROP FUNCTION IF EXISTS af_reward_time_pause(TEXT);
+DROP FUNCTION IF EXISTS af_reward_time_use(TEXT);
+DROP FUNCTION IF EXISTS af_story_read_assigned_today(text, date, int);
+DROP FUNCTION IF EXISTS af_update_behavior_log_time(bigint, timestamp);
+DROP FUNCTION IF EXISTS af_update_berries_banked(text, int, int);
+DROP FUNCTION IF EXISTS af_update_game_index(text, text, int);
+DROP FUNCTION IF EXISTS af_update_pokemon_unlocked(text, int);
+DROP FUNCTION IF EXISTS af_update_task_completion(text, text, text, int, int, int, int);
+DROP FUNCTION IF EXISTS af_update_tasks_bonus(text, text, int, int, int, int, int);
+DROP FUNCTION IF EXISTS af_update_tasks_checklist_items(text, text, boolean);
+DROP FUNCTION IF EXISTS af_update_tasks_chores(text, int, boolean);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_bonus(text, jsonb);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_checklist_items(text, jsonb);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_chores(text, jsonb);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_photo_chores(text, jsonb);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_practice(text, jsonb);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_required(text, jsonb);
+DROP FUNCTION IF EXISTS af_update_tasks_photo_chores(text, text);
+DROP FUNCTION IF EXISTS af_update_tasks_practice(text, text, int, int, int, int, int);
+DROP FUNCTION IF EXISTS af_update_tasks_required(text, text, text, int, int, int);
+DROP FUNCTION IF EXISTS af_upsert_device(text, text, text, text, text, text, text, boolean);
+DROP FUNCTION IF EXISTS af_upsert_image_upload(text, text, text);
+DROP FUNCTION IF EXISTS af_upsert_settings_row(text, text, boolean, boolean, integer);
+DROP FUNCTION IF EXISTS af_upsert_user_data_columns(text, jsonb);
+DROP FUNCTION IF EXISTS af_web_battle_state(text);
+DROP FUNCTION IF EXISTS af_web_finish_battle(text, int);
+DROP FUNCTION IF EXISTS af_web_list_tasks(text);
+DROP FUNCTION IF EXISTS af_web_report_assignments(text);
+DROP FUNCTION IF EXISTS af_web_save_schedule(text, jsonb, boolean);
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_stars_to_minutes.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo): not used (Kotlin never calls this RPC).
+-- Invoked from (PostgreSQL, this repo sql/):
+--   af_get_current_required_tasks.sql; af_get_tasks_required.sql; af_get_tasks_practice.sql;
+--   af_get_tasks_bonus.sql; af_update_tasks_required.sql; af_update_tasks_practice.sql;
+--   af_update_tasks_bonus.sql; af_update_tasks_checklist_items.sql.
+
+-- BaerenEd: Shared helper for reward minutes. Same rules as DailyProgressManager.convertStarsToMinutes:
+-- 1 star = 1 min, 2 stars = 3 min, 3 stars = 5 min; 4+ uses (stars/3)*5 + remainder (1->1, 2->3).
+-- Deploy this once; used by af_update_tasks_required, af_update_tasks_practice, af_update_tasks_checklist_items.
+
+CREATE OR REPLACE FUNCTION af_get_stars_to_minutes(p_stars int)
+RETURNS int
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN p_stars IS NULL OR p_stars <= 0 THEN 0
+    WHEN p_stars = 1 THEN 1
+    WHEN p_stars = 2 THEN 3
+    WHEN p_stars = 3 THEN 5
+    ELSE (p_stars/3)*5 + CASE p_stars % 3 WHEN 1 THEN 1 WHEN 2 THEN 3 ELSE 0 END
+  END
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_stars_to_minutes(int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_checklist_items.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateChecklistItemsFromConfig (RPC af_update_tasks_from_config_checklist_items).
+--   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_checklist_items(p_profile text, p_config_json jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
+  config_json jsonb;
+  http_status int;
+  existing_checklist jsonb;
+  merged_checklist jsonb;
+BEGIN
+  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
+    config_json := p_config_json;
+  ELSE
+    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
+    IF http_status != 200 OR config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_checklist_items: failed to fetch config for %', p_profile;
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO existing_checklist FROM user_data WHERE profile = p_profile;
+
+  SELECT COALESCE(
+    (
+      SELECT jsonb_object_agg(
+        it->>'label',
+        jsonb_build_object(
+          'done', COALESCE((existing_checklist->(it->>'label'))->>'done', 'false')::boolean,
+          'stars', COALESCE((it->>'stars')::int, 0),
+          'id', it->'id',
+          'showdays', it->'showdays',
+          'hidedays', it->'hidedays',
+          'displayDays', it->'displayDays',
+          'launch', to_jsonb('checklist_' || COALESCE(it->>'id', it->>'label'))
+        )
+      )
+      FROM jsonb_array_elements(config_json->'sections') AS sec
+      CROSS JOIN LATERAL jsonb_array_elements(COALESCE(sec->'items', '[]'::jsonb)) AS it
+      WHERE sec->'items' IS NOT NULL AND jsonb_array_length(COALESCE(sec->'items', '[]'::jsonb)) > 0
+    ),
+    '{}'::jsonb
+  ) INTO merged_checklist;
+
+  UPDATE user_data SET checklist_items = merged_checklist, last_updated = (NOW() AT TIME ZONE 'America/Toronto') WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_checklist_items(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_chores.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateChoresFromGitHub.
+--   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_chores(p_profile text, p_chores_json jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  chores_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/chores.json';
+  chores_json jsonb;
+  http_status int;
+  existing_chores jsonb;
+  merged_chores jsonb;
+BEGIN
+  IF p_chores_json IS NOT NULL AND p_chores_json != 'null'::jsonb AND jsonb_typeof(p_chores_json) = 'array' THEN
+    chores_json := p_chores_json;
+  ELSE
+    SELECT r.status, r.content::jsonb INTO http_status, chores_json FROM http_get(chores_url) r LIMIT 1;
+    IF http_status != 200 OR chores_json IS NULL OR jsonb_typeof(chores_json) != 'array' THEN
+      RAISE WARNING 'af_update_tasks_from_config_chores: failed to fetch chores (status %)', COALESCE(http_status, -1);
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT COALESCE(chores, '[]'::jsonb) INTO existing_chores FROM user_data WHERE profile = p_profile;
+
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'chore_id', c->'id',
+      'description', c->'description',
+      'coins_reward', c->'coins',
+      'done', COALESCE(
+        (SELECT (e->>'done')::boolean FROM jsonb_array_elements(existing_chores) e WHERE (e->>'chore_id')::int = (c->>'id')::int LIMIT 1),
+        false
+      )
+    )
+    ORDER BY (c->>'id')::int
+  ) INTO merged_chores
+  FROM jsonb_array_elements(chores_json) c;
+
+  UPDATE user_data SET chores = COALESCE(merged_chores, '[]'::jsonb), last_updated = (NOW() AT TIME ZONE 'America/Toronto') WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_chores(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_photo_chores.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdatePhotoChoresFromConfig.
+--   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+-- Invoked from (PostgreSQL, this repo sql/):
+--   af_daily_reset.sql
+
+-- BaerenEd: Merge GitHub Pages profile config section id "chores" into user_data.photo_chores.
+-- Keyed by chore id. Preserves today's status on merge. Does not grant cash, berries, or minutes.
+-- POST /rest/v1/rpc/af_update_tasks_from_config_photo_chores {"p_profile":"AM","p_config_json":{...}}
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_photo_chores(p_profile text, p_config_json jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
+  config_json jsonb;
+  http_status int;
+  existing_chores jsonb;
+  merged_chores jsonb;
+BEGIN
+  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
+    config_json := p_config_json;
+  ELSE
+    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
+    IF http_status != 200 OR config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_photo_chores: failed to fetch config for %', p_profile;
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT COALESCE(photo_chores, '{}'::jsonb) INTO existing_chores FROM user_data WHERE profile = p_profile;
+
+  SELECT COALESCE(
+    (
+      SELECT jsonb_object_agg(
+        t->>'id',
+        jsonb_build_object(
+          'status', COALESCE(existing_chores->(t->>'id')->>'status', 'incomplete'),
+          'title', t->>'title',
+          'description', t->>'description',
+          'rewardCash', t->'rewardCash',
+          'launch', COALESCE(NULLIF(TRIM(t->>'launch'), ''), 'chorePhoto'),
+          'url', t->>'url',
+          'webGame', t->'webGame',
+          'showdays', t->>'showdays',
+          'hidedays', t->>'hidedays',
+          'displayDays', t->>'displayDays',
+          'disable', t->>'disable'
+        )
+      )
+      FROM jsonb_array_elements(config_json->'sections') AS sec,
+           jsonb_array_elements(COALESCE(sec->'tasks', '[]'::jsonb)) AS t
+      WHERE sec->>'id' = 'chores'
+        AND NULLIF(TRIM(COALESCE(t->>'id', '')), '') IS NOT NULL
+    ),
+    '{}'::jsonb
+  ) INTO merged_chores;
+
+  UPDATE user_data SET
+    photo_chores = merged_chores,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_photo_chores(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_practice.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdatePracticeTasksFromConfig.
+--   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+--
+-- After merging GitHub optional tasks into practice_tasks: if every task **visible today** is already
+-- complete (same visibility + completion rules as af_get_tasks_practice), set completed=false on all
+-- merged keys so the round can repeat. Matches the post-completion reset in af_update_tasks_practice and
+-- fixes stuck maps when that RPC never ran (e.g. old DB function) — training map load always runs this merge.
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_practice(p_profile text, p_config_json jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
+  config_json jsonb;
+  http_status int;
+  existing_practice jsonb;
+  merged_practice jsonb;
+BEGIN
+  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
+    config_json := p_config_json;
+  ELSE
+    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
+    IF http_status != 200 OR config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_practice: failed to fetch config for %', p_profile;
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT COALESCE(practice_tasks, '{}'::jsonb) INTO existing_practice FROM user_data WHERE profile = p_profile;
+
+  SELECT COALESCE(
+    (
+      SELECT jsonb_object_agg(
+        t->>'title',
+        jsonb_build_object(
+          'times_completed', COALESCE((existing_practice->(t->>'title'))->>'times_completed', '0')::int,
+          'completed', COALESCE(existing_practice->(t->>'title')->'completed', to_jsonb(false)),
+          'correct', existing_practice->(t->>'title')->'correct',
+          'incorrect', existing_practice->(t->>'title')->'incorrect',
+          'questions_answered', existing_practice->(t->>'title')->'questions_answered',
+          'stars', t->'stars',
+          'launch', t->'launch',
+          'url', t->'url',
+          'webGame', t->'webGame',
+          'chromePage', t->'chromePage',
+          'videoSequence', t->'videoSequence',
+          'video', t->'video',
+          'playlistId', t->'playlistId',
+          'blockOutlines', t->'blockOutlines',
+          'rewardId', t->'rewardId',
+          'totalQuestions', t->'totalQuestions',
+          'easy', t->'easy',
+          'easydays', t->'easydays',
+          'harddays', t->'harddays',
+          'extremedays', t->'extremedays',
+          'showdays', t->'showdays',
+          'hidedays', t->'hidedays',
+          'displayDays', t->'displayDays',
+          'disable', t->'disable'
+        )
+      )
+      FROM jsonb_array_elements(config_json->'sections') AS sec,
+           jsonb_array_elements(COALESCE(sec->'tasks', '[]'::jsonb)) AS t
+      WHERE sec->>'id' = 'optional'
+    ),
+    '{}'::jsonb
+  ) INTO merged_practice;
+
+  -- Visible-today round reset (aligned with af_get_tasks_practice + af_update_tasks_practice).
+  IF EXISTS (SELECT 1 FROM jsonb_each(merged_practice))
+     AND (
+       WITH p AS (
+         SELECT
+           merged_practice AS v_tasks,
+           (now() AT TIME ZONE 'America/Toronto')::date AS v_today_date,
+           lower(to_char((now() AT TIME ZONE 'America/Toronto'), 'Dy')) AS v_today_short
+       ),
+       vis AS (
+         SELECT
+           e.key,
+           e.value,
+           CASE
+             WHEN (e.value ? 'completed') THEN COALESCE((e.value->>'completed')::boolean, false)
+             ELSE COALESCE((e.value->>'times_completed')::int, 0) > 0
+           END AS is_done
+         FROM p
+         CROSS JOIN jsonb_each(p.v_tasks) AS e(key, value)
+         WHERE
+           NOT (
+             NULLIF(TRIM(COALESCE(e.value->>'disable', '')), '') IS NOT NULL
+             AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+             AND p.v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+           )
+           AND NOT EXISTS (
+             SELECT 1
+             FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+             WHERE d.day_token = p.v_today_short
+           )
+           AND (
+             NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+             OR EXISTS (
+               SELECT 1
+               FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+               WHERE d.day_token = p.v_today_short
+             )
+           )
+           AND (
+             NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NOT NULL
+             OR NULLIF(TRIM(COALESCE(e.value->>'showdays', '')), '') IS NULL
+             OR EXISTS (
+               SELECT 1
+               FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+               WHERE d.day_token = p.v_today_short
+             )
+           )
+       )
+       SELECT (SELECT COUNT(*)::int FROM vis) > 0
+              AND NOT EXISTS (SELECT 1 FROM vis WHERE NOT vis.is_done)
+     )
+  THEN
+    SELECT jsonb_object_agg(
+      e.key,
+      e.value || jsonb_build_object('completed', false)
+    )
+    INTO merged_practice
+    FROM jsonb_each(merged_practice) AS e;
+  END IF;
+
+  UPDATE user_data SET
+    practice_tasks = merged_practice,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_practice(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_bonus.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateBonusTasksFromConfig.
+--   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_bonus(p_profile text, p_config_json jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
+  config_json jsonb;
+  http_status int;
+  existing_bonus jsonb;
+  merged_bonus jsonb;
+BEGIN
+  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
+    config_json := p_config_json;
+  ELSE
+    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
+    IF http_status != 200 OR config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_bonus: failed to fetch config for %', p_profile;
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT COALESCE(bonus_tasks, '{}'::jsonb) INTO existing_bonus FROM user_data WHERE profile = p_profile;
+
+  SELECT COALESCE(
+    (
+      SELECT jsonb_object_agg(
+        t->>'title',
+        jsonb_build_object(
+          'times_completed', COALESCE((existing_bonus->(t->>'title'))->>'times_completed', '0')::int,
+          'correct', existing_bonus->(t->>'title')->'correct',
+          'incorrect', existing_bonus->(t->>'title')->'incorrect',
+          'questions_answered', existing_bonus->(t->>'title')->'questions_answered',
+          'stars', t->'stars',
+          'launch', t->'launch',
+          'url', t->'url',
+          'webGame', t->'webGame',
+          'chromePage', t->'chromePage',
+          'videoSequence', t->'videoSequence',
+          'video', t->'video',
+          'playlistId', t->'playlistId',
+          'blockOutlines', t->'blockOutlines',
+          'rewardId', t->'rewardId',
+          'totalQuestions', t->'totalQuestions',
+          'easy', t->'easy',
+          'easydays', t->'easydays',
+          'harddays', t->'harddays',
+          'extremedays', t->'extremedays',
+          'showdays', t->'showdays',
+          'hidedays', t->'hidedays',
+          'displayDays', t->'displayDays',
+          'disable', t->'disable'
+        )
+      )
+      FROM jsonb_array_elements(config_json->'sections') AS sec,
+           jsonb_array_elements(COALESCE(sec->'tasks', '[]'::jsonb)) AS t
+      WHERE sec->>'id' = 'bonus'
+    ),
+    '{}'::jsonb
+  ) INTO merged_bonus;
+
+  UPDATE user_data SET
+    bonus_tasks = merged_bonus,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_bonus(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_story_read_assigned_today.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   sql/af_get_tasks_required.sql
+--   sql/af_update_tasks_from_config_required.sql
+--   sql/af_get_current_required_tasks.sql
+
+-- storyRead task.url: bookId?start=YYYY-MM-DD&days=0,1-3,4-8
+-- p_next_page is game_indices['storyRead_<bookId>'] (0/missing = 1).
+-- Returns true when the kid has a non-empty catch-up session today, or the schedule is past.
+
+DROP FUNCTION IF EXISTS af_story_read_assigned_today(text, date, int);
+
+CREATE OR REPLACE FUNCTION af_story_read_assigned_today(
+  p_url text,
+  p_today date,
+  p_next_page int
+)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  v_q text;
+  v_start text;
+  v_days text;
+  v_start_date date;
+  v_day_index int;
+  v_next int;
+  v_due_end int := 0;
+  v_token text;
+  v_end int;
+  v_i int;
+  v_days_arr text[];
+  v_dash int;
+  v_n int;
+BEGIN
+  IF p_url IS NULL OR btrim(p_url) = '' THEN
+    RETURN true;
+  END IF;
+  v_next := COALESCE(NULLIF(p_next_page, 0), 1);
+  v_q := substring(p_url from '\?(.*)$');
+  IF v_q IS NULL OR v_q = '' THEN
+    RETURN true;
+  END IF;
+
+  v_start := (regexp_match(v_q, '(?:^|&)start=([^&]*)'))[1];
+  v_days := (regexp_match(v_q, '(?:^|&)days=([^&]*)'))[1];
+
+  IF v_days IS NULL OR btrim(v_days) = '' THEN
+    RETURN true;
+  END IF;
+
+  IF v_start IS NOT NULL AND btrim(v_start) <> '' THEN
+    BEGIN
+      v_start_date := v_start::date;
+    EXCEPTION WHEN others THEN
+      v_start_date := NULL;
+    END;
+  END IF;
+
+  IF v_start_date IS NOT NULL AND p_today < v_start_date THEN
+    RETURN false;
+  END IF;
+
+  v_days_arr := string_to_array(v_days, ',');
+  v_n := COALESCE(array_length(v_days_arr, 1), 0);
+
+  IF v_start_date IS NULL THEN
+    v_day_index := GREATEST(v_n - 1, 0);
+  ELSE
+    v_day_index := (p_today - v_start_date);
+  END IF;
+
+  IF v_day_index >= v_n THEN
+    RETURN true;
+  END IF;
+
+  FOR v_i IN 1..LEAST(v_day_index + 1, v_n) LOOP
+    v_token := btrim(COALESCE(v_days_arr[v_i], ''));
+    IF v_token = '' OR v_token = '0' THEN
+      CONTINUE;
+    END IF;
+    v_dash := position('-' in v_token);
+    BEGIN
+      IF v_dash > 0 THEN
+        v_end := substring(v_token from v_dash + 1)::int;
+      ELSE
+        v_end := v_token::int;
+      END IF;
+    EXCEPTION WHEN others THEN
+      v_end := 0;
+    END;
+    IF v_end > v_due_end THEN
+      v_due_end := v_end;
+    END IF;
+  END LOOP;
+
+  RETURN v_due_end >= v_next;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_story_read_assigned_today(text, date, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_required.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateRequiredTasksFromConfig.
+--   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_required(p_profile text, p_config_json jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
+  config_json jsonb;
+  http_status int;
+  existing_required jsonb;
+  merged_required jsonb;
+  merged_checklist jsonb;
+  v_today_short text := lower(to_char((NOW() AT TIME ZONE 'America/Toronto'), 'Dy'));
+  v_today_date date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  v_required_possible_stars int := 0;
+  v_checklist_possible_stars int := 0;
+  v_possible_stars int := 0;
+  v_game_indices jsonb;
+BEGIN
+  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
+    config_json := p_config_json;
+  ELSE
+    SELECT r.status, r.content::jsonb INTO http_status, config_json
+    FROM http_get(github_url) r
+    LIMIT 1;
+    IF http_status != 200 OR config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_required: failed to fetch config for % (status %, content null)', p_profile, COALESCE(http_status, -1);
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT COALESCE(required_tasks, '{}'::jsonb), COALESCE(game_indices, '{}'::jsonb)
+  INTO existing_required, v_game_indices
+  FROM user_data
+  WHERE profile = p_profile;
+
+  SELECT COALESCE(
+    (
+      SELECT jsonb_object_agg(
+        t->>'title',
+        jsonb_build_object(
+          'status', COALESCE((existing_required->(t->>'title'))->>'status', 'incomplete'),
+          'correct', existing_required->(t->>'title')->'correct',
+          'incorrect', existing_required->(t->>'title')->'incorrect',
+          'questions', existing_required->(t->>'title')->'questions',
+          'stars', t->'stars',
+          'launch', t->'launch',
+          'url', t->'url',
+          'webGame', t->'webGame',
+          'chromePage', t->'chromePage',
+          'videoSequence', t->'videoSequence',
+          'video', t->'video',
+          'playlistId', t->'playlistId',
+          'blockOutlines', t->'blockOutlines',
+          'rewardId', t->'rewardId',
+          'totalQuestions', t->'totalQuestions',
+          'easy', t->'easy',
+          'easydays', t->'easydays',
+          'harddays', t->'harddays',
+          'extremedays', t->'extremedays',
+          'showdays', t->'showdays',
+          'hidedays', t->'hidedays',
+          'displayDays', t->'displayDays',
+          'disable', t->'disable'
+        )
+      )
+      FROM jsonb_array_elements(config_json->'sections') AS sec,
+           jsonb_array_elements(COALESCE(sec->'tasks', '[]'::jsonb)) AS t
+      WHERE sec->>'id' = 'required'
+    ),
+    '{}'::jsonb
+  ) INTO merged_required;
+
+  PERFORM af_update_tasks_from_config_checklist_items(p_profile, config_json);
+
+  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO merged_checklist
+  FROM user_data
+  WHERE profile = p_profile;
+
+  SELECT COALESCE(SUM(COALESCE((e.value->>'stars')::int, 0)), 0)
+  INTO v_required_possible_stars
+  FROM jsonb_each(COALESCE(merged_required, '{}'::jsonb)) AS e(key, value)
+  WHERE
+    NOT (
+      NULLIF(TRIM(COALESCE(e.value->>'disable', '')), '') IS NOT NULL
+      AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+      AND v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+      WHERE d.day_token = v_today_short
+    )
+    AND (
+      NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = v_today_short
+      )
+    )
+    AND (
+      NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NOT NULL
+      OR NULLIF(TRIM(COALESCE(e.value->>'showdays', '')), '') IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = v_today_short
+      )
+    )
+    AND (
+      COALESCE(e.value->>'launch', '') IS DISTINCT FROM 'storyRead'
+      OR COALESCE(e.value->>'status', '') = 'complete'
+      OR af_story_read_assigned_today(
+           e.value->>'url',
+           v_today_date,
+           COALESCE(
+             (COALESCE(v_game_indices, '{}'::jsonb) ->> ('storyRead_' || split_part(COALESCE(e.value->>'url', ''), '?', 1)))::int,
+             0
+           )
+         )
+    );
+
+  SELECT COALESCE(SUM(COALESCE((e.value->>'stars')::int, 0)), 0)
+  INTO v_checklist_possible_stars
+  FROM jsonb_each(COALESCE(merged_checklist, '{}'::jsonb)) AS e(key, value)
+  WHERE
+    NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+    OR EXISTS (
+      SELECT 1
+      FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+      WHERE d.day_token = v_today_short
+    );
+
+  v_possible_stars := v_required_possible_stars + v_checklist_possible_stars;
+
+  UPDATE user_data
+  SET
+    required_tasks = merged_required,
+    possible_stars = v_possible_stars,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_required(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_daily_reset.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfDailyReset.
+--   app/src/main/java/com/talq2me/baerened/UserDataRepository.kt  -  fetchUserData before download.
+
+-- BaerenEd: Daily reset applied at read time (AF = "at fetch").
+-- Call this before reading user_data so the row for the given profile with last_reset date not equal to today (Toronto time)
+-- gets reset: blank required_tasks, checklist_items, practice_tasks, berries_earned, banked_mins, chores, photo_chores;
+-- set last_reset and last_updated to now() in America/Toronto. Does not change coins_earned, pokemon_unlocked, game_indices.
+-- When a reset row was updated (FOUND), repopulates task/chore columns from GitHub via af_update_*
+-- (full implementations are in the per-function af_update_* files in sql/).
+-- Run in Supabase SQL Editor once to create the function; then call via PostgREST: POST /rest/v1/rpc/af_daily_reset with body {"p_profile": "AM"}
+
+CREATE OR REPLACE FUNCTION af_daily_reset(p_profile text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  today_est date;
+BEGIN
+  today_est := (NOW() AT TIME ZONE 'America/Toronto')::date;
+
+  UPDATE user_data
+  SET
+    last_reset = (NOW() AT TIME ZONE 'America/Toronto'),
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto'),
+    required_tasks = '{}'::jsonb,
+    checklist_items = '{}'::jsonb,
+    practice_tasks = '{}'::jsonb,
+    bonus_tasks = '{}'::jsonb,
+    berries_earned = 0,
+    banked_mins = 0,
+    reward_time_expiry = NULL,
+    prize_unlocked = NULL,
+    chores = '[]'::jsonb,
+    photo_chores = '{}'::jsonb
+  WHERE profile = p_profile
+    AND (last_reset IS NULL OR last_reset::date IS DISTINCT FROM today_est);
+
+  IF FOUND THEN
+    PERFORM af_update_tasks_from_config_required(p_profile);
+    PERFORM af_update_tasks_from_config_practice(p_profile);
+    PERFORM af_update_tasks_from_config_bonus(p_profile);
+    PERFORM af_update_tasks_from_config_chores(p_profile);
+    PERFORM af_update_tasks_from_config_photo_chores(p_profile);
+  END IF;
+END;
+$$;
+
+-- Grant execute to anon and authenticated so Supabase API can call it
+GRANT EXECUTE ON FUNCTION af_daily_reset(text) TO anon;
+GRANT EXECUTE ON FUNCTION af_daily_reset(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION af_daily_reset(text) TO service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_current_required_tasks.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   (no Kotlin string match for this RPC name in this repo  -  optional / legacy / manual PostgREST.)
+-- Invoked from (PostgreSQL, this repo sql/):
+--   Uses af_get_stars_to_minutes; may be referenced by older DB setups or tooling.
+
+-- BaerenEd: Today's visible required tasks + checklist items from user_data.
+-- One row per task (required + visible checklist), sorted by name.
+--
+-- Columns (real table columns for PostgREST / SELECT * — not one json blob):
+--   task_name          — key in required_tasks or checklist_items JSON
+--   completion_status  — 'complete' | 'incomplete'
+--   berry_value        — stars for that task
+--   mins_value         — af_get_stars_to_minutes(stars)
+--
+-- Call:
+--   POST /rest/v1/rpc/af_get_current_required_tasks {"p_profile":"AM"}
+--   Or: SELECT * FROM af_get_current_required_tasks('AM');
+
+DROP FUNCTION IF EXISTS af_get_current_required_tasks(text);
+
+CREATE OR REPLACE FUNCTION af_get_current_required_tasks(p_profile text)
+RETURNS TABLE (
+  task_name text,
+  completion_status text,
+  berry_value int,
+  mins_value int
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH params AS (
+    SELECT
+      COALESCE(ud.required_tasks, '{}'::jsonb) AS v_required,
+      COALESCE(ud.checklist_items, '{}'::jsonb) AS v_checklist,
+      COALESCE(ud.game_indices, '{}'::jsonb) AS v_game_indices,
+      lower(to_char((now() AT TIME ZONE 'America/Toronto'), 'Dy')) AS v_today_short,
+      (now() AT TIME ZONE 'America/Toronto')::date AS v_today_date
+    FROM (SELECT 1) AS _one
+    LEFT JOIN user_data ud ON ud.profile = p_profile
+  ),
+  visible_required AS (
+    SELECT
+      e.key AS item_name,
+      coalesce(e.value->>'status', 'incomplete') AS status_text,
+      coalesce((e.value->>'stars')::int, 0) AS stars
+    FROM params p
+    CROSS JOIN jsonb_each(p.v_required) AS e(key, value)
+    WHERE
+      NOT (
+        nullif(trim(coalesce(e.value->>'disable', '')), '') IS NOT NULL
+        AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+        AND p.v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(coalesce(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = p.v_today_short
+      )
+      AND (
+        nullif(trim(coalesce(e.value->>'displayDays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(coalesce(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+      AND (
+        nullif(trim(coalesce(e.value->>'displayDays', '')), '') IS NOT NULL
+        OR nullif(trim(coalesce(e.value->>'showdays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(coalesce(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+      AND (
+        COALESCE(e.value->>'launch', '') IS DISTINCT FROM 'storyRead'
+        OR COALESCE(e.value->>'status', '') = 'complete'
+        OR af_story_read_assigned_today(
+             e.value->>'url',
+             p.v_today_date,
+             COALESCE(
+               (p.v_game_indices ->> ('storyRead_' || split_part(COALESCE(e.value->>'url', ''), '?', 1)))::int,
+               0
+             )
+           )
+      )
+  ),
+  visible_checklist AS (
+    SELECT
+      e.key AS item_name,
+      CASE WHEN coalesce((e.value->>'done')::boolean, false) THEN 'complete' ELSE 'incomplete' END AS status_text,
+      coalesce((e.value->>'stars')::int, 0) AS stars
+    FROM params p
+    CROSS JOIN jsonb_each(p.v_checklist) AS e(key, value)
+    WHERE
+      nullif(trim(coalesce(e.value->>'displayDays', '')), '') IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(coalesce(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = p.v_today_short
+      )
+  ),
+  combined AS (
+    SELECT item_name, status_text, stars FROM visible_required
+    UNION ALL
+    SELECT item_name, status_text, stars FROM visible_checklist
+  )
+  SELECT
+    c.item_name::text AS task_name,
+    c.status_text::text AS completion_status,
+    c.stars::int AS berry_value,
+    af_get_stars_to_minutes(c.stars)::int AS mins_value
+  FROM combined c
+  ORDER BY c.item_name;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_current_required_tasks(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_tasks_required.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetRequiredTasksRows (invokeRpcProfileReturningJsonArray "af_get_tasks_required").
+--   app/src/main/java/com/talq2me/baerened/TrainerMapTaskMerge.kt  -  prepareFromDbStrict.
+
+-- BaerenEd: Required + checklist task rows from user_data JSON (trainer map).
+-- POST /rest/v1/rpc/af_get_tasks_required {"p_profile":"AM"}
+
+DROP FUNCTION IF EXISTS af_get_tasks_required_v2(text);
+DROP FUNCTION IF EXISTS af_get_tasks_required(text);
+
+CREATE OR REPLACE FUNCTION af_get_tasks_required(p_profile text)
+RETURNS TABLE (
+  task_name text,
+  completion_status text,
+  berry_value int,
+  mins_value int,
+  launch text,
+  url text,
+  web_game boolean,
+  chrome_page boolean,
+  video_sequence text,
+  playlist_id text,
+  total_questions int,
+  reward_id text,
+  easy boolean,
+  easydays text,
+  harddays text,
+  extremedays text,
+  block_outlines boolean,
+  is_checklist boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH params AS (
+    SELECT
+      COALESCE(ud.required_tasks, '{}'::jsonb) AS v_required,
+      COALESCE(ud.checklist_items, '{}'::jsonb) AS v_checklist,
+      COALESCE(ud.game_indices, '{}'::jsonb) AS v_game_indices,
+      lower(to_char((now() AT TIME ZONE 'America/Toronto'), 'Dy')) AS v_today_short,
+      (now() AT TIME ZONE 'America/Toronto')::date AS v_today_date
+    FROM (SELECT 1) AS _one
+    LEFT JOIN user_data ud ON ud.profile = p_profile
+  ),
+  visible_required AS (
+    SELECT
+      e.key::text AS task_name,
+      COALESCE(e.value->>'status', 'incomplete')::text AS completion_status,
+      COALESCE((e.value->>'stars')::int, 0) AS berry_value,
+      (e.value->>'launch')::text AS launch,
+      (e.value->>'url')::text AS url,
+      COALESCE((e.value->>'webGame')::boolean, false) AS web_game,
+      COALESCE((e.value->>'chromePage')::boolean, false) AS chrome_page,
+      (e.value->>'videoSequence')::text AS video_sequence,
+      (e.value->>'playlistId')::text AS playlist_id,
+      (e.value->>'totalQuestions')::int AS total_questions,
+      (e.value->>'rewardId')::text AS reward_id,
+      COALESCE((e.value->>'easy')::boolean, false) AS easy,
+      (e.value->>'easydays')::text AS easydays,
+      (e.value->>'harddays')::text AS harddays,
+      (e.value->>'extremedays')::text AS extremedays,
+      COALESCE((e.value->>'blockOutlines')::boolean, false) AS block_outlines,
+      false AS is_checklist
+    FROM params p
+    CROSS JOIN jsonb_each(p.v_required) AS e(key, value)
+    WHERE
+      NOT (
+        NULLIF(TRIM(COALESCE(e.value->>'disable', '')), '') IS NOT NULL
+        AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+        AND p.v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = p.v_today_short
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NOT NULL
+        OR NULLIF(TRIM(COALESCE(e.value->>'showdays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+      AND (
+        COALESCE(e.value->>'launch', '') IS DISTINCT FROM 'storyRead'
+        OR COALESCE(e.value->>'status', '') = 'complete'
+        OR af_story_read_assigned_today(
+             e.value->>'url',
+             p.v_today_date,
+             COALESCE(
+               (p.v_game_indices ->> ('storyRead_' || split_part(COALESCE(e.value->>'url', ''), '?', 1)))::int,
+               0
+             )
+           )
+      )
+  ),
+  visible_checklist AS (
+    SELECT
+      e.key::text AS task_name,
+      CASE WHEN COALESCE((e.value->>'done')::boolean, false) THEN 'complete' ELSE 'incomplete' END AS completion_status,
+      COALESCE((e.value->>'stars')::int, 0) AS berry_value,
+      COALESCE((e.value->>'launch')::text, 'checklist_' || COALESCE(NULLIF(e.value->>'id', ''), e.key)) AS launch,
+      NULL::text AS url,
+      false AS web_game,
+      false AS chrome_page,
+      NULL::text AS video_sequence,
+      NULL::text AS playlist_id,
+      NULL::int AS total_questions,
+      NULL::text AS reward_id,
+      false AS easy,
+      NULL::text AS easydays,
+      NULL::text AS harddays,
+      NULL::text AS extremedays,
+      false AS block_outlines,
+      true AS is_checklist
+    FROM params p
+    CROSS JOIN jsonb_each(p.v_checklist) AS e(key, value)
+    WHERE
+      NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = p.v_today_short
+      )
+  )
+  SELECT
+    v.task_name,
+    v.completion_status,
+    v.berry_value,
+    af_get_stars_to_minutes(v.berry_value)::int AS mins_value,
+    v.launch,
+    v.url,
+    v.web_game,
+    v.chrome_page,
+    v.video_sequence,
+    v.playlist_id,
+    v.total_questions,
+    v.reward_id,
+    v.easy,
+    v.easydays,
+    v.harddays,
+    v.extremedays,
+    v.block_outlines,
+    v.is_checklist
+  FROM (
+    SELECT * FROM visible_required
+    UNION ALL
+    SELECT * FROM visible_checklist
+  ) v
+  ORDER BY v.task_name;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_tasks_required(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_tasks_practice.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetPracticeTasksRows ("af_get_tasks_practice").
+--   app/src/main/java/com/talq2me/baerened/TrainerMapTaskMerge.kt  -  prepareFromDbStrict.
+
+-- BaerenEd: Practice (optional map) task rows from user_data JSON.
+-- completion_status: uses practice_tasks.<title>.completed when that key exists (matches af_update_tasks_practice);
+--   otherwise legacy rule times_completed > 0.
+-- POST /rest/v1/rpc/af_get_tasks_practice {"p_profile":"AM"}
+
+DROP FUNCTION IF EXISTS af_get_tasks_practice_v2(text);
+
+CREATE OR REPLACE FUNCTION af_get_tasks_practice(p_profile text)
+RETURNS TABLE (
+  task_name text,
+  completion_status text,
+  berry_value int,
+  mins_value int,
+  launch text,
+  url text,
+  web_game boolean,
+  chrome_page boolean,
+  video_sequence text,
+  playlist_id text,
+  total_questions int,
+  reward_id text,
+  easy boolean,
+  easydays text,
+  harddays text,
+  extremedays text,
+  block_outlines boolean,
+  is_checklist boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH params AS (
+    SELECT
+      COALESCE(ud.practice_tasks, '{}'::jsonb) AS v_tasks,
+      lower(to_char((now() AT TIME ZONE 'America/Toronto'), 'Dy')) AS v_today_short,
+      (now() AT TIME ZONE 'America/Toronto')::date AS v_today_date
+    FROM (SELECT 1) AS _one
+    LEFT JOIN user_data ud ON ud.profile = p_profile
+  ),
+  visible AS (
+    SELECT
+      e.key::text AS task_name,
+      CASE
+        WHEN (e.value ? 'completed') THEN
+          CASE WHEN COALESCE((e.value->>'completed')::boolean, false) THEN 'complete' ELSE 'incomplete' END
+        ELSE
+          CASE WHEN COALESCE((e.value->>'times_completed')::int, 0) > 0 THEN 'complete' ELSE 'incomplete' END
+      END AS completion_status,
+      COALESCE((e.value->>'stars')::int, 0) AS berry_value,
+      (e.value->>'launch')::text AS launch,
+      (e.value->>'url')::text AS url,
+      COALESCE((e.value->>'webGame')::boolean, false) AS web_game,
+      COALESCE((e.value->>'chromePage')::boolean, false) AS chrome_page,
+      (e.value->>'videoSequence')::text AS video_sequence,
+      (e.value->>'playlistId')::text AS playlist_id,
+      (e.value->>'totalQuestions')::int AS total_questions,
+      (e.value->>'rewardId')::text AS reward_id,
+      COALESCE((e.value->>'easy')::boolean, false) AS easy,
+      (e.value->>'easydays')::text AS easydays,
+      (e.value->>'harddays')::text AS harddays,
+      (e.value->>'extremedays')::text AS extremedays,
+      COALESCE((e.value->>'blockOutlines')::boolean, false) AS block_outlines,
+      false AS is_checklist
+    FROM params p
+    CROSS JOIN jsonb_each(p.v_tasks) AS e(key, value)
+    WHERE
+      NOT (
+        NULLIF(TRIM(COALESCE(e.value->>'disable', '')), '') IS NOT NULL
+        AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+        AND p.v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = p.v_today_short
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NOT NULL
+        OR NULLIF(TRIM(COALESCE(e.value->>'showdays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+  )
+  SELECT
+    v.task_name,
+    v.completion_status,
+    v.berry_value,
+    af_get_stars_to_minutes(v.berry_value)::int AS mins_value,
+    v.launch,
+    v.url,
+    v.web_game,
+    v.chrome_page,
+    v.video_sequence,
+    v.playlist_id,
+    v.total_questions,
+    v.reward_id,
+    v.easy,
+    v.easydays,
+    v.harddays,
+    v.extremedays,
+    v.block_outlines,
+    v.is_checklist
+  FROM visible v
+  ORDER BY v.task_name;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_tasks_practice(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_tasks_bonus.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetBonusTasksRows ("af_get_tasks_bonus").
+--   app/src/main/java/com/talq2me/baerened/TrainerMapTaskMerge.kt  -  prepareFromDbStrict.
+
+-- BaerenEd: Bonus map task rows from user_data JSON.
+-- POST /rest/v1/rpc/af_get_tasks_bonus {"p_profile":"AM"}
+
+DROP FUNCTION IF EXISTS af_get_tasks_bonus_v2(text);
+
+CREATE OR REPLACE FUNCTION af_get_tasks_bonus(p_profile text)
+RETURNS TABLE (
+  task_name text,
+  completion_status text,
+  berry_value int,
+  mins_value int,
+  launch text,
+  url text,
+  web_game boolean,
+  chrome_page boolean,
+  video_sequence text,
+  playlist_id text,
+  total_questions int,
+  reward_id text,
+  easy boolean,
+  easydays text,
+  harddays text,
+  extremedays text,
+  block_outlines boolean,
+  is_checklist boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH params AS (
+    SELECT
+      COALESCE(ud.bonus_tasks, '{}'::jsonb) AS v_tasks,
+      lower(to_char((now() AT TIME ZONE 'America/Toronto'), 'Dy')) AS v_today_short,
+      (now() AT TIME ZONE 'America/Toronto')::date AS v_today_date
+    FROM (SELECT 1) AS _one
+    LEFT JOIN user_data ud ON ud.profile = p_profile
+  ),
+  visible AS (
+    -- Bonus tasks are always playable: they never show as complete/disabled, regardless of times_completed.
+    SELECT
+      e.key::text AS task_name,
+      'incomplete'::text AS completion_status,
+      COALESCE((e.value->>'stars')::int, 0) AS berry_value,
+      (e.value->>'launch')::text AS launch,
+      (e.value->>'url')::text AS url,
+      COALESCE((e.value->>'webGame')::boolean, false) AS web_game,
+      COALESCE((e.value->>'chromePage')::boolean, false) AS chrome_page,
+      (e.value->>'videoSequence')::text AS video_sequence,
+      (e.value->>'playlistId')::text AS playlist_id,
+      (e.value->>'totalQuestions')::int AS total_questions,
+      (e.value->>'rewardId')::text AS reward_id,
+      COALESCE((e.value->>'easy')::boolean, false) AS easy,
+      (e.value->>'easydays')::text AS easydays,
+      (e.value->>'harddays')::text AS harddays,
+      (e.value->>'extremedays')::text AS extremedays,
+      COALESCE((e.value->>'blockOutlines')::boolean, false) AS block_outlines,
+      false AS is_checklist
+    FROM params p
+    CROSS JOIN jsonb_each(p.v_tasks) AS e(key, value)
+    WHERE
+      NOT (
+        NULLIF(TRIM(COALESCE(e.value->>'disable', '')), '') IS NOT NULL
+        AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+        AND p.v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = p.v_today_short
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NOT NULL
+        OR NULLIF(TRIM(COALESCE(e.value->>'showdays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+  )
+  SELECT
+    v.task_name,
+    v.completion_status,
+    v.berry_value,
+    af_get_stars_to_minutes(v.berry_value)::int AS mins_value,
+    v.launch,
+    v.url,
+    v.web_game,
+    v.chrome_page,
+    v.video_sequence,
+    v.playlist_id,
+    v.total_questions,
+    v.reward_id,
+    v.easy,
+    v.easydays,
+    v.harddays,
+    v.extremedays,
+    v.block_outlines,
+    v.is_checklist
+  FROM visible v
+  ORDER BY v.task_name;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_tasks_bonus(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_tasks_photo_chores.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetPhotoChoreTasksRows.
+--   app/src/main/java/com/talq2me/baerened/TrainerMapTaskMerge.kt  -  prepareFromDbStrict.
+
+-- BaerenEd: Today's visible photo-chore rows from user_data.photo_chores (trainer map).
+-- Same day filters as af_get_tasks_required (disable / hidedays / displayDays / showdays).
+-- POST /rest/v1/rpc/af_get_tasks_photo_chores {"p_profile":"AM"}
+
+CREATE OR REPLACE FUNCTION af_get_tasks_photo_chores(p_profile text)
+RETURNS TABLE (
+  task_name text,
+  chore_id text,
+  description text,
+  reward_cash numeric,
+  completion_status text,
+  berry_value int,
+  mins_value int,
+  launch text,
+  url text,
+  web_game boolean,
+  chrome_page boolean,
+  video_sequence text,
+  playlist_id text,
+  total_questions int,
+  reward_id text,
+  easy boolean,
+  easydays text,
+  harddays text,
+  extremedays text,
+  block_outlines boolean,
+  is_checklist boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH params AS (
+    SELECT
+      COALESCE(ud.photo_chores, '{}'::jsonb) AS v_chores,
+      lower(to_char((now() AT TIME ZONE 'America/Toronto'), 'Dy')) AS v_today_short,
+      (now() AT TIME ZONE 'America/Toronto')::date AS v_today_date
+    FROM (SELECT 1) AS _one
+    LEFT JOIN user_data ud ON ud.profile = p_profile
+  ),
+  visible AS (
+    SELECT
+      COALESCE(NULLIF(TRIM(e.value->>'title'), ''), e.key::text) AS task_name,
+      e.key::text AS chore_id,
+      (e.value->>'description')::text AS description,
+      COALESCE((e.value->>'rewardCash')::numeric, 0) AS reward_cash,
+      COALESCE(e.value->>'status', 'incomplete')::text AS completion_status,
+      COALESCE(NULLIF(TRIM(e.value->>'launch'), ''), 'chorePhoto') AS launch,
+      NULLIF(TRIM(e.value->>'url'), '') AS url,
+      CASE
+        WHEN jsonb_typeof(e.value->'webGame') = 'boolean' THEN (e.value->>'webGame')::boolean
+        WHEN lower(COALESCE(e.value->>'webGame', '')) IN ('true', '1') THEN true
+        ELSE false
+      END AS web_game
+    FROM params p
+    CROSS JOIN jsonb_each(p.v_chores) AS e(key, value)
+    WHERE
+      NOT (
+        NULLIF(TRIM(COALESCE(e.value->>'disable', '')), '') IS NOT NULL
+        AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+        AND p.v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+        WHERE d.day_token = p.v_today_short
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+      AND (
+        NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NOT NULL
+        OR NULLIF(TRIM(COALESCE(e.value->>'showdays', '')), '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+          WHERE d.day_token = p.v_today_short
+        )
+      )
+  )
+  SELECT
+    v.task_name,
+    v.chore_id,
+    v.description,
+    v.reward_cash,
+    v.completion_status,
+    0 AS berry_value,
+    0 AS mins_value,
+    v.launch,
+    v.url,
+    v.web_game,
+    false AS chrome_page,
+    NULL::text AS video_sequence,
+    NULL::text AS playlist_id,
+    NULL::int AS total_questions,
+    NULL::text AS reward_id,
+    false AS easy,
+    NULL::text AS easydays,
+    NULL::text AS harddays,
+    NULL::text AS extremedays,
+    false AS block_outlines,
+    false AS is_checklist
+  FROM visible v
+  ORDER BY v.task_name;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_tasks_photo_chores(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_battle_hub_counts.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetBattleHubCounts.
+--   app/src/main/java/com/talq2me/baerened/BattleHubActivity.kt  -  hub counts.
+--   SupabaseInterface.invokeAddRewardTime  -  fallback path reads hub after failed af_reward_time_add.
+
+-- BaerenEd: Single JSON payload for Battle Hub (stars, berries, banked reward time, coins, pokemon, active reward expiry).
+-- POST /rest/v1/rpc/af_get_battle_hub_counts {"p_profile":"AM"}
+
+CREATE OR REPLACE FUNCTION af_get_battle_hub_counts(p_profile text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    (
+      SELECT jsonb_build_object(
+        'possible_stars', COALESCE(ud.possible_stars, 0),
+        'berries_earned', COALESCE(ud.berries_earned, 0),
+        'banked_mins', COALESCE(ud.banked_mins, 0),
+        'coins_earned', COALESCE(ud.coins_earned, 0),
+        'pokemon_unlocked', COALESCE(ud.pokemon_unlocked, 0),
+        'kid_bank_balance', COALESCE(ud.kid_bank_balance, 0),
+        'reward_time_expiry', ud.reward_time_expiry,
+        'prize_unlocked', ud.prize_unlocked
+      )
+      FROM user_data ud
+      WHERE ud.profile = p_profile
+    ),
+    '{}'::jsonb
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_battle_hub_counts(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_battle_state.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/index.html loadHub.
+-- Whether this profile already finished a battle today, and how many practice tasks
+-- were done at that moment. The web hub uses the difference to refill the power bar.
+
+CREATE OR REPLACE FUNCTION af_web_battle_state(p_profile text)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_day date;
+  v_baseline int;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  SELECT web_battle_day, COALESCE(web_battle_practice_baseline, 0)
+    INTO v_day, v_baseline
+  FROM user_data
+  WHERE profile = v_profile;
+
+  RETURN jsonb_build_object(
+    'battleToday', v_day IS NOT NULL AND v_day = (NOW() AT TIME ZONE 'America/Toronto')::date,
+    'practiceBaseline', COALESCE(v_baseline, 0)
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_battle_state(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_finish_battle.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/battle.js when the battle sequence ends.
+-- Records today's Toronto date and the practice-task count already finished,
+-- so the hub power bar starts again at zero.
+
+CREATE OR REPLACE FUNCTION af_web_finish_battle(p_profile text, p_practice_done int)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  UPDATE user_data
+  SET
+    web_battle_day = (NOW() AT TIME ZONE 'America/Toronto')::date,
+    web_battle_practice_baseline = GREATEST(COALESCE(p_practice_done, 0), 0),
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = v_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_finish_battle(text, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_user_data.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  downloadUserData ("af_get_user_data").
+--   app/src/main/java/com/talq2me/baerened/UserDataRepository.kt  -  fetchUserData.
+
+-- BaerenEd: af_get_user_data
+-- (from af_data_access_rpcs.sql)
+
+-- BaerenEd: RPC-only data access helpers (replace REST GET/PATCH on user_data, settings, devices, image_uploads).
+-- Deploy after user_data / settings / devices / image_uploads tables exist.
+-- Every function here is used by BaerenEd ([SupabaseInterface] and related) and/or BaerenLock (CloudSyncManager, DailyResetAndSyncManager).
+
+-- -----------------------------------------------------------------------------
+-- user_data reads
+-- -----------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION af_get_user_data(p_profile text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT to_jsonb(ud.*)
+  FROM user_data ud
+  WHERE ud.profile = p_profile
+  LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION af_get_user_data(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_reward_time_state.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenLock):
+--   SupabaseInterface.fetchRewardTimeState — periodic UI poll + reward state refresh (no daily reset).
+
+-- Minimal read for dumb-UI reward display: avoids shipping the full user_data row on a timer.
+-- reward_mins_remaining is computed on the server (America/Toronto vs reward_time_expiry) so clients
+-- do not depend on device clock or local timestamp parsing.
+
+CREATE OR REPLACE FUNCTION af_get_reward_time_state(p_profile text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT jsonb_build_object(
+    'banked_mins', COALESCE(ud.banked_mins, 0),
+    'reward_time_expiry', to_jsonb(to_char(ud.reward_time_expiry, 'YYYY-MM-DD HH24:MI:SS.MS')),
+    'reward_mins_remaining',
+      CASE
+        WHEN ud.reward_time_expiry IS NOT NULL
+          AND (ud.reward_time_expiry AT TIME ZONE 'America/Toronto') > CURRENT_TIMESTAMP
+        THEN GREATEST(0, CEIL(
+          EXTRACT(EPOCH FROM (
+            (ud.reward_time_expiry AT TIME ZONE 'America/Toronto') - CURRENT_TIMESTAMP
+          )) / 60.0
+        ))::integer
+        ELSE 0
+      END,
+    'reward_session_active',
+      (ud.reward_time_expiry IS NOT NULL
+        AND (ud.reward_time_expiry AT TIME ZONE 'America/Toronto') > CURRENT_TIMESTAMP)
+  )
+  FROM user_data ud
+  WHERE ud.profile = p_profile
+  LIMIT 1;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_reward_time_state(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_user_last_reset.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo): none (timestamps come from af_get_user_data / sync flow).
+-- BaerenEd: af_get_user_last_reset
+-- (from af_data_access_rpcs.sql)
+
+CREATE OR REPLACE FUNCTION af_get_user_last_reset(p_profile text)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT to_char(ud.last_reset, 'YYYY-MM-DD HH24:MI:SS.MS')
+  FROM user_data ud
+  WHERE ud.profile = p_profile
+  LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION af_get_user_last_reset(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_user_last_updated.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo): none (timestamps come from af_get_user_data / sync flow).
+-- BaerenEd: af_get_user_last_updated
+-- (from af_data_access_rpcs.sql)
+
+CREATE OR REPLACE FUNCTION af_get_user_last_updated(p_profile text)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT to_char(ud.last_updated, 'YYYY-MM-DD HH24:MI:SS.MS')
+  FROM user_data ud
+  WHERE ud.profile = p_profile
+  LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION af_get_user_last_updated(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_insert_user_data_profile.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  ensureUserDataProfileExists (private) before reward time / add time / berries RPCs.
+
+-- BaerenEd: af_insert_user_data_profile
+-- (from af_data_access_rpcs.sql)
+
+-- -----------------------------------------------------------------------------
+-- user_data ensure / partial patch (no timestamp conflict logic)
+-- -----------------------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS af_ensure_user_data_profile(text);
+
+CREATE OR REPLACE FUNCTION af_insert_user_data_profile(p_profile text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO user_data (profile, banked_mins, last_updated)
+  VALUES (p_profile, 0, (NOW() AT TIME ZONE 'America/Toronto'))
+  ON CONFLICT (profile) DO NOTHING;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION af_insert_user_data_profile(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_upsert_user_data_columns.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt - upsertUserDataColumns -> RPC af_upsert_user_data_columns.
+--   SupabaseInterface.invokeAddRewardTime - fallback only (when af_reward_time_add RPC fails).
+
+-- BaerenEd: af_upsert_user_data_columns
+
+-- Removed af_upload_user_data (full-row upload); use af_upsert_user_data_columns and task RPCs.
+DROP FUNCTION IF EXISTS af_upload_user_data(jsonb);
+
+CREATE OR REPLACE FUNCTION af_upsert_user_data_columns(p_profile text, p_columns jsonb)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE user_data SET
+    last_reset = CASE WHEN p_columns ? 'last_reset' AND NULLIF(trim(p_columns->>'last_reset'), '') IS NOT NULL
+      THEN (p_columns->>'last_reset')::timestamp(3) ELSE last_reset END,
+    last_updated = CASE WHEN p_columns ? 'last_updated' AND NULLIF(trim(p_columns->>'last_updated'), '') IS NOT NULL
+      THEN (p_columns->>'last_updated')::timestamp(3) ELSE last_updated END,
+    required_tasks = CASE WHEN p_columns ? 'required_tasks' THEN (p_columns->'required_tasks')::jsonb ELSE required_tasks END,
+    practice_tasks = CASE WHEN p_columns ? 'practice_tasks' THEN (p_columns->'practice_tasks')::jsonb ELSE practice_tasks END,
+    bonus_tasks = CASE WHEN p_columns ? 'bonus_tasks' THEN (p_columns->'bonus_tasks')::jsonb ELSE bonus_tasks END,
+    checklist_items = CASE WHEN p_columns ? 'checklist_items' THEN (p_columns->'checklist_items')::jsonb ELSE checklist_items END,
+    possible_stars = CASE WHEN p_columns ? 'possible_stars' THEN (p_columns->>'possible_stars')::int ELSE possible_stars END,
+    banked_mins = CASE WHEN p_columns ? 'banked_mins' THEN (p_columns->>'banked_mins')::int ELSE banked_mins END,
+    berries_earned = CASE WHEN p_columns ? 'berries_earned' THEN (p_columns->>'berries_earned')::int ELSE berries_earned END,
+    coins_earned = CASE WHEN p_columns ? 'coins_earned' THEN (p_columns->>'coins_earned')::int ELSE coins_earned END,
+    kid_bank_balance = CASE WHEN p_columns ? 'kid_bank_balance' AND jsonb_typeof(p_columns->'kid_bank_balance') <> 'null'
+      THEN (p_columns->>'kid_bank_balance')::numeric ELSE kid_bank_balance END,
+    last_coins_payout_at = CASE WHEN p_columns ? 'last_coins_payout_at' AND NULLIF(trim(p_columns->>'last_coins_payout_at'), '') IS NOT NULL
+      THEN (p_columns->>'last_coins_payout_at')::timestamp(3)
+      WHEN p_columns ? 'last_coins_payout_at' AND NULLIF(trim(p_columns->>'last_coins_payout_at'), '') IS NULL THEN NULL
+      ELSE last_coins_payout_at END,
+    chores = CASE WHEN p_columns ? 'chores' THEN (p_columns->'chores')::jsonb ELSE chores END,
+    photo_chores = CASE WHEN p_columns ? 'photo_chores' THEN (p_columns->'photo_chores')::jsonb ELSE photo_chores END,
+    pokemon_unlocked = CASE WHEN p_columns ? 'pokemon_unlocked' THEN (p_columns->>'pokemon_unlocked')::int ELSE pokemon_unlocked END,
+    game_indices = CASE WHEN p_columns ? 'game_indices' THEN (p_columns->'game_indices')::jsonb ELSE game_indices END,
+    reward_time_expiry = CASE WHEN p_columns ? 'reward_time_expiry' AND NULLIF(trim(p_columns->>'reward_time_expiry'), '') IS NOT NULL
+      THEN (p_columns->>'reward_time_expiry')::timestamp(3)
+      WHEN p_columns ? 'reward_time_expiry' AND NULLIF(trim(p_columns->>'reward_time_expiry'), '') IS NULL THEN NULL
+      ELSE reward_time_expiry END,
+    reward_apps = CASE WHEN p_columns ? 'reward_apps' THEN p_columns->>'reward_apps' ELSE reward_apps END,
+    blacklisted_apps = CASE WHEN p_columns ? 'blacklisted_apps' THEN p_columns->>'blacklisted_apps' ELSE blacklisted_apps END,
+    white_listed_apps = CASE WHEN p_columns ? 'white_listed_apps' THEN p_columns->>'white_listed_apps' ELSE white_listed_apps END
+  WHERE profile = p_profile;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION af_upsert_user_data_columns(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_settings_row.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetSettingsRow.
+--   app/src/main/java/com/talq2me/baerened/SettingsManager.kt  -  loadSettingsFromCloud / related.
+
+-- BaerenEd: af_get_settings_row
+-- (from af_data_access_rpcs.sql)
+
+-- -----------------------------------------------------------------------------
+-- settings (id = 1)
+-- -----------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION af_get_settings_row()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT to_jsonb(s.*)
+  FROM settings s
+  WHERE s.id = 1
+  LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION af_get_settings_row() TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_settings_last_updated.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo): none (settings row via af_get_settings_row).
+-- BaerenEd: af_get_settings_last_updated
+-- (from af_data_access_rpcs.sql)
+
+CREATE OR REPLACE FUNCTION af_get_settings_last_updated()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT to_char(s.last_updated, 'YYYY-MM-DD HH24:MI:SS.MS')
+  FROM settings s
+  WHERE s.id = 1
+  LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION af_get_settings_last_updated() TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_upsert_settings_row.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, BaerenLock):
+--   SupabaseInterface.kt - saveSettingsToCloud / af_upsert_settings_row RPC
+--   reports/banked_time.html - parent audio monitor settings
+
+-- BaerenEd: af_upsert_settings_row
+
+CREATE OR REPLACE FUNCTION af_upsert_settings_row(
+    p_parent_email text,
+    p_pin text,
+    p_aggressive_cleanup boolean DEFAULT NULL,
+    p_reward_audio_monitor_enabled boolean DEFAULT NULL,
+    p_reward_audio_loudness_threshold integer DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE settings SET
+    parent_email = COALESCE(p_parent_email, parent_email),
+    pin = COALESCE(p_pin, pin),
+    aggressive_cleanup = CASE WHEN p_aggressive_cleanup IS NULL THEN aggressive_cleanup ELSE p_aggressive_cleanup END,
+    reward_audio_monitor_enabled = CASE
+        WHEN p_reward_audio_monitor_enabled IS NULL THEN reward_audio_monitor_enabled
+        ELSE p_reward_audio_monitor_enabled
+    END,
+    reward_audio_loudness_threshold = CASE
+        WHEN p_reward_audio_loudness_threshold IS NULL THEN reward_audio_loudness_threshold
+        ELSE p_reward_audio_loudness_threshold
+    END,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE id = 1;
+
+  IF NOT FOUND THEN
+    INSERT INTO settings (
+        id,
+        parent_email,
+        pin,
+        aggressive_cleanup,
+        reward_audio_monitor_enabled,
+        reward_audio_loudness_threshold,
+        last_updated
+    )
+    VALUES (
+        1,
+        COALESCE(p_parent_email, ''),
+        COALESCE(p_pin, ''),
+        COALESCE(p_aggressive_cleanup, true),
+        COALESCE(p_reward_audio_monitor_enabled, true),
+        COALESCE(p_reward_audio_loudness_threshold, 75),
+        (NOW() AT TIME ZONE 'America/Toronto')
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      parent_email = EXCLUDED.parent_email,
+      pin = EXCLUDED.pin,
+      aggressive_cleanup = EXCLUDED.aggressive_cleanup,
+      reward_audio_monitor_enabled = EXCLUDED.reward_audio_monitor_enabled,
+      reward_audio_loudness_threshold = EXCLUDED.reward_audio_loudness_threshold,
+      last_updated = EXCLUDED.last_updated;
+  END IF;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS af_upsert_settings_row(text, text, boolean);
+
+GRANT EXECUTE ON FUNCTION af_upsert_settings_row(text, text, boolean, boolean, integer) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_device_row.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetDeviceRow.
+--   app/src/main/java/com/talq2me/baerened/SettingsManager.kt  -  device row reads.
+
+-- BaerenEd: af_get_device_row
+-- (from af_data_access_rpcs.sql)
+
+-- -----------------------------------------------------------------------------
+-- devices
+-- -----------------------------------------------------------------------------
+
+-- Full devices row as jsonb (includes BaerenLock columns when present on the table:
+-- baerenlock_health_status, baerenlock_health_issues, baerenlock_last_health_check).
+
+CREATE OR REPLACE FUNCTION af_get_device_row(p_device_id text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT to_jsonb(d.*)
+  FROM devices d
+  WHERE d.device_id = p_device_id
+  LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION af_get_device_row(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_upsert_device.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpsertDevice.
+--   app/src/main/java/com/talq2me/baerened/SettingsManager.kt  -  sync device / active profile.
+
+-- BaerenEd: af_upsert_device
+-- (from af_data_access_rpcs.sql)
+
+-- Profile sync: pass p_apply_baerenlock_health = false (default). Updates device_name, active_profile, last_updated;
+-- preserves BaerenLock health columns on conflict.
+-- BaerenLock health sync: pass p_apply_baerenlock_health = true with health fields; on conflict updates device_name and
+-- health columns only (preserves last_updated and active_profile). Use explicit null for p_baerenlock_health_issues to clear it.
+DROP FUNCTION IF EXISTS af_upsert_device(text, text, text, text);
+
+CREATE OR REPLACE FUNCTION af_upsert_device(
+  p_device_id text,
+  p_device_name text,
+  p_active_profile text,
+  p_last_updated text DEFAULT NULL,
+  p_baerenlock_health_status text DEFAULT NULL,
+  p_baerenlock_health_issues text DEFAULT NULL,
+  p_baerenlock_last_health_check text DEFAULT NULL,
+  p_apply_baerenlock_health boolean DEFAULT false
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_ts timestamp(3);
+  v_hc_ts timestamp(3);
+BEGIN
+  BEGIN
+    v_ts := NULLIF(trim(COALESCE(p_last_updated, '')), '')::timestamp(3);
+  EXCEPTION WHEN OTHERS THEN
+    v_ts := (NOW() AT TIME ZONE 'America/Toronto');
+  END;
+  IF v_ts IS NULL THEN
+    v_ts := (NOW() AT TIME ZONE 'America/Toronto');
+  END IF;
+
+  v_hc_ts := NULL;
+  IF p_apply_baerenlock_health THEN
+    BEGIN
+      v_hc_ts := NULLIF(trim(COALESCE(p_baerenlock_last_health_check, '')), '')::timestamp(3);
+    EXCEPTION WHEN OTHERS THEN
+      v_hc_ts := (NOW() AT TIME ZONE 'America/Toronto');
+    END;
+    IF v_hc_ts IS NULL THEN
+      v_hc_ts := (NOW() AT TIME ZONE 'America/Toronto');
+    END IF;
+  END IF;
+
+  INSERT INTO devices (
+    device_id,
+    device_name,
+    active_profile,
+    last_updated,
+    baerenlock_health_status,
+    baerenlock_health_issues,
+    baerenlock_last_health_check
+  )
+  VALUES (
+    p_device_id,
+    p_device_name,
+    p_active_profile,
+    v_ts,
+    CASE WHEN p_apply_baerenlock_health THEN p_baerenlock_health_status ELSE NULL END,
+    CASE WHEN p_apply_baerenlock_health THEN p_baerenlock_health_issues ELSE NULL END,
+    CASE WHEN p_apply_baerenlock_health THEN v_hc_ts ELSE NULL END
+  )
+  ON CONFLICT (device_id) DO UPDATE SET
+    device_name = EXCLUDED.device_name,
+    active_profile = CASE
+      WHEN p_apply_baerenlock_health THEN devices.active_profile
+      ELSE EXCLUDED.active_profile
+    END,
+    last_updated = CASE
+      WHEN p_apply_baerenlock_health THEN devices.last_updated
+      ELSE EXCLUDED.last_updated
+    END,
+    baerenlock_health_status = CASE
+      WHEN p_apply_baerenlock_health THEN EXCLUDED.baerenlock_health_status
+      ELSE devices.baerenlock_health_status
+    END,
+    baerenlock_health_issues = CASE
+      WHEN p_apply_baerenlock_health THEN EXCLUDED.baerenlock_health_issues
+      ELSE devices.baerenlock_health_issues
+    END,
+    baerenlock_last_health_check = CASE
+      WHEN p_apply_baerenlock_health THEN EXCLUDED.baerenlock_last_health_check
+      ELSE devices.baerenlock_last_health_check
+    END;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION af_upsert_device(text, text, text, text, text, text, text, boolean) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_upsert_image_upload.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpsertImageUpload.
+--   app/src/main/java/com/talq2me/baerened/SpellingOCRActivity.kt  -  spelling image upload.
+--   app/src/main/java/com/talq2me/baerened/WebGameActivity.kt  -  JS bridge image upload.
+
+-- BaerenEd: af_upsert_image_upload
+-- (from af_data_access_rpcs.sql)
+
+-- -----------------------------------------------------------------------------
+-- image_uploads
+-- -----------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION af_upsert_image_upload(p_profile text, p_task text, p_image text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO image_uploads (profile, task, image)
+  VALUES (p_profile, p_task, p_image)
+  ON CONFLICT (profile, task) DO UPDATE SET
+    image = EXCLUDED.image,
+    capture_date_time = (NOW() AT TIME ZONE 'America/Toronto');
+END;
+$$;
+GRANT EXECUTE ON FUNCTION af_upsert_image_upload(text, text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_grant_chore_reward.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd reports, this repo):
+--   reports/daily_progress_report.html  -  parent Yes / edit amount then Yes.
+
+-- BaerenEd: Credit kid_bank_balance for one chore photo (image_uploads.task key).
+-- Idempotent: a second grant for the same profile+task_key does not add cash again.
+-- POST /rest/v1/rpc/af_grant_chore_reward
+--   {"p_profile":"AM","p_task_key":"chore_unload_dishwasher_2026-08-19","p_amount":2.00}
+
+CREATE OR REPLACE FUNCTION af_grant_chore_reward(
+  p_profile text,
+  p_task_key text,
+  p_amount numeric
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  img image_uploads%ROWTYPE;
+  add_amount numeric;
+  new_balance numeric;
+BEGIN
+  IF NULLIF(TRIM(COALESCE(p_profile, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'af_grant_chore_reward: p_profile is required';
+  END IF;
+  IF NULLIF(TRIM(COALESCE(p_task_key, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'af_grant_chore_reward: p_task_key is required';
+  END IF;
+  IF p_amount IS NULL OR p_amount < 0 THEN
+    RAISE EXCEPTION 'af_grant_chore_reward: p_amount must be >= 0';
+  END IF;
+
+  add_amount := ROUND(p_amount, 2);
+
+  SELECT * INTO img
+  FROM image_uploads
+  WHERE profile = p_profile AND task = p_task_key
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'af_grant_chore_reward: no image for profile % task %', p_profile, p_task_key;
+  END IF;
+
+  IF COALESCE(img.reward_granted, false) THEN
+    SELECT COALESCE(kid_bank_balance, 0) INTO new_balance FROM user_data WHERE profile = p_profile;
+    RETURN jsonb_build_object(
+      'granted', false,
+      'already_granted', true,
+      'granted_amount', img.granted_amount,
+      'kid_bank_balance', COALESCE(new_balance, 0)
+    );
+  END IF;
+
+  UPDATE user_data
+  SET
+    kid_bank_balance = ROUND(COALESCE(kid_bank_balance, 0) + add_amount, 2),
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile
+  RETURNING COALESCE(kid_bank_balance, 0) INTO new_balance;
+
+  IF new_balance IS NULL THEN
+    RAISE EXCEPTION 'af_grant_chore_reward: unknown profile %', p_profile;
+  END IF;
+
+  UPDATE image_uploads
+  SET
+    reward_granted = true,
+    granted_amount = add_amount
+  WHERE profile = p_profile AND task = p_task_key;
+
+  RETURN jsonb_build_object(
+    'granted', true,
+    'already_granted', false,
+    'granted_amount', add_amount,
+    'kid_bank_balance', new_balance
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_grant_chore_reward(text, text, numeric) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_resend_chore_photo.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd reports, this repo):
+--   reports/daily_progress_report.html  -  parent "Resend" after reviewing a chore photo.
+
+-- BaerenEd: Parent rejects a chore photo/video — delete the image_uploads row and
+-- mark the matching required task incomplete (reverse berries/mins if awarded).
+-- If evidence is a chore-videos object, return storage_path so the client can
+-- Storage-API-delete it (direct DELETE FROM storage.objects is blocked).
+-- POST /rest/v1/rpc/af_resend_chore_photo
+--   {"p_profile":"TE","p_image_task":"chore_make_bed_r1_2026-08-22"}
+
+CREATE OR REPLACE FUNCTION af_resend_chore_photo(
+  p_profile text,
+  p_image_task text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  chore_id text;
+  cur jsonb;
+  task_title text;
+  existing jsonb;
+  old_status text;
+  task_stars int;
+  remove_berries int := 0;
+  remove_mins int := 0;
+  deleted_n int := 0;
+  img_payload text;
+  storage_path text;
+BEGIN
+  IF NULLIF(TRIM(COALESCE(p_profile, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'af_resend_chore_photo: p_profile is required';
+  END IF;
+  IF NULLIF(TRIM(COALESCE(p_image_task, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'af_resend_chore_photo: p_image_task is required';
+  END IF;
+
+  -- chore_{id}_r{reward}_{yyyy-MM-dd} or chore_{id}_{yyyy-MM-dd}
+  chore_id := substring(p_image_task from '^chore_(.+)_r[0-9]+(?:\.[0-9]+)?_[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+  IF chore_id IS NULL THEN
+    chore_id := substring(p_image_task from '^chore_(.+)_[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+  END IF;
+  IF chore_id IS NULL THEN
+    RAISE EXCEPTION 'af_resend_chore_photo: unrecognized image task key %', p_image_task;
+  END IF;
+
+  SELECT image INTO img_payload
+  FROM image_uploads
+  WHERE profile = p_profile AND task = p_image_task;
+
+  IF img_payload LIKE 'storage:chore-videos/%' THEN
+    storage_path := substring(img_payload from length('storage:chore-videos/') + 1);
+  END IF;
+
+  DELETE FROM image_uploads
+  WHERE profile = p_profile AND task = p_image_task;
+  GET DIAGNOSTICS deleted_n = ROW_COUNT;
+
+  SELECT COALESCE(required_tasks, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'af_resend_chore_photo: unknown profile %', p_profile;
+  END IF;
+
+  SELECT e.key INTO task_title
+  FROM jsonb_each(cur) AS e(key, value)
+  WHERE (e.value->>'url') ILIKE '%choreId=' || chore_id || '%'
+     OR (e.value->>'url') ILIKE '%choreId%3D' || chore_id || '%'
+  LIMIT 1;
+
+  IF task_title IS NOT NULL THEN
+    existing := cur->task_title;
+    old_status := existing->>'status';
+    IF lower(COALESCE(old_status, '')) = 'complete' THEN
+      task_stars := COALESCE((existing->>'stars')::int, 0);
+      IF task_stars > 0 THEN
+        remove_berries := task_stars;
+        remove_mins := af_get_stars_to_minutes(task_stars);
+      END IF;
+    END IF;
+
+    UPDATE user_data
+    SET
+      required_tasks = jsonb_set(
+        cur,
+        ARRAY[task_title],
+        (COALESCE(existing, '{}'::jsonb) || jsonb_build_object(
+          'status', 'incomplete',
+          'correct', 0,
+          'incorrect', 0,
+          'questions', 0
+        )),
+        true
+      ),
+      berries_earned = GREATEST(0, COALESCE(berries_earned, 0) - remove_berries),
+      banked_mins = GREATEST(0, COALESCE(banked_mins, 0) - remove_mins),
+      last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+    WHERE profile = p_profile;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'deleted_images', deleted_n,
+    'chore_id', chore_id,
+    'required_task_title', task_title,
+    'berries_removed', remove_berries,
+    'mins_removed', remove_mins,
+    'storage_path', storage_path
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_resend_chore_photo(text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_delete_image_uploads_ilike.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfDeleteImageUploadsIlike.
+--   app/src/main/java/com/talq2me/baerened/SpellingOCRActivity.kt  -  clear old spelling OCR images on launch.
+
+-- BaerenEd: af_delete_image_uploads_ilike
+
+CREATE OR REPLACE FUNCTION af_delete_image_uploads_ilike(p_profile text, p_task_pattern text)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  n int;
+BEGIN
+  DELETE FROM image_uploads
+  WHERE profile = p_profile AND task ILIKE p_task_pattern;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION af_delete_image_uploads_ilike(text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_image_upload_id.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt - invokeAfGetImageUploadId.
+--   app/src/main/java/com/talq2me/baerened/SpellingOCRActivity.kt - replace prior upload for same task pattern.
+
+-- BaerenEd: af_get_image_upload_id
+
+CREATE OR REPLACE FUNCTION af_get_image_upload_id(p_profile text, p_task_pattern text)
+RETURNS bigint
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT i.id
+  FROM image_uploads i
+  WHERE i.profile = p_profile AND i.task LIKE p_task_pattern
+  ORDER BY i.id
+  LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION af_get_image_upload_id(text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_delete_image_upload_by_id.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfDeleteImageUploadById.
+--   app/src/main/java/com/talq2me/baerened/SpellingOCRActivity.kt  -  delete existing row before upsert.
+
+-- BaerenEd: af_delete_image_upload_by_id
+-- (from af_data_access_rpcs.sql)
+
+CREATE OR REPLACE FUNCTION af_delete_image_upload_by_id(p_id bigint)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  DELETE FROM image_uploads WHERE id = p_id;
+$$;
+GRANT EXECUTE ON FUNCTION af_delete_image_upload_by_id(bigint) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_required.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateRequiredTask.
+--   app/src/main/java/com/talq2me/baerened/DailyProgressManager.kt  -  pushSingleItemUpdateToCloud (SingleItemUpdate.RequiredTask).
+
+-- BaerenEd: Update a single required task by title. Only non-null parameters are applied; others preserve existing values.
+-- When status is set to 'complete', adds the task's stars (from DB) to berries_earned and stars-to-minutes to banked_mins.
+-- Requires af_get_stars_to_minutes (af_get_stars_to_minutes.sql). Identifies task by p_task_title (key in required_tasks JSONB).
+-- Call: POST /rest/v1/rpc/af_update_tasks_required with body e.g.
+--   {"p_profile": "TE", "p_task_title": "Math", "p_status": "complete", "p_correct": 5, "p_incorrect": 1, "p_questions": 6}
+
+CREATE OR REPLACE FUNCTION af_update_tasks_required(
+  p_profile text,
+  p_task_title text,
+  p_status text DEFAULT NULL,
+  p_correct int DEFAULT NULL,
+  p_incorrect int DEFAULT NULL,
+  p_questions int DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cur jsonb;
+  existing jsonb;
+  new_task jsonb;
+  old_status text;
+  new_status text;
+  task_stars int;
+  add_berries int := 0;
+  add_mins int := 0;
+BEGIN
+  SELECT COALESCE(required_tasks, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+
+  existing := cur->p_task_title;
+  old_status := existing->>'status';
+  new_status := COALESCE(p_status, old_status, 'incomplete');
+
+  new_task := COALESCE(existing, '{}'::jsonb)
+    || jsonb_build_object(
+      'status', new_status,
+      'correct', CASE WHEN p_correct IS NOT NULL THEN to_jsonb(p_correct) ELSE existing->'correct' END,
+      'incorrect', CASE WHEN p_incorrect IS NOT NULL THEN to_jsonb(p_incorrect) ELSE existing->'incorrect' END,
+      'questions', CASE WHEN p_questions IS NOT NULL THEN to_jsonb(p_questions) ELSE existing->'questions' END
+    );
+  new_task := new_task || (COALESCE(existing, '{}'::jsonb) - 'status' - 'correct' - 'incorrect' - 'questions');
+
+  -- When transitioning to complete, add task's stars to berries_earned and to banked_mins (via af_get_stars_to_minutes)
+  IF new_status = 'complete' AND (old_status IS NULL OR old_status != 'complete') THEN
+    task_stars := COALESCE((new_task->>'stars')::int, 0);
+    IF task_stars > 0 THEN
+      add_berries := task_stars;
+      add_mins := af_get_stars_to_minutes(task_stars);
+    END IF;
+  END IF;
+
+  UPDATE user_data
+  SET
+    required_tasks = jsonb_set(cur, ARRAY[p_task_title], new_task, true),
+    berries_earned = COALESCE(berries_earned, 0) + add_berries,
+    banked_mins = COALESCE(banked_mins, 0) + add_mins,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_required(text, text, text, int, int, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_practice.sql
+-- -----------------------------------------------------------------------------
+-- Deploy to Supabase from this repo only; the Android app invokes PostgREST RPCs on Supabase.
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAfUpdatePracticeTask; DailyProgressManager (SingleItemUpdate.PracticeTask).
+--   af_update_task_completion (optional section) delegates here.
+--
+-- On each practice task completion: increment times_completed, aggregate correct/incorrect/questions_answered,
+-- set this task's "completed" to true, award berries/minutes when applicable.
+--
+-- Lifetime counters (times_completed, correct, incorrect, questions_answered) are never cleared here;
+-- only daily reset clears user_data as a whole.
+--
+-- Repeatable Extra Practice map: when every task **visible today** (same filters as af_get_tasks_practice)
+-- is complete (completed flag, else legacy times_completed > 0), set "completed" to false on all map
+-- entries so the set can be run again. Hidden / wrong-day rows must not block reset. Counters unchanged.
+--
+-- Call: POST /rest/v1/rpc/af_update_tasks_practice with body e.g.
+--   {"p_profile": "TE", "p_task_title": "Time Telling", "p_times_completed": 2, "p_stars": 3, "p_correct": 10, "p_incorrect": 0, "p_questions_answered": 10}
+
+CREATE OR REPLACE FUNCTION af_update_tasks_practice(
+  p_profile text,
+  p_task_title text,
+  p_times_completed int DEFAULT NULL,
+  p_stars int DEFAULT NULL,
+  p_correct int DEFAULT NULL,
+  p_incorrect int DEFAULT NULL,
+  p_questions_answered int DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cur jsonb;
+  existing jsonb;
+  new_task jsonb;
+  old_tc int;
+  new_tc int;
+  delta int;
+  add_berries int := 0;
+  add_mins int := 0;
+  updated_practice jsonb;
+  reset_practice jsonb;
+BEGIN
+  SELECT COALESCE(practice_tasks, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+  existing := cur->p_task_title;
+  old_tc := COALESCE((existing->>'times_completed')::int, 0);
+  -- DB-owned increment: when app omits p_times_completed, treat completion RPC as +1.
+  new_tc := CASE WHEN p_times_completed IS NOT NULL THEN p_times_completed ELSE old_tc + 1 END;
+
+  new_task := COALESCE(existing, '{}'::jsonb)
+    || jsonb_build_object(
+      'times_completed', to_jsonb(new_tc),
+      'completed', to_jsonb(true),
+      -- DB-owned accumulation for completion event metrics.
+      'correct', CASE WHEN p_correct IS NOT NULL THEN to_jsonb(COALESCE((existing->>'correct')::int, 0) + p_correct) ELSE existing->'correct' END,
+      'incorrect', CASE WHEN p_incorrect IS NOT NULL THEN to_jsonb(COALESCE((existing->>'incorrect')::int, 0) + p_incorrect) ELSE existing->'incorrect' END,
+      'questions_answered', CASE WHEN p_questions_answered IS NOT NULL THEN to_jsonb(COALESCE((existing->>'questions_answered')::int, 0) + p_questions_answered) ELSE existing->'questions_answered' END
+    );
+  new_task := new_task
+    || (COALESCE(existing, '{}'::jsonb) - 'times_completed' - 'correct' - 'incorrect' - 'questions_answered' - 'completed');
+
+  updated_practice := jsonb_set(cur, ARRAY[p_task_title], new_task, true);
+
+  IF p_stars IS NOT NULL AND p_stars > 0 AND new_tc > old_tc THEN
+    delta := new_tc - old_tc;
+    add_berries := delta * p_stars;
+    add_mins := delta * af_get_stars_to_minutes(p_stars);
+  END IF;
+
+  -- All *visible today* tasks complete (matches af_get_tasks_practice) → clear completed only (next pass).
+  IF EXISTS (SELECT 1 FROM jsonb_each(updated_practice))
+     AND (
+       WITH p AS (
+         SELECT
+           updated_practice AS v_tasks,
+           (now() AT TIME ZONE 'America/Toronto')::date AS v_today_date,
+           lower(to_char((now() AT TIME ZONE 'America/Toronto'), 'Dy')) AS v_today_short
+       ),
+       vis AS (
+         SELECT
+           e.key,
+           e.value,
+           CASE
+             WHEN (e.value ? 'completed') THEN COALESCE((e.value->>'completed')::boolean, false)
+             ELSE COALESCE((e.value->>'times_completed')::int, 0) > 0
+           END AS is_done
+         FROM p
+         CROSS JOIN jsonb_each(p.v_tasks) AS e(key, value)
+         WHERE
+           NOT (
+             NULLIF(TRIM(COALESCE(e.value->>'disable', '')), '') IS NOT NULL
+             AND to_date(e.value->>'disable', 'Mon DD, YYYY') IS NOT NULL
+             AND p.v_today_date < to_date(e.value->>'disable', 'Mon DD, YYYY')
+           )
+           AND NOT EXISTS (
+             SELECT 1
+             FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'hidedays', ''), ' ', '')), ',')) AS d(day_token)
+             WHERE d.day_token = p.v_today_short
+           )
+           AND (
+             NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
+             OR EXISTS (
+               SELECT 1
+               FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
+               WHERE d.day_token = p.v_today_short
+             )
+           )
+           AND (
+             NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NOT NULL
+             OR NULLIF(TRIM(COALESCE(e.value->>'showdays', '')), '') IS NULL
+             OR EXISTS (
+               SELECT 1
+               FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'showdays', ''), ' ', '')), ',')) AS d(day_token)
+               WHERE d.day_token = p.v_today_short
+             )
+           )
+       )
+       SELECT (SELECT COUNT(*)::int FROM vis) > 0
+              AND NOT EXISTS (SELECT 1 FROM vis WHERE NOT vis.is_done)
+     )
+  THEN
+    SELECT jsonb_object_agg(
+      e.key,
+      e.value || jsonb_build_object('completed', false)
+    )
+    INTO reset_practice
+    FROM jsonb_each(updated_practice) AS e;
+    IF reset_practice IS NOT NULL THEN
+      updated_practice := reset_practice;
+    END IF;
+  END IF;
+
+  UPDATE user_data
+  SET
+    practice_tasks = updated_practice,
+    berries_earned = COALESCE(berries_earned, 0) + add_berries,
+    banked_mins = COALESCE(banked_mins, 0) + add_mins,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_practice(text, text, int, int, int, int, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_bonus.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAfUpdateBonusTask; DailyProgressManager (SingleItemUpdate.BonusTask).
+
+-- BaerenEd: Update a single bonus task by title. Same semantics as af_update_tasks_practice but for bonus_tasks column.
+-- Call: POST /rest/v1/rpc/af_update_tasks_bonus with body e.g.
+--   {"p_profile": "TE", "p_task_title": "Bonus Game", "p_times_completed": 1, "p_stars": 2, "p_correct": 5, "p_incorrect": 0, "p_questions_answered": 5}
+
+CREATE OR REPLACE FUNCTION af_update_tasks_bonus(
+  p_profile text,
+  p_task_title text,
+  p_times_completed int DEFAULT NULL,
+  p_stars int DEFAULT NULL,
+  p_correct int DEFAULT NULL,
+  p_incorrect int DEFAULT NULL,
+  p_questions_answered int DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cur jsonb;
+  existing jsonb;
+  new_task jsonb;
+  old_tc int;
+  new_tc int;
+  delta int;
+  add_berries int := 0;
+  add_mins int := 0;
+BEGIN
+  SELECT COALESCE(bonus_tasks, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+  existing := cur->p_task_title;
+  old_tc := COALESCE((existing->>'times_completed')::int, 0);
+  -- DB-owned increment: when app omits p_times_completed, treat completion RPC as +1.
+  new_tc := CASE WHEN p_times_completed IS NOT NULL THEN p_times_completed ELSE old_tc + 1 END;
+
+  new_task := COALESCE(existing, '{}'::jsonb)
+    || jsonb_build_object(
+      'times_completed', to_jsonb(new_tc),
+      -- DB-owned accumulation for completion event metrics.
+      'correct', CASE WHEN p_correct IS NOT NULL THEN to_jsonb(COALESCE((existing->>'correct')::int, 0) + p_correct) ELSE existing->'correct' END,
+      'incorrect', CASE WHEN p_incorrect IS NOT NULL THEN to_jsonb(COALESCE((existing->>'incorrect')::int, 0) + p_incorrect) ELSE existing->'incorrect' END,
+      'questions_answered', CASE WHEN p_questions_answered IS NOT NULL THEN to_jsonb(COALESCE((existing->>'questions_answered')::int, 0) + p_questions_answered) ELSE existing->'questions_answered' END
+    );
+  new_task := new_task || (COALESCE(existing, '{}'::jsonb) - 'times_completed' - 'correct' - 'incorrect' - 'questions_answered');
+
+  IF p_stars IS NOT NULL AND p_stars > 0 AND new_tc > old_tc THEN
+    delta := new_tc - old_tc;
+    add_berries := delta * p_stars;
+    add_mins := delta * af_get_stars_to_minutes(p_stars);
+  END IF;
+
+  UPDATE user_data
+  SET
+    bonus_tasks = jsonb_set(cur, ARRAY[p_task_title], new_task, true),
+    berries_earned = COALESCE(berries_earned, 0) + add_berries,
+    banked_mins = COALESCE(banked_mins, 0) + add_mins,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_bonus(text, text, int, int, int, int, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_required_progress_today.sql
+-- -----------------------------------------------------------------------------
+-- Deploy to Supabase from this repo only; the Android app invokes PostgREST RPCs on Supabase.
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetRequiredProgressToday.
+--   app/src/main/java/com/talq2me/baerened/BattleHubActivity.kt  -  Earn Extra Berries / Daily Spin gate; battle-end snapshot.
+--
+-- BaerenEd: combined "today's required progress" needed by Battle Hub.
+--   all_done       : true iff every visible-today required task AND every visible-today checklist item with stars>0 is complete/done.
+--                    Special case (matches legacy DailyProgressManager): if nothing is visible today, returns true only when both
+--                    required_tasks and checklist_items are literally empty in user_data (kid has nothing to do at all).
+--   earned_berries : sum of berry_value for the visible rows that are currently complete/done. Used to snapshot/compare across battles.
+
+DROP FUNCTION IF EXISTS af_get_required_progress_today(text);
+
+CREATE OR REPLACE FUNCTION af_get_required_progress_today(p_profile text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH
+    raw AS (
+      SELECT
+        COALESCE(required_tasks, '{}'::jsonb)   AS rt,
+        COALESCE(checklist_items, '{}'::jsonb)  AS ci
+      FROM user_data
+      WHERE profile = p_profile
+    ),
+    -- af_get_tasks_required already applies today's day-rules (showdays/hidedays/displayDays/disable).
+    -- We additionally drop checklist rows with stars<=0 to match the legacy "stars > 0" filter.
+    rows AS (
+      SELECT
+        lower(t.completion_status) AS s,
+        COALESCE(t.berry_value, 0) AS b
+      FROM af_get_tasks_required(p_profile) AS t
+      WHERE NOT t.is_checklist OR COALESCE(t.berry_value, 0) > 0
+    )
+  SELECT jsonb_build_object(
+    'all_done',
+    CASE
+      WHEN EXISTS (SELECT 1 FROM rows) THEN
+        NOT EXISTS (SELECT 1 FROM rows WHERE s NOT IN ('complete', 'done'))
+      ELSE
+        COALESCE((SELECT (rt = '{}'::jsonb AND ci = '{}'::jsonb) FROM raw), false)
+    END,
+    'earned_berries',
+    COALESCE((SELECT SUM(b) FROM rows WHERE s IN ('complete', 'done')), 0)::int
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_required_progress_today(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_maybe_advance_spelling_pools.sql
+-- -----------------------------------------------------------------------------
+-- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
+--
+-- Summer spelling pool: when all visible required work for today is done, advance
+-- engSpellingDrag and frSpellingDrag by 5 (mod pool size), at most once per calendar day (Toronto).
+-- Games read these keys with ?pool=all|N&poolKey=... and do not write indices on session complete.
+
+DROP FUNCTION IF EXISTS af_maybe_advance_spelling_pools(text);
+
+CREATE OR REPLACE FUNCTION af_maybe_advance_spelling_pools(p_profile text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  progress jsonb;
+  all_done boolean;
+  today text;
+  cur jsonb;
+  last_adv text;
+  en_idx int;
+  fr_idx int;
+  pool_size int := 100;
+  step int := 5;
+BEGIN
+  progress := af_get_required_progress_today(p_profile);
+  all_done := COALESCE((progress->>'all_done')::boolean, false);
+  IF NOT all_done THEN
+    RETURN;
+  END IF;
+
+  today := to_char((NOW() AT TIME ZONE 'America/Toronto')::date, 'YYYY-MM-DD');
+
+  SELECT COALESCE(game_indices, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+  last_adv := cur->>'_spellingPoolAdvancedOn';
+  IF last_adv = today THEN
+    RETURN;
+  END IF;
+
+  en_idx := COALESCE((cur->>'engSpellingDrag')::int, 0);
+  fr_idx := COALESCE((cur->>'frSpellingDrag')::int, 0);
+
+  cur := jsonb_set(cur, ARRAY['engSpellingDrag'], to_jsonb((en_idx + step) % pool_size), true);
+  cur := jsonb_set(cur, ARRAY['frSpellingDrag'], to_jsonb((fr_idx + step) % pool_size), true);
+  cur := jsonb_set(cur, ARRAY['_spellingPoolAdvancedOn'], to_jsonb(today), true);
+
+  UPDATE user_data
+  SET
+    game_indices = cur,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_maybe_advance_spelling_pools(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_enqueue_spelling_ocr_review.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/spell.html after the last spelling drawing is stored.
+-- Fires once per profile, language, and day after that many OCR images are stored.
+-- Vault secret spelling_ocr_webhook_bearer is the crsr_ token only (no "Bearer " prefix).
+
+CREATE OR REPLACE FUNCTION af_enqueue_spelling_ocr_review(
+  p_profile text,
+  p_language text,
+  p_date date,
+  p_expected_count int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_prefix text;
+  v_day text;
+  v_count int;
+  v_token text;
+  v_body text;
+  v_status int;
+  v_claimed int;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language NOT IN ('eng', 'fr') THEN
+    RAISE EXCEPTION 'Invalid language: %', p_language;
+  END IF;
+  IF p_date IS NULL OR COALESCE(p_expected_count, 0) < 1 THEN
+    RETURN;
+  END IF;
+
+  v_prefix := CASE v_language WHEN 'eng' THEN 'EngSpellingOCR' ELSE 'FrSpellingOCR' END;
+  v_day := to_char(p_date, 'YYYY-MM-DD');
+
+  SELECT count(*) INTO v_count
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task LIKE v_prefix || '-' || v_day || '-%';
+
+  IF v_count < p_expected_count THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO spelling_dictation_reviews (profile, review_date, language, status, webhook_sent)
+  VALUES (v_profile, p_date, v_language, 'incomplete', false)
+  ON CONFLICT (profile, review_date, language) DO NOTHING;
+
+  UPDATE spelling_dictation_reviews
+  SET webhook_sent = true
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language
+    AND webhook_sent = false
+    AND status IS DISTINCT FROM 'complete';
+
+  GET DIAGNOSTICS v_claimed = ROW_COUNT;
+  IF v_claimed = 0 THEN
+    RETURN;
+  END IF;
+
+  SELECT decrypted_secret INTO v_token
+  FROM vault.decrypted_secrets
+  WHERE name = 'spelling_ocr_webhook_bearer'
+  LIMIT 1;
+
+  IF v_token IS NULL OR btrim(v_token) = '' THEN
+    UPDATE spelling_dictation_reviews
+    SET webhook_sent = false
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'spelling_ocr_webhook_bearer not configured in Supabase Vault';
+    RETURN;
+  END IF;
+
+  v_body := jsonb_build_object(
+    'profile', v_profile,
+    'language', v_language,
+    'date', v_day
+  )::text;
+
+  BEGIN
+    SELECT r.status INTO v_status
+    FROM extensions.http((
+      'POST',
+      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
+        extensions.http_header('Content-Type', 'application/json')
+      ]::extensions.http_header[],
+      'application/json',
+      v_body
+    )::extensions.http_request) r;
+  EXCEPTION WHEN OTHERS THEN
+    UPDATE spelling_dictation_reviews
+    SET webhook_sent = false
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'spelling OCR webhook request failed: %', SQLERRM;
+    RETURN;
+  END;
+
+  IF v_status IS NULL OR v_status < 200 OR v_status >= 300 THEN
+    UPDATE spelling_dictation_reviews
+    SET webhook_sent = false
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'spelling OCR webhook returned status %', COALESCE(v_status, -1);
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_enqueue_spelling_ocr_review(text, text, date, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_maybe_record_collector_card_day.sql
+-- -----------------------------------------------------------------------------
+-- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
+--
+-- When all visible required work for today is done (same definition as
+-- af_get_required_progress_today — checklist with stars<=0 excluded), upsert one
+-- collector_card_days row for today's Toronto date (earn_source required_done).
+-- Idempotent per profile/day/source.
+
+DROP FUNCTION IF EXISTS af_maybe_record_collector_card_day(text);
+
+CREATE OR REPLACE FUNCTION af_maybe_record_collector_card_day(p_profile text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  progress jsonb;
+  all_done boolean;
+  today date;
+BEGIN
+  progress := af_get_required_progress_today(p_profile);
+  all_done := COALESCE((progress->>'all_done')::boolean, false);
+  IF NOT all_done THEN
+    RETURN;
+  END IF;
+
+  today := (NOW() AT TIME ZONE 'America/Toronto')::date;
+
+  INSERT INTO collector_card_days (profile, completion_date, earned_at, paid_out, earn_source)
+  VALUES (
+    p_profile,
+    today,
+    (NOW() AT TIME ZONE 'America/Toronto'),
+    false,
+    'required_done'
+  )
+  ON CONFLICT (profile, completion_date, earn_source) DO NOTHING;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_maybe_record_collector_card_day(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_payout_collector_cards.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (parent HTML reports):
+--   reports/collector_cards.html — mark N oldest unpaid collector-card days as paid out.
+--
+-- Marks the oldest unpaid collector_card_days rows for p_profile (by completion_date).
+-- Returns jsonb: { profile, requested, paid_out_count, remaining_unpaid }.
+
+DROP FUNCTION IF EXISTS af_payout_collector_cards(text, int);
+
+CREATE OR REPLACE FUNCTION af_payout_collector_cards(
+  p_profile text,
+  p_count int
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_count int := GREATEST(COALESCE(p_count, 0), 0);
+  v_paid int := 0;
+  v_remaining int := 0;
+  v_now timestamp(3) := (NOW() AT TIME ZONE 'America/Toronto');
+BEGIN
+  IF v_count > 0 THEN
+    WITH to_pay AS (
+      SELECT id
+      FROM collector_card_days
+      WHERE profile = p_profile
+        AND paid_out = false
+      ORDER BY completion_date ASC, id ASC
+      LIMIT v_count
+    ),
+    updated AS (
+      UPDATE collector_card_days c
+      SET
+        paid_out = true,
+        paid_out_at = v_now
+      FROM to_pay t
+      WHERE c.id = t.id
+      RETURNING c.id
+    )
+    SELECT COUNT(*) INTO v_paid FROM updated;
+  END IF;
+
+  SELECT COUNT(*) INTO v_remaining
+  FROM collector_card_days
+  WHERE profile = p_profile
+    AND paid_out = false;
+
+  RETURN jsonb_build_object(
+    'profile', p_profile,
+    'requested', v_count,
+    'paid_out_count', v_paid,
+    'remaining_unpaid', v_remaining
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_payout_collector_cards(text, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_or_unlock_daily_prize.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfGetOrUnlockDailyPrize.
+--   app/src/main/java/com/talq2me/baerened/RewardSpinnerActivity.kt  -  resolve/open daily prize.
+
+-- If prize_unlocked already exists for the profile, return it.
+-- Otherwise, unlock only when all visible required/checklist tasks are complete for today.
+-- Newly unlocking Pokemon/Soccer Card also records one collector_card_days row (spin_prize).
+-- Newly unlocking Extra 10 minutes screen time also grants 10 banked/active reward minutes (once per spin).
+DROP FUNCTION IF EXISTS af_get_or_unlock_daily_prize(text);
+
+CREATE OR REPLACE FUNCTION af_get_or_unlock_daily_prize(p_profile text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_prize_unlocked text := NULL;
+  v_reward_name text := NULL;
+  v_total_tasks int := 0;
+  v_incomplete_tasks int := 0;
+BEGIN
+  SELECT
+    NULLIF(trim(ud.prize_unlocked), '')
+  INTO v_prize_unlocked
+  FROM user_data ud
+  WHERE ud.profile = p_profile
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'prize_unlocked', NULL,
+      'newly_unlocked', false,
+      'eligible', false
+    );
+  END IF;
+
+  IF v_prize_unlocked IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'prize_unlocked', v_prize_unlocked,
+      'newly_unlocked', false,
+      'eligible', true
+    );
+  END IF;
+
+  SELECT
+    COUNT(*),
+    COUNT(*) FILTER (WHERE lower(coalesce(t.completion_status, 'incomplete')) <> 'complete')
+  INTO v_total_tasks, v_incomplete_tasks
+  FROM af_get_current_required_tasks(p_profile) t;
+
+  IF v_total_tasks = 0 OR v_incomplete_tasks > 0 THEN
+    RETURN jsonb_build_object(
+      'prize_unlocked', NULL,
+      'newly_unlocked', false,
+      'eligible', false
+    );
+  END IF;
+
+  WITH weighted AS (
+    SELECT
+      rs.id,
+      rs.name,
+      rs.percent,
+      SUM(rs.percent) OVER (ORDER BY rs.id) AS cumulative_weight
+    FROM reward_spinner rs
+    WHERE rs.percent > 0
+  ),
+  total AS (
+    SELECT MAX(cumulative_weight) AS total_weight
+    FROM weighted
+  ),
+  roll AS (
+    SELECT (FLOOR(random() * total_weight) + 1)::int AS ticket
+    FROM total
+  )
+  SELECT w.name
+  INTO v_reward_name
+  FROM weighted w, roll r
+  WHERE w.cumulative_weight >= r.ticket
+  ORDER BY w.cumulative_weight
+  LIMIT 1;
+
+  IF v_reward_name IS NULL THEN
+    RETURN jsonb_build_object(
+      'prize_unlocked', NULL,
+      'newly_unlocked', false,
+      'eligible', false,
+      'error', 'No reward spinner rows with positive percent.'
+    );
+  END IF;
+
+  UPDATE user_data
+  SET
+    prize_unlocked = v_reward_name,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+
+  IF v_reward_name ~* '(pokemon|poke|soccer).{0,20}card' THEN
+    INSERT INTO collector_card_days (profile, completion_date, earned_at, paid_out, earn_source)
+    VALUES (
+      p_profile,
+      (NOW() AT TIME ZONE 'America/Toronto')::date,
+      (NOW() AT TIME ZONE 'America/Toronto'),
+      false,
+      'spin_prize'
+    )
+    ON CONFLICT (profile, completion_date, earn_source) DO NOTHING;
+  END IF;
+
+  IF v_reward_name ~* 'extra\s+10\s+minute' THEN
+    PERFORM af_reward_time_add(p_profile, 10);
+  END IF;
+
+  RETURN jsonb_build_object(
+    'prize_unlocked', v_reward_name,
+    'newly_unlocked', true,
+    'eligible', true
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_or_unlock_daily_prize(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_task_completion.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateTaskCompletion.
+--   app/src/main/java/com/talq2me/baerened/DailyProgressManager.kt  -  markTaskCompletedWithName.
+--
+-- Deploy: DROP legacy `af_update_task_completion(text,text,int,int,int,int)` below if it still exists (PostgREST
+-- mismatch / unknown-arg errors). Clients should send `p_section_id` as a JSON **string** (e.g. "optional"), never
+-- JSON null, so Postgres binds it as text.
+--
+-- BaerenEd: Unified completion RPC for dumb UI (invoke only on Supabase; SQL is maintained in this repo).
+-- Routes to required / practice / bonus updaters and returns earned stars from DB rules. NO FALLBACKS:
+-- this RPC calls the canonical functions only; if one is missing the call fails so the bug is visible.
+-- Practice (optional): calls af_update_tasks_practice (increments counters, toggles "completed" when the full set is done; see that function).
+--
+-- PostgREST: if more than ONE overload exists, resolution often fails → 404 or "could not choose best candidate".
+-- CREATE OR REPLACE only replaces ONE signature at a time, so orphans must be dropped explicitly.
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (
+    SELECT p.oid
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'af_update_task_completion'
+  ) LOOP
+    EXECUTE format('DROP FUNCTION IF EXISTS %s CASCADE', r.oid::regprocedure);
+  END LOOP;
+END $$;
+
+CREATE OR REPLACE FUNCTION af_update_task_completion(
+  p_profile text,
+  p_task_title text,
+  p_section_id text DEFAULT NULL,
+  p_stars int DEFAULT NULL,
+  p_correct int DEFAULT NULL,
+  p_incorrect int DEFAULT NULL,
+  p_questions_answered int DEFAULT NULL
+)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  normalized_section text;
+  required_old_status text;
+  required_db_stars int;
+  earned_stars int := 0;
+BEGIN
+  normalized_section := COALESCE(NULLIF(trim(lower(p_section_id)), ''), 'optional');
+
+  IF normalized_section = 'required' THEN
+    SELECT (required_tasks->p_task_title->>'status'),
+           COALESCE((required_tasks->p_task_title->>'stars')::int, 0)
+      INTO required_old_status, required_db_stars
+      FROM user_data
+      WHERE profile = p_profile;
+
+    PERFORM af_update_tasks_required(
+      p_profile,
+      p_task_title,
+      'complete',
+      p_correct,
+      p_incorrect,
+      p_questions_answered
+    );
+
+    IF COALESCE(required_old_status, 'incomplete') <> 'complete' THEN
+      earned_stars := COALESCE(p_stars, required_db_stars, 0);
+    END IF;
+  ELSIF normalized_section = 'bonus' THEN
+    PERFORM af_update_tasks_bonus(
+      p_profile,
+      p_task_title,
+      NULL,
+      p_stars,
+      p_correct,
+      p_incorrect,
+      p_questions_answered
+    );
+    earned_stars := GREATEST(COALESCE(p_stars, 0), 0);
+  ELSE
+    PERFORM af_update_tasks_practice(
+      p_profile,
+      p_task_title,
+      NULL,
+      p_stars,
+      p_correct,
+      p_incorrect,
+      p_questions_answered
+    );
+    earned_stars := GREATEST(COALESCE(p_stars, 0), 0);
+  END IF;
+
+  IF normalized_section = 'required' THEN
+    PERFORM af_maybe_advance_spelling_pools(p_profile);
+    PERFORM af_maybe_record_collector_card_day(p_profile);
+  END IF;
+
+  RETURN earned_stars;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_task_completion(text, text, text, int, int, int, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_checklist_items.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAfUpdateChecklistItem; DailyProgressManager (SingleItemUpdate.ChecklistItem).
+
+-- BaerenEd: Update a single checklist item by label. Sets done for the item.
+-- When p_done is true and item was not done, adds item's stars (from DB) to berries_earned and to banked_mins.
+-- Requires af_get_stars_to_minutes (af_get_stars_to_minutes.sql). Identifies item by p_item_label (key in checklist_items JSONB).
+-- Call: POST /rest/v1/rpc/af_update_tasks_checklist_items with body e.g.
+--   {"p_profile": "TE", "p_item_label": "Laundry", "p_done": true}
+
+CREATE OR REPLACE FUNCTION af_update_tasks_checklist_items(
+  p_profile text,
+  p_item_label text,
+  p_done boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cur jsonb;
+  existing jsonb;
+  new_item jsonb;
+  old_done boolean;
+  item_stars int;
+  add_berries int := 0;
+  add_mins int := 0;
+BEGIN
+  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+  existing := cur->p_item_label;
+  old_done := COALESCE((existing->>'done')::boolean, false);
+
+  new_item := COALESCE(existing, '{}'::jsonb) || jsonb_build_object('done', p_done);
+
+  IF p_done AND NOT old_done THEN
+    item_stars := COALESCE((new_item->>'stars')::int, 0);
+    IF item_stars > 0 THEN
+      add_berries := item_stars;
+      add_mins := af_get_stars_to_minutes(item_stars);
+    END IF;
+  END IF;
+
+  UPDATE user_data
+  SET
+    checklist_items = jsonb_set(cur, ARRAY[p_item_label], new_item, true),
+    berries_earned = COALESCE(berries_earned, 0) + add_berries,
+    banked_mins = COALESCE(banked_mins, 0) + add_mins,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+
+  IF p_done AND NOT old_done THEN
+    PERFORM af_maybe_advance_spelling_pools(p_profile);
+    PERFORM af_maybe_record_collector_card_day(p_profile);
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_checklist_items(text, text, boolean) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_chores.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAfUpdateChore; DailyProgressManager (SingleItemUpdate.Chore).
+
+-- BaerenEd: Update a single chore by chore_id. Sets done for that chore in the chores JSONB array.
+-- When p_done is true and chore was not done, adds chore's coins_reward (from DB) to coins_earned.
+-- Call: POST /rest/v1/rpc/af_update_tasks_chores with body e.g.
+--   {"p_profile": "TE", "p_chore_id": 1, "p_done": true}
+
+CREATE OR REPLACE FUNCTION af_update_tasks_chores(
+  p_profile text,
+  p_chore_id int,
+  p_done boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cur jsonb;
+  new_chores jsonb;
+  old_done boolean;
+  chore_coins int;
+  add_coins int := 0;
+BEGIN
+  SELECT COALESCE(chores, '[]'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+
+  SELECT (e->>'done')::boolean, COALESCE((e->>'coins_reward')::int, 0)
+    INTO old_done, chore_coins
+  FROM jsonb_array_elements(cur) e
+  WHERE (e->>'chore_id')::int = p_chore_id
+  LIMIT 1;
+  old_done := COALESCE(old_done, false);
+
+  IF p_done AND NOT old_done AND chore_coins > 0 THEN
+    add_coins := chore_coins;
+  END IF;
+
+  new_chores := (
+    SELECT jsonb_agg(
+      CASE WHEN (elem->>'chore_id')::int = p_chore_id THEN
+        elem || jsonb_build_object('done', p_done)
+      ELSE
+        elem
+      END
+      ORDER BY ord
+    )
+    FROM jsonb_array_elements(cur) WITH ORDINALITY AS t(elem, ord)
+  );
+
+  UPDATE user_data
+  SET
+    chores = COALESCE(new_chores, '[]'::jsonb),
+    coins_earned = COALESCE(coins_earned, 0) + add_coins,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_chores(text, int, boolean) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_photo_chores.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdatePhotoChore.
+--   app/src/main/java/com/talq2me/baerened/ChorePhotoActivity.kt  -  after image upload.
+
+-- BaerenEd: Mark a photo chore complete by chore id. Does not grant berries, minutes, coins, or cash.
+-- POST /rest/v1/rpc/af_update_tasks_photo_chores {"p_profile":"AM","p_chore_id":"unload_dishwasher"}
+
+CREATE OR REPLACE FUNCTION af_update_tasks_photo_chores(
+  p_profile text,
+  p_chore_id text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cur jsonb;
+  existing jsonb;
+BEGIN
+  IF NULLIF(TRIM(COALESCE(p_chore_id, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'af_update_tasks_photo_chores: p_chore_id is required';
+  END IF;
+
+  SELECT COALESCE(photo_chores, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+  existing := cur->p_chore_id;
+  IF existing IS NULL OR existing = 'null'::jsonb THEN
+    RAISE EXCEPTION 'af_update_tasks_photo_chores: unknown chore_id % for profile %', p_chore_id, p_profile;
+  END IF;
+
+  UPDATE user_data
+  SET
+    photo_chores = jsonb_set(cur, ARRAY[p_chore_id], existing || jsonb_build_object('status', 'complete'), true),
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_photo_chores(text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_game_index.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAfUpdateGameIndex; DailyProgressManager (SingleItemUpdate.GameIndex).
+
+-- BaerenEd: Update a single key in game_indices for a profile (scalar params only).
+-- If the game key is not yet in the JSON, it is added (new games get an entry on first play).
+-- Call: POST /rest/v1/rpc/af_update_game_index with body {"p_profile": "TE", "p_game_key": "spellingRace", "p_index": 2}
+
+CREATE OR REPLACE FUNCTION af_update_game_index(
+  p_profile text,
+  p_game_key text,
+  p_index int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cur jsonb;
+BEGIN
+  SELECT COALESCE(game_indices, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
+  UPDATE user_data
+  SET
+    game_indices = jsonb_set(COALESCE(cur, '{}'::jsonb), ARRAY[p_game_key], to_jsonb(p_index)::jsonb, true),
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_game_index(text, text, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_pokemon_unlocked.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAfUpdatePokemonUnlocked; DailyProgressManager (SingleItemUpdate.PokemonUnlocked).
+
+-- BaerenEd: Update pokemon_unlocked for a profile (scalar param only).
+-- Call: POST /rest/v1/rpc/af_update_pokemon_unlocked with body {"p_profile": "TE", "p_pokemon_unlocked": 3}
+
+CREATE OR REPLACE FUNCTION af_update_pokemon_unlocked(
+  p_profile text,
+  p_pokemon_unlocked int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE user_data
+  SET
+    pokemon_unlocked = p_pokemon_unlocked,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_pokemon_unlocked(text, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_berries_banked.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAfUpdateBerriesBanked; BattleHubActivity (post-battle berry sync).
+
+-- BaerenEd: Update berries_earned and optionally banked_mins for a profile (scalar params only).
+-- Call when berries/banked change without a task completion (e.g. battle spend, reset).
+--
+-- p_banked_mins: if NULL, banked_mins column is NOT updated (only berries_earned + last_updated).
+-- If provided, sets banked_mins to that value (same as before).
+--
+-- Examples:
+--   Battle spend (clear berries only): {"p_profile": "AM", "p_berries_earned": 0, "p_banked_mins": null}
+--   Set both: {"p_profile": "TE", "p_berries_earned": 10, "p_banked_mins": 5}
+
+CREATE OR REPLACE FUNCTION af_update_berries_banked(
+  p_profile text,
+  p_berries_earned int,
+  p_banked_mins int DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_banked_mins IS NULL THEN
+    UPDATE user_data
+    SET
+      berries_earned = p_berries_earned,
+      last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+    WHERE profile = p_profile;
+  ELSE
+    UPDATE user_data
+    SET
+      berries_earned = p_berries_earned,
+      banked_mins = p_banked_mins,
+      last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+    WHERE profile = p_profile;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_berries_banked(text, int, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_reward_time_use.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeUseRewardTime ("af_reward_time_use"); RewardSelectionActivity.
+
+-- Activates banked reward time: moves banked_mins into reward_time_expiry (Toronto wall clock).
+
+DROP FUNCTION IF EXISTS af_reward_time_use(TEXT);
+
+CREATE OR REPLACE FUNCTION af_reward_time_use(p_profile TEXT)
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_banked INTEGER;
+    v_expiry TIMESTAMP(3);
+    v_now_ts TIMESTAMP(3);
+BEGIN
+    SELECT COALESCE(banked_mins, 0) INTO v_banked
+    FROM user_data
+    WHERE profile = p_profile
+    FOR UPDATE;
+
+    IF v_banked <= 0 THEN
+        RETURN jsonb_build_object('banked_used', 0, 'reward_time_expiry', NULL, 'toronto_now', NULL);
+    END IF;
+
+    v_now_ts := (CURRENT_TIMESTAMP AT TIME ZONE 'America/Toronto')::timestamp(3);
+    -- Instant + banked minutes, then render as America/Toronto wall clock (matches column contract).
+    v_expiry := (
+        (CURRENT_TIMESTAMP + (v_banked * INTERVAL '1 minute'))
+        AT TIME ZONE 'America/Toronto'
+    )::timestamp(3);
+
+    INSERT INTO reward_time_log (profile, event, reward_mins_remaining, logged_at)
+    VALUES (
+        p_profile,
+        'Start Reward Time Session',
+        v_banked,
+        v_now_ts
+    );
+
+    UPDATE user_data
+    SET reward_time_expiry = v_expiry,
+        banked_mins = 0,
+        last_updated = v_now_ts
+    WHERE profile = p_profile;
+
+    RETURN jsonb_build_object(
+        'banked_used', v_banked,
+        'reward_time_expiry', to_char(v_expiry, 'YYYY-MM-DD HH24:MI:SS.MS'),
+        'toronto_now', to_char(v_now_ts, 'YYYY-MM-DD HH24:MI:SS.MS')
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_reward_time_use(TEXT) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_reward_time_pause.sql
+-- -----------------------------------------------------------------------------
+-- Call sites: BaerenLock SupabaseInterface.pauseRewardTime -> af_reward_time_pause.
+-- Other: 000Requirements.md (reward pause behaviour).
+
+-- Pauses active reward time: remaining minutes go to banked_mins; clears reward_time_expiry.
+
+CREATE OR REPLACE FUNCTION af_reward_time_pause(p_profile TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_expiry TIMESTAMP(3);
+    v_remaining INTEGER;
+    v_session_start INTEGER;
+    v_now_ts TIMESTAMP(3);
+BEGIN
+    SELECT reward_time_expiry INTO v_expiry
+    FROM user_data
+    WHERE profile = p_profile
+    FOR UPDATE;
+
+    IF v_expiry IS NULL THEN
+        RETURN;
+    END IF;
+
+    v_now_ts := (CURRENT_TIMESTAMP AT TIME ZONE 'America/Toronto')::timestamp(3);
+
+    -- True remaining minutes: interpret stored expiry as Toronto wall clock vs current instant.
+    v_remaining := GREATEST(0, CEIL(
+        EXTRACT(EPOCH FROM (
+            (v_expiry AT TIME ZONE 'America/Toronto') - CURRENT_TIMESTAMP
+        )) / 60.0
+    ));
+
+    -- Never bank more than this session was started with (guards corrupt / mis-parsed expiry values).
+    SELECT reward_mins_remaining INTO v_session_start
+    FROM reward_time_log
+    WHERE profile = p_profile
+      AND event = 'Start Reward Time Session'
+    ORDER BY logged_at DESC
+    LIMIT 1;
+
+    IF v_session_start IS NOT NULL THEN
+        v_remaining := LEAST(v_remaining, v_session_start);
+    END IF;
+
+    INSERT INTO reward_time_log (profile, event, reward_mins_remaining, logged_at)
+    VALUES (
+        p_profile,
+        'Pause Reward Session',
+        v_remaining,
+        v_now_ts
+    );
+
+    UPDATE user_data
+    SET banked_mins = v_remaining,
+        reward_time_expiry = NULL,
+        last_updated = v_now_ts
+    WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_reward_time_pause(TEXT) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_reward_time_expire.sql
+-- -----------------------------------------------------------------------------
+-- Call sites: BaerenLock SupabaseInterface.expireRewards -> af_reward_time_expire (p_force default false).
+-- reports/banked_time.html parent "Expire Reward Time" -> af_reward_time_expire with p_force true.
+
+-- Natural expiry (BaerenLock timer): clears reward_time_expiry only when expiry <= now (Toronto).
+-- Parent force expiry (p_force true): ends any active session immediately (expiry set to now, then cleared).
+
+CREATE OR REPLACE FUNCTION af_reward_time_expire(p_profile TEXT, p_force BOOLEAN DEFAULT FALSE)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_expiry TIMESTAMP(3);
+    v_remaining INTEGER := 0;
+    v_updated INTEGER := 0;
+    v_now TIMESTAMP(3) := (CURRENT_TIMESTAMP AT TIME ZONE 'America/Toronto')::timestamp(3);
+BEGIN
+    SELECT reward_time_expiry INTO v_expiry
+    FROM user_data
+    WHERE profile = p_profile
+    FOR UPDATE;
+
+    IF v_expiry IS NULL THEN
+        RETURN;
+    END IF;
+
+    IF p_force THEN
+        IF (v_expiry AT TIME ZONE 'America/Toronto') > CURRENT_TIMESTAMP THEN
+            v_remaining := GREATEST(0, CEIL(
+                EXTRACT(EPOCH FROM (
+                    (v_expiry AT TIME ZONE 'America/Toronto') - CURRENT_TIMESTAMP
+                )) / 60.0
+            ));
+        END IF;
+
+        UPDATE user_data
+        SET reward_time_expiry = NULL,
+            last_updated = v_now
+        WHERE profile = p_profile
+          AND reward_time_expiry IS NOT NULL;
+
+        GET DIAGNOSTICS v_updated = ROW_COUNT;
+
+        IF v_updated > 0 THEN
+            INSERT INTO reward_time_log (profile, event, reward_mins_remaining, logged_at)
+            VALUES (
+                p_profile,
+                'Parent Ended Reward Session',
+                v_remaining,
+                v_now
+            );
+        END IF;
+        RETURN;
+    END IF;
+
+    -- Natural expiry: session ended when stored Toronto wall-clock expiry is at or before now.
+    UPDATE user_data
+    SET reward_time_expiry = NULL,
+        last_updated = v_now
+    WHERE profile = p_profile
+      AND reward_time_expiry IS NOT NULL
+      AND (reward_time_expiry AT TIME ZONE 'America/Toronto') <= CURRENT_TIMESTAMP;
+
+    GET DIAGNOSTICS v_updated = ROW_COUNT;
+
+    IF v_updated > 0 THEN
+        INSERT INTO reward_time_log (profile, event, reward_mins_remaining, logged_at)
+        VALUES (
+            p_profile,
+            'Reward Session Expiry',
+            0,
+            v_now
+        );
+    END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_reward_time_expire(TEXT, BOOLEAN) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_reward_time_add.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   SupabaseInterface.invokeAddRewardTime; MainActivity.kt (grant minutes); BattleHubActivity.kt.
+-- reports/banked_time.html — positive minutes add, negative minutes remove.
+
+-- Parent path: add/remove minutes on banked_mins (no active session) or extend/shrink active reward_time_expiry.
+
+CREATE OR REPLACE FUNCTION af_reward_time_add(p_profile TEXT, p_minutes INTEGER)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_now TIMESTAMP(3) := (NOW() AT TIME ZONE 'America/Toronto');
+    v_sub INTEGER;
+BEGIN
+    IF p_minutes IS NULL OR p_minutes = 0 THEN
+        RETURN;
+    END IF;
+
+    IF p_minutes > 0 THEN
+        UPDATE user_data
+        SET reward_time_expiry = CASE
+                WHEN reward_time_expiry IS NOT NULL AND reward_time_expiry > v_now
+                    THEN reward_time_expiry + (p_minutes * INTERVAL '1 minute')
+                ELSE reward_time_expiry
+            END,
+            banked_mins = CASE
+                WHEN reward_time_expiry IS NULL OR reward_time_expiry <= v_now
+                    THEN COALESCE(banked_mins, 0) + p_minutes
+                ELSE banked_mins
+            END,
+            last_updated = v_now
+        WHERE profile = p_profile;
+        RETURN;
+    END IF;
+
+    v_sub := -p_minutes;
+
+    UPDATE user_data
+    SET reward_time_expiry = CASE
+            WHEN reward_time_expiry IS NOT NULL AND reward_time_expiry > v_now THEN
+                CASE
+                    WHEN reward_time_expiry - (v_sub * INTERVAL '1 minute') <= v_now THEN NULL
+                    ELSE reward_time_expiry - (v_sub * INTERVAL '1 minute')
+                END
+            ELSE reward_time_expiry
+        END,
+        banked_mins = CASE
+            WHEN reward_time_expiry IS NULL OR reward_time_expiry <= v_now
+                THEN GREATEST(0, COALESCE(banked_mins, 0) - v_sub)
+            ELSE banked_mins
+        END,
+        last_updated = v_now
+    WHERE profile = p_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_reward_time_add(TEXT, INTEGER) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_push_profile_config_to_github.sql
+-- -----------------------------------------------------------------------------
+-- Parent schedule editor: push profile config JSON (and optional schedule master) to GitHub (Contents API).
+-- Call site: reports/schedule_editor.html (after user_data PATCH).
+--
+-- Setup (Supabase Dashboard → Project Settings → Vault):
+--   1. schedule_editor_write_key  — shared secret; enter same value in reports config.
+--   2. github_config_pat          — fine-grained PAT with Contents: Read and write on BaerenEd-Android-App.
+--
+-- GitHub branch: V3 (same branch GitHub Pages serves for config).
+
+DROP FUNCTION IF EXISTS af_push_profile_config_to_github(text, jsonb, text);
+DROP FUNCTION IF EXISTS af_push_profile_config_to_github(text, jsonb, text, jsonb);
+
+CREATE OR REPLACE FUNCTION af_push_profile_config_to_github(
+  p_profile text,
+  p_config_json jsonb,
+  p_write_key text,
+  p_schedule_master_json jsonb DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_expected_key text;
+  v_pat text;
+  v_files jsonb;
+  v_file jsonb;
+  v_idx int;
+  v_file_count int;
+  v_path text;
+  v_api_url text;
+  v_get_status int;
+  v_get_body jsonb;
+  v_sha text;
+  v_content text;
+  v_content_b64 text;
+  v_put_request text;
+  v_put_status int;
+  v_put_response jsonb;
+  v_paths jsonb := '[]'::jsonb;
+  v_branch text := 'V3';
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  IF p_config_json IS NULL OR jsonb_typeof(p_config_json) != 'object' THEN
+    RAISE EXCEPTION 'p_config_json must be a JSON object';
+  END IF;
+
+  SELECT decrypted_secret INTO v_expected_key
+  FROM vault.decrypted_secrets
+  WHERE name = 'schedule_editor_write_key'
+  LIMIT 1;
+
+  IF v_expected_key IS NULL OR v_expected_key = '' THEN
+    RAISE EXCEPTION 'schedule_editor_write_key not configured in Supabase Vault';
+  END IF;
+
+  IF p_write_key IS NULL OR p_write_key = '' OR p_write_key IS DISTINCT FROM v_expected_key THEN
+    RAISE EXCEPTION 'Invalid schedule editor write key';
+  END IF;
+
+  SELECT decrypted_secret INTO v_pat
+  FROM vault.decrypted_secrets
+  WHERE name = 'github_config_pat'
+  LIMIT 1;
+
+  IF v_pat IS NULL OR v_pat = '' THEN
+    RAISE EXCEPTION 'github_config_pat not configured in Supabase Vault';
+  END IF;
+
+  v_files := jsonb_build_array(
+    jsonb_build_object(
+      'path', 'app/src/main/assets/config/' || v_profile || '_config.json',
+      'payload', p_config_json,
+      'message', 'Schedule editor: update ' || v_profile || '_config.json'
+    )
+  );
+
+  IF p_schedule_master_json IS NOT NULL AND jsonb_typeof(p_schedule_master_json) = 'object' THEN
+    v_files := v_files || jsonb_build_array(
+      jsonb_build_object(
+        'path', 'app/src/main/assets/config/schedule_master_' || v_profile || '.json',
+        'payload', p_schedule_master_json,
+        'message', 'Schedule editor: update schedule_master_' || v_profile || '.json'
+      )
+    );
+  END IF;
+
+  v_file_count := jsonb_array_length(v_files);
+  FOR v_idx IN 0 .. v_file_count - 1 LOOP
+    v_file := v_files -> v_idx;
+    v_path := v_file->>'path';
+    v_api_url := 'https://api.github.com/repos/talq2me/BaerenEd-Android-App/contents/' || v_path || '?ref=' || v_branch;
+
+    SELECT r.status, r.content::jsonb
+    INTO v_get_status, v_get_body
+    FROM extensions.http((
+      'GET',
+      v_api_url,
+      ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || v_pat),
+        extensions.http_header('Accept', 'application/vnd.github+json'),
+        extensions.http_header('User-Agent', 'BaerenEd-Schedule-Editor')
+      ]::extensions.http_header[],
+      NULL,
+      NULL
+    )::extensions.http_request) r;
+
+    IF v_get_status != 200 OR v_get_body IS NULL THEN
+      RAISE EXCEPTION 'GitHub GET failed for % (status %): %', v_path, COALESCE(v_get_status, -1), COALESCE(v_get_body::text, 'null');
+    END IF;
+
+    v_sha := v_get_body->>'sha';
+    IF v_sha IS NULL OR v_sha = '' THEN
+      RAISE EXCEPTION 'GitHub GET did not return file sha for %', v_path;
+    END IF;
+
+    v_content := jsonb_pretty(v_file->'payload');
+    v_content_b64 := encode(convert_to(v_content, 'UTF8'), 'base64');
+
+    v_put_request := jsonb_build_object(
+      'message', v_file->>'message',
+      'content', v_content_b64,
+      'branch', v_branch,
+      'sha', v_sha
+    )::text;
+
+    SELECT r.status, r.content::jsonb
+    INTO v_put_status, v_put_response
+    FROM extensions.http((
+      'PUT',
+      'https://api.github.com/repos/talq2me/BaerenEd-Android-App/contents/' || v_path,
+      ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || v_pat),
+        extensions.http_header('Accept', 'application/vnd.github+json'),
+        extensions.http_header('User-Agent', 'BaerenEd-Schedule-Editor')
+      ]::extensions.http_header[],
+      'application/json',
+      v_put_request
+    )::extensions.http_request) r;
+
+    IF v_put_status NOT IN (200, 201) THEN
+      RAISE EXCEPTION 'GitHub PUT failed for % (status %): %', v_path, COALESCE(v_put_status, -1), COALESCE(v_put_response::text, 'null');
+    END IF;
+
+    v_paths := v_paths || jsonb_build_array(v_path);
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'profile', v_profile,
+    'path', v_paths->>0,
+    'paths', v_paths,
+    'master_path', CASE WHEN jsonb_array_length(v_paths) > 1 THEN v_paths->>1 ELSE NULL END,
+    'branch', v_branch,
+    'commit_sha', v_put_response->'commit'->>'sha'
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_push_profile_config_to_github(text, jsonb, text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_log_behavior.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (reports):
+--   reports/behavior_log.html — parent taps a behavior button to insert a log row.
+
+-- Inserts one behavior_log row with America/Toronto wall-clock log_date_time.
+-- Returns the inserted row so the UI can refresh immediately if desired.
+
+CREATE OR REPLACE FUNCTION af_log_behavior(
+    p_profile text,
+    p_behavior text,
+    p_category text
+)
+RETURNS TABLE (
+    id bigint,
+    profile text,
+    behavior text,
+    category text,
+    log_date_time timestamp
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF p_profile IS NULL OR btrim(p_profile) = '' THEN
+        RAISE EXCEPTION 'p_profile is required';
+    END IF;
+    IF p_behavior IS NULL OR btrim(p_behavior) = '' THEN
+        RAISE EXCEPTION 'p_behavior is required';
+    END IF;
+    IF p_category IS NULL OR btrim(p_category) = '' THEN
+        RAISE EXCEPTION 'p_category is required';
+    END IF;
+
+    RETURN QUERY
+    INSERT INTO behavior_log (profile, behavior, category, log_date_time)
+    VALUES (
+        btrim(p_profile),
+        btrim(p_behavior),
+        btrim(p_category),
+        (NOW() AT TIME ZONE 'America/Toronto')
+    )
+    RETURNING
+        behavior_log.id,
+        behavior_log.profile,
+        behavior_log.behavior,
+        behavior_log.category,
+        behavior_log.log_date_time;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_log_behavior(text, text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_behavior_log.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (reports):
+--   reports/behavior_log.html — list mode (today) and graph mode (date range).
+
+-- Returns behavior_log rows for a profile between inclusive start/end (America/Toronto wall clock).
+-- Ordered most recent first.
+
+CREATE OR REPLACE FUNCTION af_get_behavior_log(
+    p_profile text,
+    p_start_date_time timestamp,
+    p_end_date_time timestamp
+)
+RETURNS TABLE (
+    id bigint,
+    profile text,
+    behavior text,
+    category text,
+    log_date_time timestamp
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        bl.id,
+        bl.profile,
+        bl.behavior,
+        bl.category,
+        bl.log_date_time
+    FROM behavior_log bl
+    WHERE bl.profile = p_profile
+      AND bl.log_date_time >= p_start_date_time
+      AND bl.log_date_time < p_end_date_time
+    ORDER BY bl.log_date_time DESC, bl.id DESC;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_behavior_log(text, timestamp, timestamp) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_behavior_log_time.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (reports):
+--   reports/behavior_log.html — parent taps a list item to edit that event's log time.
+
+-- Updates log_date_time for one behavior_log row (America/Toronto wall clock).
+-- Returns the updated row.
+
+CREATE OR REPLACE FUNCTION af_update_behavior_log_time(
+    p_id bigint,
+    p_log_date_time timestamp
+)
+RETURNS TABLE (
+    id bigint,
+    profile text,
+    behavior text,
+    category text,
+    log_date_time timestamp
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF p_id IS NULL THEN
+        RAISE EXCEPTION 'p_id is required';
+    END IF;
+    IF p_log_date_time IS NULL THEN
+        RAISE EXCEPTION 'p_log_date_time is required';
+    END IF;
+
+    RETURN QUERY
+    UPDATE behavior_log bl
+    SET log_date_time = p_log_date_time
+    WHERE bl.id = p_id
+    RETURNING
+        bl.id,
+        bl.profile,
+        bl.behavior,
+        bl.category,
+        bl.log_date_time;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'behavior_log row not found for id %', p_id;
+    END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_behavior_log_time(bigint, timestamp) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_delete_behavior_log.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (reports):
+--   reports/behavior_log.html — parent taps trash while editing a list item to delete that log row.
+
+-- Deletes one behavior_log row by id.
+-- Returns the deleted row.
+
+CREATE OR REPLACE FUNCTION af_delete_behavior_log(
+    p_id bigint
+)
+RETURNS TABLE (
+    id bigint,
+    profile text,
+    behavior text,
+    category text,
+    log_date_time timestamp
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF p_id IS NULL THEN
+        RAISE EXCEPTION 'p_id is required';
+    END IF;
+
+    RETURN QUERY
+    DELETE FROM behavior_log bl
+    WHERE bl.id = p_id
+    RETURNING
+        bl.id,
+        bl.profile,
+        bl.behavior,
+        bl.category,
+        bl.log_date_time;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'behavior_log row not found for id %', p_id;
+    END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_delete_behavior_log(bigint) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_list_tasks.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/index.html loadProfile.
+-- Today's visible assignments for one profile. Checklist stays in the table and is not listed.
+
+CREATE OR REPLACE FUNCTION af_web_list_tasks(p_profile text)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_today text;
+  v_rows jsonb;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  v_today := (ARRAY['sun','mon','tue','wed','thu','fri','sat'])[
+    extract(dow FROM (NOW() AT TIME ZONE 'America/Toronto'))::int + 1
+  ];
+
+  SELECT COALESCE(jsonb_agg(item ORDER BY section_order, sort_order), '[]'::jsonb)
+  INTO v_rows
+  FROM (
+    SELECT
+      CASE a.section
+        WHEN 'required' THEN 1
+        WHEN 'optional' THEN 2
+        WHEN 'bonus' THEN 3
+        ELSE 4
+      END AS section_order,
+      a.sort_order,
+      jsonb_build_object(
+        'section', a.section,
+        'title', a.title,
+        'launch', a.launch,
+        'stars', a.stars,
+        'url', a.url,
+        'webGame', a.web_game,
+        'totalQuestions', a.total_questions,
+        'chromePage', a.chrome_page,
+        'videoSequence', a.video_sequence,
+        'video', a.video
+      ) AS item
+    FROM web_assignments a
+    WHERE a.profile = v_profile
+      AND a.enabled
+      AND a.section <> 'checklist'
+      AND (
+        a.display_days IS NULL
+        OR btrim(a.display_days) = ''
+        OR position(v_today IN lower(a.display_days)) > 0
+      )
+  ) listed;
+
+  RETURN COALESCE(v_rows, '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_list_tasks(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_report_assignments.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (parent reports, this repo):
+--   reports/daily_progress_report.html — today's required and practice lists.
+--   reports/index.html — home progress counts and chore titles.
+--   reports/schedule.html — week grid.
+-- All web assignments for one profile, including ones that are off. Checklist is not included.
+-- The tablet still reads the GitHub JSON configs.
+
+CREATE OR REPLACE FUNCTION af_web_report_assignments(p_profile text)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_rows jsonb;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  SELECT COALESCE(jsonb_agg(item ORDER BY section_order, sort_order), '[]'::jsonb)
+  INTO v_rows
+  FROM (
+    SELECT
+      CASE a.section
+        WHEN 'required' THEN 1
+        WHEN 'optional' THEN 2
+        WHEN 'bonus' THEN 3
+        WHEN 'checklist' THEN 4
+        ELSE 5
+      END AS section_order,
+      a.sort_order,
+      jsonb_build_object(
+        'section', a.section,
+        'title', a.title,
+        'launch', a.launch,
+        'enabled', a.enabled,
+        'sortOrder', a.sort_order,
+        'stars', a.stars,
+        'url', a.url,
+        'webGame', a.web_game,
+        'totalQuestions', a.total_questions,
+        'displayDays', a.display_days,
+        'chromePage', a.chrome_page,
+        'videoSequence', a.video_sequence,
+        'video', a.video,
+        'description', a.description
+      ) AS item
+    FROM web_assignments a
+    WHERE a.profile = v_profile
+      AND a.section <> 'checklist'
+  ) listed;
+
+  RETURN COALESCE(v_rows, '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_report_assignments(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_save_schedule.sql
+-- -----------------------------------------------------------------------------
+-- Call site: reports/schedule_editor.html on main.
+-- Updates web_assignments for the web home list.
+-- Does not write user_data or the GitHub config the tablet editor uses.
+
+CREATE OR REPLACE FUNCTION af_web_save_schedule(
+  p_profile text,
+  p_rows jsonb,
+  p_replace_checklist boolean DEFAULT false
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  r record;
+  v_launch text;
+  v_section text;
+  v_n int;
+  v_updated boolean;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF p_rows IS NULL OR jsonb_typeof(p_rows) <> 'array' THEN
+    RAISE EXCEPTION 'p_rows must be a json array';
+  END IF;
+
+  FOR r IN
+    SELECT *
+    FROM jsonb_to_recordset(p_rows) AS x(
+      section text,
+      title text,
+      launch text,
+      enabled boolean,
+      display_days text,
+      stars int,
+      total_questions int,
+      url text,
+      web_game boolean,
+      description text
+    )
+  LOOP
+    v_section := lower(trim(r.section));
+    IF v_section IS NULL OR v_section NOT IN ('required', 'optional') THEN
+      CONTINUE;
+    END IF;
+    IF r.title IS NULL OR btrim(r.title) = '' THEN
+      CONTINUE;
+    END IF;
+
+    v_launch := nullif(btrim(r.launch), '');
+    IF v_launch IS NOT NULL THEN
+      INSERT INTO web_games (launch) VALUES (v_launch) ON CONFLICT DO NOTHING;
+    END IF;
+
+    v_updated := false;
+
+    UPDATE web_assignments
+    SET enabled = COALESCE(r.enabled, enabled),
+        display_days = nullif(btrim(r.display_days), ''),
+        stars = r.stars,
+        total_questions = r.total_questions,
+        url = COALESCE(nullif(btrim(r.url), ''), url),
+        web_game = COALESCE(r.web_game, web_game),
+        description = COALESCE(nullif(btrim(r.description), ''), description)
+    WHERE profile = v_profile
+      AND section = v_section
+      AND title = r.title
+      AND launch IS NOT DISTINCT FROM v_launch;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    IF v_n > 0 THEN
+      v_updated := true;
+    ELSIF v_launch IS NOT NULL
+      AND (
+        SELECT count(*)
+        FROM web_assignments
+        WHERE profile = v_profile
+          AND section = v_section
+          AND title = r.title
+      ) = 1
+    THEN
+      UPDATE web_assignments
+      SET enabled = COALESCE(r.enabled, enabled),
+          display_days = nullif(btrim(r.display_days), ''),
+          stars = r.stars,
+          total_questions = r.total_questions,
+          url = COALESCE(nullif(btrim(r.url), ''), url),
+          web_game = COALESCE(r.web_game, web_game),
+          description = COALESCE(nullif(btrim(r.description), ''), description),
+          launch = v_launch
+      WHERE profile = v_profile
+        AND section = v_section
+        AND title = r.title;
+      GET DIAGNOSTICS v_n = ROW_COUNT;
+      v_updated := v_n > 0;
+    END IF;
+
+    IF NOT v_updated THEN
+      INSERT INTO web_assignments (
+        profile, section, launch, title, enabled, sort_order, stars, url,
+        web_game, total_questions, display_days, description
+      )
+      VALUES (
+        v_profile,
+        v_section,
+        v_launch,
+        r.title,
+        COALESCE(r.enabled, true),
+        COALESCE((
+          SELECT max(sort_order)
+          FROM web_assignments
+          WHERE profile = v_profile AND section = v_section
+        ), 0) + 1,
+        r.stars,
+        nullif(btrim(r.url), ''),
+        COALESCE(r.web_game, false),
+        r.total_questions,
+        nullif(btrim(r.display_days), ''),
+        nullif(btrim(r.description), '')
+      );
+    END IF;
+  END LOOP;
+
+  IF COALESCE(p_replace_checklist, false) THEN
+    DELETE FROM web_assignments a
+    WHERE a.profile = v_profile
+      AND a.section = 'checklist'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM jsonb_to_recordset(p_rows) AS x(section text, title text)
+        WHERE lower(trim(x.section)) = 'checklist'
+          AND x.title = a.title
+      );
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_save_schedule(text, jsonb, boolean) TO anon, authenticated, service_role;
+
+

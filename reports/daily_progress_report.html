@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Daily Progress Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f1f5f9;
+            padding: 10px;
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+            line-height: 1.4;
+            color: #222;
+        }
+
+        .container { max-width: 640px; margin: 0 auto; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #5a7a9c;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .header-main { min-width: 0; flex: 1; }
+
+        .header h1 {
+            font-size: 1.05em;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .header-meta {
+            font-size: 0.78em;
+            opacity: 0.92;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .back-button {
+            flex: 0 0 auto;
+            padding: 7px 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .back-button:active { background: rgba(255, 255, 255, 0.3); }
+
+        .section {
+            background: white;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        .section h3 {
+            color: #334155;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+
+        .section.collapsible {
+            padding: 0;
+        }
+
+        .section-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
+            color: inherit;
+        }
+
+        .section-toggle h3 {
+            margin: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+            flex: 1;
+        }
+
+        .section-count {
+            font-weight: 600;
+            letter-spacing: 0;
+            text-transform: none;
+            color: #94a3b8;
+        }
+
+        .section-chevron {
+            flex-shrink: 0;
+            width: 1.05rem;
+            height: 1.05rem;
+            color: #64748b;
+            transition: transform 0.2s;
+        }
+
+        .section.collapsible.open .section-chevron {
+            transform: rotate(90deg);
+        }
+
+        .section.collapsible.open .section-toggle {
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section.collapsible .section-body {
+            display: none;
+            padding: 8px 12px 12px;
+        }
+
+        .section.collapsible.open .section-body {
+            display: block;
+        }
+
+        .task-list { list-style: none; }
+
+        .task-item {
+            background: #f8fafc;
+            margin: 5px 0;
+            padding: 8px 10px;
+            border-left: 3px solid #5a7a9c;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.88em;
+        }
+
+        .task-item.incomplete {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .task-name {
+            font-weight: 500;
+            color: #333;
+            min-width: 0;
+        }
+
+        .task-info {
+            color: #64748b;
+            font-size: 0.85em;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 24px;
+            color: #64748b;
+            font-size: 0.9em;
+        }
+
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
+            padding: 12px;
+            color: #b91c1c;
+            margin: 8px 0;
+            font-size: 0.9em;
+        }
+
+        .chore-photos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 8px;
+            margin: 8px 0 12px;
+        }
+
+        .chore-photo-card {
+            background: #f8fafc;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+        }
+
+        .chore-photo-card img,
+        .chore-photo-card video,
+        .chore-photo-card .audio-thumb,
+        .chore-photo-card .video-thumb {
+            width: 100%;
+            height: 96px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .chore-photo-card .audio-thumb {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 0.85em;
+            font-weight: 700;
+            object-fit: unset;
+        }
+
+        .chore-photo-card .video-thumb {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1e293b;
+            color: #e2e8f0;
+            font-size: 0.85em;
+            font-weight: 700;
+            object-fit: unset;
+        }
+
+        .modal-content.audio-player,
+        .modal-content.video-player {
+            width: min(520px, 96vw);
+            max-height: none;
+        }
+
+        .modal-content.video-player {
+            max-height: 80vh;
+            background: #000;
+        }
+
+        .chore-photo-card .cap {
+            font-size: 0.68em;
+            padding: 4px 6px;
+            color: #334155;
+            line-height: 1.2;
+        }
+
+        .chore-photo-card .cap .paid {
+            color: #15803d;
+            font-weight: 700;
+        }
+
+        .modal-sentence {
+            width: min(640px, 96vw);
+            background: #fff;
+            color: #0f172a;
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1.4;
+            text-align: center;
+            padding: 24px 20px 8px;
+            border-radius: 12px 12px 0 0;
+            margin: 0 auto;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.82);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            max-width: 96vw;
+            max-height: 82vh;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .grant-dialog {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            width: min(420px, 100%);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .grant-dialog h4 {
+            margin-bottom: 8px;
+            color: #334155;
+        }
+
+        .grant-dialog p {
+            font-size: 0.9em;
+            color: #475569;
+            margin-bottom: 10px;
+        }
+
+        .grant-dialog input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 12px;
+        }
+
+        .grant-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .grant-actions button {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .grant-no { background: #e2e8f0; color: #334155; }
+        .grant-resend { background: #c2410c; color: white; margin-right: auto; }
+        .grant-yes { background: #15803d; color: white; }
+
+        .section.collapsible .chore-photos {
+            padding: 0 12px 12px;
+            margin: 0;
+        }
+
+        .section.collapsible:not(.open) .chore-photos {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+        }
+
+        @media (min-width: 480px) {
+            body { padding: 16px; }
+            .header { padding: 12px 14px; }
+            .header h1 { font-size: 1.15em; }
+            .section { padding: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-main">
+                <h1>Progress · <span id="childName">…</span></h1>
+                <div class="header-meta" id="reportDate">Loading…</div>
+            </div>
+            <a href="index.html" class="back-button">← Back</a>
+        </div>
+
+        <div id="loading" class="loading">
+            <p>Loading report…</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="reportContent" style="display: none;">
+            <div class="section collapsible open">
+                <button type="button" class="section-toggle" aria-expanded="true">
+                    <svg class="section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h3>Required Tasks <span class="section-count" id="requiredCount"></span></h3>
+                </button>
+                <div class="section-body">
+                    <ul class="task-list" id="requiredTasks"></ul>
+                </div>
+                <div id="chorePhotos" class="chore-photos"></div>
+            </div>
+
+            <div class="section collapsible">
+                <button type="button" class="section-toggle" aria-expanded="false">
+                    <svg class="section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h3>Extra Practice <span class="section-count" id="practiceCount"></span></h3>
+                </button>
+                <div class="section-body">
+                    <ul class="task-list" id="practiceTasks"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="imageModal" class="modal" aria-hidden="true">
+        <span class="modal-close" id="imageModalClose">&times;</span>
+        <p class="modal-sentence" id="modalSentenceText" style="display:none"></p>
+        <img class="modal-content" id="modalImage" alt="Chore photo">
+        <audio class="modal-content audio-player" id="modalAudio" controls style="display:none"></audio>
+        <video class="modal-content video-player" id="modalVideo" controls playsinline muted style="display:none"></video>
+    </div>
+
+    <div id="grantModal" class="modal" aria-hidden="true">
+        <div class="grant-dialog">
+            <h4 id="grantTitle">Grant chore reward?</h4>
+            <p id="grantMessage">Add this amount to the kid's bank.</p>
+            <input id="grantAmount" type="number" min="0" step="0.01" inputmode="decimal">
+            <div class="grant-actions">
+                <button type="button" class="grant-resend" id="grantResend">Resend</button>
+                <button type="button" class="grant-no" id="grantNo">No</button>
+                <button type="button" class="grant-yes" id="grantYes">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get kid from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const kid = urlParams.get('kid') || 'AM';
+
+        // Load Supabase configuration
+        const supabaseUrl = localStorage.getItem('supabaseUrl');
+        const supabaseKey = localStorage.getItem('supabaseKey');
+        const restHeaders = {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+        };
+
+        let reportUserData = null;
+        let todayChorePhotos = [];
+        let openPhoto = null;
+        let choreTitleSet = new Set();
+        let choreMetaById = {};
+
+        function todayTorontoYmd() {
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(new Date());
+        }
+
+        function parseChoreTaskKey(task) {
+            const withReward = String(task || '').match(/^chore_(.+)_r([0-9]+(?:\.[0-9]+)?)_(\d{4}-\d{2}-\d{2})$/);
+            if (withReward) {
+                return {
+                    choreId: withReward[1],
+                    rewardCash: Number(withReward[2]),
+                    date: withReward[3]
+                };
+            }
+            const m = String(task || '').match(/^chore_(.+)_(\d{4}-\d{2}-\d{2})$/);
+            if (!m) return null;
+            return { choreId: m[1], rewardCash: null, date: m[2] };
+        }
+
+        function isAudioPayload(image) {
+            return typeof image === 'string' && image.startsWith('data:audio');
+        }
+
+        function isVideoPayload(image) {
+            return typeof image === 'string' && (
+                image.startsWith('storage:chore-videos/') ||
+                image.startsWith('data:video')
+            );
+        }
+
+        function mediaSrc(image) {
+            if (!image) return '';
+            if (image.startsWith('storage:chore-videos/')) {
+                const objectPath = image.substring('storage:chore-videos/'.length);
+                return `${supabaseUrl}/storage/v1/object/public/chore-videos/${objectPath}`;
+            }
+            if (image.startsWith('data:')) return image;
+            return 'data:image/jpeg;base64,' + image;
+        }
+
+        function imageSrc(image) {
+            return mediaSrc(image);
+        }
+
+        function formatMoney(amount) {
+            const n = Number(amount);
+            if (!isFinite(n)) return '$0.00';
+            return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
+
+        async function fetchTodayChorePhotos() {
+            const today = todayTorontoYmd();
+            const url = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(kid)}&task=like.chore_*&select=task,image,capture_date_time,reward_granted,granted_amount&order=capture_date_time.desc`;
+            let response = await fetch(url, { headers: restHeaders });
+            if (!response.ok) {
+                const fallbackUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(kid)}&task=like.chore_*&select=task,image,capture_date_time&order=capture_date_time.desc`;
+                response = await fetch(fallbackUrl, { headers: restHeaders });
+            }
+            if (!response.ok) {
+                throw new Error(`image_uploads: ${response.status}`);
+            }
+            const rows = await response.json();
+            return (Array.isArray(rows) ? rows : []).filter(row => {
+                const parsed = parseChoreTaskKey(row.task);
+                const captureDay = String(row.capture_date_time || '').slice(0, 10);
+                return parsed && (parsed.date === today || captureDay === today);
+            });
+        }
+
+        const WEB_SKIP = { boukili: 1, googleReadAlong: 1 };
+        const WEB_QUIZ = {
+            jkmath: 1, gr1MathStrategies: 1, gr3algebra: 1, gr3fractions: 1, gr3math: 1,
+            gr3mixedproblems: 1, gr3wordproblems: 1, canadianMoneyEasy: 1, canadianMoneyHard: 1,
+            conjugation: 1, conjugation_limparfait: 1, translation: 1, duologicalGame: 1, frenchStories: 1
+        };
+        const WEB_LATER = { printing: 1, tappableText: 1, storyRead: 1 };
+        let reportAssignments = [];
+
+        function torontoDayToken() {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Toronto',
+                weekday: 'short'
+            }).format(new Date()).toLowerCase();
+        }
+
+        function shownOnDay(displayDays, dayToken) {
+            const days = String(displayDays || '').trim();
+            if (!days) return true;
+            return days.toLowerCase().split(',').map(part => part.trim()).includes(dayToken);
+        }
+
+        function kidCanSee(row) {
+            if (!row || row.enabled === false) return false;
+            if (WEB_SKIP[row.launch] || row.chromePage || row.videoSequence) return false;
+            if (row.webGame && row.url) return true;
+            if (WEB_QUIZ[row.launch] || row.launch === 'spellingOCR' || WEB_LATER[row.launch]) return true;
+            return false;
+        }
+
+        async function fetchWebAssignments() {
+            const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_web_report_assignments`, {
+                method: 'POST',
+                headers: restHeaders,
+                body: JSON.stringify({ p_profile: kid })
+            });
+            if (!response.ok) {
+                throw new Error(`af_web_report_assignments: ${response.status}`);
+            }
+            const rows = await response.json();
+            return Array.isArray(rows) ? rows : [];
+        }
+
+        function collectChoreTitles(rows) {
+            choreMetaById = {};
+            const titles = new Set();
+            for (const t of rows || []) {
+                if (t.section && t.section !== 'required') continue;
+                const launch = String(t.launch || '').toLowerCase();
+                const rawUrl = String(t.url || '');
+                const url = rawUrl.toLowerCase();
+                if (launch.startsWith('chore') || url.includes('chorephoto') || url.includes('choreaudio') || url.includes('chorevideo')) {
+                    const title = String(t.title || '').trim();
+                    if (title) titles.add(title.toLowerCase());
+                    try {
+                        const parsedUrl = new URL(rawUrl);
+                        const choreId = parsedUrl.searchParams.get('choreId');
+                        if (choreId) {
+                            const urlTitle = parsedUrl.searchParams.get('title');
+                            const reward = parsedUrl.searchParams.get('rewardCash');
+                            choreMetaById[choreId] = {
+                                title: urlTitle || title,
+                                rewardCash: reward != null && reward !== '' ? Number(reward) : 0
+                            };
+                        }
+                    } catch (e) {}
+                }
+            }
+            return titles;
+        }
+
+        function resolveChoreMeta(choreId, photoChoresToday) {
+            return choreMetaById[choreId]
+                || (photoChoresToday && photoChoresToday[choreId])
+                || (reportUserData && reportUserData.photo_chores && reportUserData.photo_chores[choreId])
+                || {};
+        }
+
+        function isChoreRequiredTask(taskKey, task) {
+            const keyNorm = String(taskKey).trim().toLowerCase();
+            if (choreTitleSet.has(keyNorm)) return true;
+            if (String(task?.launch || '').toLowerCase().startsWith('chore')) return true;
+            if (String(task?.url || '').toLowerCase().includes('chorephoto')) return true;
+            if (String(task?.url || '').toLowerCase().includes('choreaudio')) return true;
+            if (String(task?.url || '').toLowerCase().includes('chorevideo')) return true;
+            const photoChores = (reportUserData && reportUserData.photo_chores) || {};
+            for (const [id, chore] of Object.entries(photoChores)) {
+                if (String(chore?.title || chore?.description || '').trim().toLowerCase() === keyNorm) return true;
+                if (String(id).replace(/_/g, ' ') === keyNorm) return true;
+            }
+            return false;
+        }
+
+        async function fetchReportData() {
+            try {
+                const [response, assignmentRows] = await Promise.all([
+                    fetch(`${supabaseUrl}/rest/v1/user_data?profile=eq.${kid}&select=*`, {
+                        headers: restHeaders
+                    }),
+                    fetchWebAssignments()
+                ]);
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data || data.length === 0) {
+                    throw new Error(`No data found for profile: ${kid}`);
+                }
+
+                reportUserData = data[0];
+                reportAssignments = assignmentRows;
+                choreTitleSet = collectChoreTitles(assignmentRows);
+                try {
+                    todayChorePhotos = await fetchTodayChorePhotos();
+                } catch (photoErr) {
+                    console.warn('Chore photos unavailable', photoErr);
+                    todayChorePhotos = [];
+                }
+                displayReport(reportUserData);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = 
+                    `<strong>Error:</strong> ${error.message}`;
+                document.getElementById('childName').textContent = kid;
+            }
+        }
+
+        // Format now as EST timestamp: yyyy-MM-dd HH:mm:ss.SSS (matches app TIMESTAMP(3) EST).
+        function nowEST() {
+            const t = new Date();
+            const tf = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+            const parts = tf.formatToParts(t);
+            const get = (type) => parts.find(p => p.type === type).value;
+            const pad2 = (s) => String(s).padStart(2, '0');
+            return `${get('year')}-${pad2(get('month'))}-${pad2(get('day'))} ${pad2(get('hour'))}:${pad2(get('minute'))}:${pad2(get('second'))}.${String(t.getMilliseconds()).padStart(3, '0')}`;
+        }
+
+        // Checks if a task should be visible based on day restrictions and disable date
+        // This matches the logic in DailyProgressManager.isTaskVisible() and CloudStorageManager.isTaskVisible()
+        function isTaskVisible(showdays, hidedays, displayDays, disable) {
+            // Check disable date first - if current date is before disable date, hide the task
+            if (disable) {
+                try {
+                    // Parse date format like "Nov 24, 2025" or ISO format
+                    let disableDate;
+                    // Try parsing as "MMM dd, yyyy" format first
+                    const dateMatch = disable.match(/(\w{3})\s+(\d{1,2}),\s+(\d{4})/);
+                    if (dateMatch) {
+                        // Format: "Nov 24, 2025"
+                        const months = {jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+                                       jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11};
+                        const month = months[dateMatch[1].toLowerCase()];
+                        const day = parseInt(dateMatch[2]);
+                        const year = parseInt(dateMatch[3]);
+                        disableDate = new Date(year, month, day);
+                    } else {
+                        // Try parsing as ISO or other standard formats
+                        disableDate = new Date(disable);
+                    }
+                    
+                    if (disableDate && !isNaN(disableDate.getTime())) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        disableDate.setHours(0, 0, 0, 0);
+                        
+                        // If today is before the disable date, task is disabled (not visible)
+                        if (today < disableDate) {
+                            return false;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Error parsing disable date:', disable, e);
+                }
+            }
+
+            const today = new Date().getDay();
+            const todayShort = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today];
+
+            if (hidedays) {
+                if (hidedays.split(',').map(d => d.trim()).includes(todayShort)) {
+                    return false; // Hide if today is in hidedays
+                }
+            }
+
+            // Check displayDays first (if set, only show on those days)
+            if (displayDays) {
+                return displayDays.split(',').map(d => d.trim()).includes(todayShort); // Show only if today is in displayDays
+            }
+
+            if (showdays) {
+                return showdays.split(',').map(d => d.trim()).includes(todayShort); // Show only if today is in showdays
+            }
+
+            return true; // Visible by default if no restrictions
+        }
+
+        function renderChorePhotos(photoChoresToday) {
+            const wrap = document.getElementById('chorePhotos');
+            wrap.innerHTML = '';
+            if (!todayChorePhotos.length) {
+                wrap.style.display = 'none';
+                return;
+            }
+            let photoCount = 0;
+            todayChorePhotos.forEach((row, idx) => {
+                if (isAudioPayload(row.image)) return;
+                const parsed = parseChoreTaskKey(row.task) || {};
+                const meta = resolveChoreMeta(parsed.choreId, photoChoresToday);
+                const title = meta.title || String(parsed.choreId || 'Chore').replace(/_/g, ' ');
+                const paid = row.reward_granted === true;
+                const card = document.createElement('div');
+                card.className = 'chore-photo-card';
+                const mediaHtml = isVideoPayload(row.image)
+                    ? `<div class="video-thumb" aria-label="Video">Video</div>`
+                    : `<img src="${mediaSrc(row.image)}" alt="${title}">`;
+                card.innerHTML = `
+                    ${mediaHtml}
+                    <div class="cap">${title}${paid ? ` <span class="paid">Paid ${formatMoney(row.granted_amount)}</span>` : ''}</div>
+                `;
+                card.addEventListener('click', () => openChorePhoto(idx, photoChoresToday));
+                wrap.appendChild(card);
+                photoCount += 1;
+            });
+            wrap.style.display = photoCount ? '' : 'none';
+        }
+
+        function closeImageModalOnly() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('show');
+            document.getElementById('modalImage').src = '';
+            document.getElementById('modalImage').style.display = '';
+            const sentEl = document.getElementById('modalSentenceText');
+            if (sentEl) {
+                sentEl.textContent = '';
+                sentEl.style.display = 'none';
+            }
+            const audio = document.getElementById('modalAudio');
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.style.display = 'none';
+            const video = document.getElementById('modalVideo');
+            video.pause();
+            video.removeAttribute('src');
+            video.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        function closeGrantModal() {
+            document.getElementById('grantModal').classList.remove('show');
+        }
+
+        function openChorePhoto(idx, photoChoresToday) {
+            const row = todayChorePhotos[idx];
+            if (!row) return;
+            const parsed = parseChoreTaskKey(row.task) || {};
+            const meta = resolveChoreMeta(parsed.choreId, photoChoresToday);
+            openPhoto = {
+                idx,
+                row,
+                choreId: parsed.choreId,
+                title: meta.title || String(parsed.choreId || 'Chore').replace(/_/g, ' '),
+                rewardCash: meta.rewardCash != null
+                    ? Number(meta.rewardCash)
+                    : (parsed.rewardCash != null ? Number(parsed.rewardCash) : 0)
+            };
+            const modal = document.getElementById('imageModal');
+            const img = document.getElementById('modalImage');
+            const audio = document.getElementById('modalAudio');
+            const video = document.getElementById('modalVideo');
+            const sentEl = document.getElementById('modalSentenceText');
+            if (isAudioPayload(row.image)) {
+                img.style.display = 'none';
+                img.src = '';
+                video.style.display = 'none';
+                video.pause();
+                video.removeAttribute('src');
+                if (sentEl) {
+                    sentEl.textContent = openPhoto.title;
+                    sentEl.style.display = '';
+                }
+                audio.style.display = '';
+                audio.src = mediaSrc(row.image);
+            } else if (isVideoPayload(row.image)) {
+                if (sentEl) sentEl.style.display = 'none';
+                img.style.display = 'none';
+                img.src = '';
+                audio.style.display = 'none';
+                audio.pause();
+                audio.removeAttribute('src');
+                video.style.display = '';
+                video.src = mediaSrc(row.image);
+            } else {
+                if (sentEl) sentEl.style.display = 'none';
+                audio.style.display = 'none';
+                audio.pause();
+                audio.removeAttribute('src');
+                video.style.display = 'none';
+                video.pause();
+                video.removeAttribute('src');
+                img.style.display = '';
+                img.src = mediaSrc(row.image);
+            }
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function requestCloseChorePhoto() {
+            const modal = document.getElementById('imageModal');
+            if (!modal.classList.contains('show')) return;
+            closeImageModalOnly();
+            const photo = openPhoto;
+            openPhoto = null;
+            if (!photo) return;
+            if (photo.row.reward_granted === true) return;
+            if (!Number(photo.rewardCash || 0)) return;
+            document.getElementById('grantTitle').textContent = `Grant reward for ${photo.title}?`;
+            document.getElementById('grantMessage').textContent = `Add this amount to ${kid}'s bank.`;
+            document.getElementById('grantAmount').value = Number(photo.rewardCash || 0).toFixed(2);
+            document.getElementById('grantModal').classList.add('show');
+        }
+
+        async function grantChoreReward() {
+            const photo = openPhoto;
+            if (!photo) {
+                closeGrantModal();
+                return;
+            }
+            const amount = Number(document.getElementById('grantAmount').value);
+            if (!isFinite(amount) || amount < 0) {
+                alert('Enter a valid amount (0 or more).');
+                return;
+            }
+            const yesBtn = document.getElementById('grantYes');
+            yesBtn.disabled = true;
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_grant_chore_reward`, {
+                    method: 'POST',
+                    headers: restHeaders,
+                    body: JSON.stringify({
+                        p_profile: kid,
+                        p_task_key: photo.row.task,
+                        p_amount: amount
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error(await response.text() || response.statusText);
+                }
+                const result = await response.json();
+                todayChorePhotos[photo.idx].reward_granted = true;
+                todayChorePhotos[photo.idx].granted_amount = result.granted_amount != null ? result.granted_amount : amount;
+                if (reportUserData && result.kid_bank_balance != null) {
+                    reportUserData.kid_bank_balance = result.kid_bank_balance;
+                }
+                closeGrantModal();
+                openPhoto = null;
+                if (reportUserData) displayReport(reportUserData);
+            } catch (err) {
+                alert('Could not grant reward: ' + (err.message || err));
+            } finally {
+                yesBtn.disabled = false;
+            }
+        }
+
+        async function deleteChoreVideoFromStorage(storagePath) {
+            if (!storagePath) return;
+            const res = await fetch(
+                `${supabaseUrl}/storage/v1/object/chore-videos/${encodeURI(storagePath)}`,
+                { method: 'DELETE', headers: restHeaders }
+            );
+            if (!res.ok && res.status !== 404) {
+                throw new Error(await res.text() || res.statusText);
+            }
+        }
+
+        async function resendChorePhoto() {
+            const photo = openPhoto;
+            if (!photo) {
+                closeGrantModal();
+                return;
+            }
+            if (!confirm(`Resend "${photo.title}"? This deletes the photo and marks the task incomplete so ${kid} must redo it.`)) {
+                return;
+            }
+            const resendBtn = document.getElementById('grantResend');
+            resendBtn.disabled = true;
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_resend_chore_photo`, {
+                    method: 'POST',
+                    headers: restHeaders,
+                    body: JSON.stringify({
+                        p_profile: kid,
+                        p_image_task: photo.row.task
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error(await response.text() || response.statusText);
+                }
+                const result = await response.json();
+                const storagePath = result && result.storage_path;
+                if (storagePath) {
+                    try {
+                        await deleteChoreVideoFromStorage(storagePath);
+                    } catch (e) {
+                        console.warn('Chore video file delete failed:', e);
+                    }
+                }
+                todayChorePhotos.splice(photo.idx, 1);
+                closeGrantModal();
+                openPhoto = null;
+                await fetchReportData();
+            } catch (err) {
+                alert('Could not resend chore: ' + (err.message || err));
+            } finally {
+                resendBtn.disabled = false;
+            }
+        }
+
+        document.getElementById('imageModalClose').addEventListener('click', requestCloseChorePhoto);
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            if (e.target === this) requestCloseChorePhoto();
+        });
+        document.getElementById('grantNo').addEventListener('click', function() {
+            closeGrantModal();
+            openPhoto = null;
+        });
+        document.querySelectorAll('.section-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const section = btn.closest('.section');
+                const open = section.classList.toggle('open');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        });
+
+        document.getElementById('grantYes').addEventListener('click', grantChoreReward);
+        document.getElementById('grantResend').addEventListener('click', resendChorePhoto);
+        document.getElementById('grantModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeGrantModal();
+                openPhoto = null;
+            }
+        });
+
+        // Display the report
+        function displayReport(userData) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('reportContent').style.display = 'block';
+            document.getElementById('childName').textContent = kid;
+
+            // Format date
+            const lastReset = userData.last_reset ? new Date(userData.last_reset).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            }) : 'Today';
+            document.getElementById('reportDate').textContent = lastReset;
+
+            // Parse JSONB data
+            const allRequiredTasks = userData.required_tasks || {};
+            const allPracticeTasks = userData.practice_tasks || {};
+
+            const todayToken = torontoDayToken();
+            const requiredTasks = {};
+            const practiceTasks = {};
+            (reportAssignments || []).forEach(function (row) {
+                if (!row || row.enabled === false || !shownOnDay(row.displayDays, todayToken)) return;
+                if (row.section === 'required' && kidCanSee(row)) {
+                    const stored = allRequiredTasks[row.title] || {};
+                    requiredTasks[row.title] = Object.assign({}, stored, {
+                        launch: row.launch,
+                        url: row.url,
+                        stars: row.stars
+                    });
+                } else if (row.section === 'optional' && kidCanSee(row)) {
+                    const stored = allPracticeTasks[row.title] || {};
+                    practiceTasks[row.title] = Object.assign({}, stored, {
+                        launch: row.launch,
+                        url: row.url,
+                        stars: row.stars
+                    });
+                }
+            });
+
+            const requiredTaskKeys = Object.keys(requiredTasks);
+            const requiredCountEl = document.getElementById('requiredCount');
+            if (requiredCountEl) requiredCountEl.textContent = `(${requiredTaskKeys.length})`;
+
+            // Display required tasks
+            const requiredTasksList = document.getElementById('requiredTasks');
+            requiredTasksList.innerHTML = '';
+            
+            if (requiredTaskKeys.length === 0) {
+                requiredTasksList.innerHTML = '<li class="task-item"><span class="task-name">No required tasks found</span></li>';
+            } else {
+                requiredTaskKeys.forEach(taskKey => {
+                    const task = requiredTasks[taskKey];
+                    const isComplete = task && (task.status === 'complete' || task.completed === true);
+                    const correct = task?.correct || 0;
+                    const incorrect = task?.incorrect || 0;
+                    const questions = task?.questions || 0;
+                    const isChore = isChoreRequiredTask(taskKey, task);
+
+                    const li = document.createElement('li');
+                    li.className = `task-item ${isComplete ? '' : 'incomplete'}`;
+                    
+                    const taskName = taskKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    const answerInfo = (!isChore && questions > 0) ? `   ${correct} ✅   ${incorrect} ❌` : '';
+                    
+                    li.innerHTML = `
+                        <span class="task-name">${taskName} ${isComplete ? '✓' : ''}</span>
+                        <span class="task-info">${answerInfo}</span>
+                    `;
+                    requiredTasksList.appendChild(li);
+                });
+            }
+
+            const allPhotoChores = userData.photo_chores || {};
+            const photoChoresToday = {};
+            for (const [choreId, chore] of Object.entries(allPhotoChores)) {
+                if (isTaskVisible(chore.showdays, chore.hidedays, chore.displayDays, chore.disable)) {
+                    photoChoresToday[choreId] = chore;
+                }
+            }
+
+            renderChorePhotos(photoChoresToday);
+
+            // Display practice tasks
+            const practiceTasksList = document.getElementById('practiceTasks');
+            practiceTasksList.innerHTML = '';
+            
+            const practiceTaskKeys = Object.keys(practiceTasks);
+            const practiceCountEl = document.getElementById('practiceCount');
+            if (practiceCountEl) practiceCountEl.textContent = `(${practiceTaskKeys.length})`;
+            if (practiceTaskKeys.length === 0) {
+                practiceTasksList.innerHTML = '<li class="task-item"><span class="task-name">No practice tasks found</span></li>';
+            } else {
+                practiceTaskKeys.forEach(taskKey => {
+                    const task = practiceTasks[taskKey];
+                    const timesCompleted = task?.times_completed || 0;
+                    const correct = task?.correct || 0;
+                    const incorrect = task?.incorrect || 0;
+                    const questionsAnswered = task?.questions_answered || 0;
+
+                    const li = document.createElement('li');
+                    li.className = 'task-item';
+                    
+                    const taskName = taskKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    const answerInfo = questionsAnswered > 0 ? `   ${correct} ✅   ${incorrect} ❌` : '';
+                    const timesInfo = timesCompleted > 0 ? ` (Completed ${timesCompleted} time${timesCompleted > 1 ? 's' : ''})` : '';
+                    
+                    li.innerHTML = `
+                        <span class="task-name">${taskName}${timesInfo}</span>
+                        <span class="task-info">${answerInfo}</span>
+                    `;
+                    practiceTasksList.appendChild(li);
+                });
+            }
+        }
+
+        // Check if configured and fetch data on page load
+        if (!supabaseUrl || !supabaseKey) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').innerHTML = 
+                '<strong>Configuration Required:</strong> Please go back to the home page and configure your Supabase URL and API Key.';
+            document.getElementById('childName').textContent = kid;
+        } else {
+            fetchReportData();
+        }
+    </script>
+</body>
+</html>

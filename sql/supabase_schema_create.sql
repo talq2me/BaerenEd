@@ -1,0 +1,509 @@
+-- Supabase: create core schema (tables, RLS policies, seed rows, http extension).
+-- For greenfield DBs only. Legacy trigger/function cleanup belongs in one-off migrations, not here.
+
+-- ============================================================================
+-- UPGRADE SCRIPT: Chores 4 $$ – coins_earned and chores columns
+-- ============================================================================
+-- If upgrading from a version that did not have chores support, run:
+--
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS coins_earned INTEGER DEFAULT 0;
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS chores JSONB DEFAULT '[]'::jsonb;
+--
+-- coins_earned: total coins from chore completion; never reset on daily reset.
+-- chores: JSONB array of { chore_id, description, coins_reward, done }; done resets to false on daily reset.
+-- See 000Requirements.md "Chores 4 $$ Feature" for full spec.
+--
+-- ============================================================================
+-- UPGRADE SCRIPT: Parent report "Pay out coins" – last_coins_payout_at
+-- ============================================================================
+-- When parent clicks "Pay out coins" on the report, we set coins_earned=0 and last_coins_payout_at.
+-- Tablets then accept cloud coins_earned=0 on sync (override of the usual "never go backwards" safeguard).
+-- Same as other timestamp columns: TIMESTAMP(3), America/Toronto.
+--
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS last_coins_payout_at TIMESTAMP(3) NULL;
+--
+-- ============================================================================
+-- UPGRADE SCRIPT: Remove timezone from timestamp fields
+-- ============================================================================
+-- If upgrading from a version that had TIMESTAMP WITH TIME ZONE, run these
+-- commands to convert all timestamp fields to TIMESTAMP(3) without timezone.
+-- All timestamps are stored in America/Toronto and should be compared in that timezone.
+-- The code expects timestamps without timezone suffixes (e.g., no +00:00 or -05:00).
+--
+-- Run these ALTER statements to remove timezone from timestamp fields:
+--
+-- ALTER TABLE settings ALTER COLUMN last_updated TYPE TIMESTAMP(3) USING (last_updated AT TIME ZONE 'America/Toronto');
+-- ALTER TABLE user_data ALTER COLUMN last_updated TYPE TIMESTAMP(3) USING (last_updated AT TIME ZONE 'America/Toronto');
+-- ALTER TABLE user_data ALTER COLUMN last_reset TYPE TIMESTAMP(3) USING (last_reset AT TIME ZONE 'America/Toronto');
+-- ALTER TABLE devices ALTER COLUMN last_updated TYPE TIMESTAMP(3) USING (last_updated AT TIME ZONE 'America/Toronto');
+-- ALTER TABLE devices ALTER COLUMN baerenlock_last_health_check TYPE TIMESTAMP(3) USING (baerenlock_last_health_check AT TIME ZONE 'America/Toronto');
+--
+-- ============================================================================
+-- Previous upgrade scripts (for reference):
+--
+-- Note: If upgrading from previous version, you may need to run:
+-- ALTER TABLE user_data ALTER COLUMN last_updated TYPE TIMESTAMP(3) USING last_updated AT TIME ZONE 'UTC' AT TIME ZONE 'GMT';
+-- ALTER TABLE user_data ALTER COLUMN last_reset TYPE TIMESTAMP(3) USING last_reset AT TIME ZONE 'UTC' AT TIME ZONE 'America/Toronto';
+--
+-- Upgrade script to add checklist_items column (run this if the column doesn't exist):
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS checklist_items JSONB DEFAULT '{}'::jsonb;
+--
+-- NOTE: Health check columns were moved from settings -> user_data -> devices table
+-- Health checks are device-specific, not profile-specific
+-- See migrate_health_check_to_devices.sql for the latest migration script
+
+-- Drop and recreate tables (optional - uncomment if you want to start fresh)
+-- DROP TABLE IF EXISTS user_data;
+-- DROP TABLE IF EXISTS settings;
+
+-- Create the user_data table to store user progress data
+CREATE TABLE IF NOT EXISTS user_data (
+    id BIGSERIAL PRIMARY KEY,
+    profile TEXT NOT NULL, -- "AM" or "BM"
+
+    -- Daily reset timestamp (stored in EST/UTC)
+    last_reset TIMESTAMP(3),
+
+    -- Required tasks progress (JSONB: { "taskName": { "status": "complete"/"incomplete", "correct": int, "incorrect": int, "questions": int } })
+    required_tasks JSONB DEFAULT '{}'::jsonb,
+
+    -- Practice tasks progress (JSONB: Extra Practice Map only, section id "optional")
+    practice_tasks JSONB DEFAULT '{}'::jsonb,
+
+    -- Bonus tasks progress (JSONB: Bonus Training Map only, section id "bonus")
+    bonus_tasks JSONB DEFAULT '{}'::jsonb,
+
+    -- Checklist items progress (JSONB: { "itemName": { "done": bool, "stars": int, "displayDays": string } })
+    checklist_items JSONB DEFAULT '{}'::jsonb,
+
+    -- Progress metrics
+    possible_stars INTEGER DEFAULT 0,
+    banked_mins INTEGER DEFAULT 0,
+    berries_earned INTEGER DEFAULT 0,
+    coins_earned INTEGER DEFAULT 0,
+
+    -- Kids virtual bank balance (parent can add/remove; displayed in BaerenEd Battle Hub)
+    kid_bank_balance NUMERIC(12,2) DEFAULT 0,
+
+    -- Parent report "Pay out coins": when set, tablets accept cloud coins_earned=0 (override safeguard). TIMESTAMP(3) America/Toronto, same as last_updated.
+    last_coins_payout_at TIMESTAMP(3) NULL,
+
+    -- Chores 4 $$: JSONB array of { chore_id, description, coins_reward, done }; done resets daily
+    chores JSONB DEFAULT '[]'::jsonb,
+
+    -- Photo chores (trainer map): object keyed by chore id
+    -- { "unload_dishwasher": { "status": "incomplete"/"complete", "title", "description", "rewardCash", "launch", "displayDays", ... } }
+    -- status resets daily; image_uploads media older than 7 days is deleted by af_cleanup_old_chore_videos
+    photo_chores JSONB DEFAULT '{}'::jsonb,
+
+    -- Pokemon data
+    pokemon_unlocked INTEGER DEFAULT 0,
+
+    -- Game indices for all game types (JSONB: { "gameId": index })
+    -- Includes regular games, web games, and videos
+    game_indices JSONB DEFAULT '{}'::jsonb,
+
+    -- Metadata (stored in America/Toronto)
+    last_updated TIMESTAMP(3) DEFAULT (NOW() AT TIME ZONE 'America/Toronto'),
+
+    -- Reward time expiry: when reward minutes must be used by (America/Toronto). Null = no expiry. Set by BaerenLock when granting time.
+    reward_time_expiry TIMESTAMP(3) NULL,
+
+    -- Daily reward spinner outcome (null until spun for the day; reset by af_daily_reset).
+    prize_unlocked TEXT NULL,
+
+    -- Web battle hub only. After a battle, the left power bar refills from practice tasks.
+    -- web_battle_day is the Toronto date of the last finished battle. Baseline is how many
+    -- practice tasks were already done at that moment, so only newer ones fill the bar.
+    web_battle_day DATE NULL,
+    web_battle_practice_baseline INTEGER NULL,
+
+    reward_apps TEXT, -- JSON array of package names as string
+    blacklisted_apps TEXT, -- JSON array of package names as string
+    white_listed_apps TEXT, -- JSON array of package names as string
+
+    -- NOTE: BaerenLock health check information is stored in devices table (per device, not per profile)
+    -- See migrate_health_check_to_devices.sql for migration if upgrading from older version
+
+    -- Ensure one record per profile
+    UNIQUE(profile)
+);
+
+-- Create index on profile for faster lookups
+CREATE INDEX IF NOT EXISTS idx_user_data_profile ON user_data(profile);
+
+-- Existing DBs created before photo_chores: add the column without rebuilding user_data
+ALTER TABLE user_data ADD COLUMN IF NOT EXISTS photo_chores JSONB DEFAULT '{}'::jsonb;
+
+-- Enable Row Level Security (RLS) - adjust policies based on your security needs
+ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Allow all operations" ON user_data;
+
+--insert default profile data: 
+insert into user_data (profile) values ('AM') ON CONFLICT (profile) DO NOTHING;
+insert into user_data (profile) values ('BM') ON CONFLICT (profile) DO NOTHING;
+INSERT INTO user_data (profile) VALUES ('TE') ON CONFLICT (profile) DO NOTHING;
+
+-- Create a policy that allows all operations (for development)
+-- In production, you should create more restrictive policies
+CREATE POLICY "Allow all operations" ON user_data
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+-- Audit log: reward session start / pause / expiry (written by af_reward_time_* RPCs).
+CREATE TABLE IF NOT EXISTS reward_time_log (
+    id BIGSERIAL PRIMARY KEY,
+    profile TEXT NOT NULL,
+    event TEXT NOT NULL,
+    reward_mins_remaining INTEGER NOT NULL,
+    logged_at TIMESTAMP(3) NOT NULL DEFAULT (NOW() AT TIME ZONE 'America/Toronto')
+);
+
+CREATE INDEX IF NOT EXISTS idx_reward_time_log_profile_logged_at
+    ON reward_time_log (profile, logged_at DESC);
+
+ALTER TABLE reward_time_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all operations" ON reward_time_log;
+
+CREATE POLICY "Allow all operations" ON reward_time_log
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+-- Parent Behavior Log (manual event logging from reports UI)
+CREATE TABLE IF NOT EXISTS behavior_log (
+    id BIGSERIAL PRIMARY KEY,
+    profile TEXT NOT NULL,
+    behavior TEXT NOT NULL,
+    category TEXT NOT NULL,
+    log_date_time TIMESTAMP(3) NOT NULL DEFAULT (NOW() AT TIME ZONE 'America/Toronto')
+);
+
+CREATE INDEX IF NOT EXISTS idx_behavior_log_profile_log_date_time
+    ON behavior_log (profile, log_date_time DESC);
+
+CREATE INDEX IF NOT EXISTS idx_behavior_log_profile_category_log_date_time
+    ON behavior_log (profile, category, log_date_time DESC);
+
+ALTER TABLE behavior_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all operations" ON behavior_log;
+
+CREATE POLICY "Allow all operations" ON behavior_log
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+-- Collector cards: one row per profile per Toronto day per earn_source.
+-- earn_source: required_done (all required work finished) or spin_prize (Pokemon/Soccer Card).
+-- Survives daily reset; parent report marks rows as paid_out when a physical card is given.
+CREATE TABLE IF NOT EXISTS collector_card_days (
+    id BIGSERIAL PRIMARY KEY,
+    profile TEXT NOT NULL,
+    completion_date DATE NOT NULL,
+    earned_at TIMESTAMP(3) NOT NULL DEFAULT (NOW() AT TIME ZONE 'America/Toronto'),
+    paid_out BOOLEAN NOT NULL DEFAULT false,
+    paid_out_at TIMESTAMP(3) NULL,
+    earn_source TEXT NOT NULL DEFAULT 'required_done',
+    UNIQUE (profile, completion_date, earn_source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collector_card_days_profile_paid_out_date
+    ON collector_card_days (profile, paid_out, completion_date);
+
+ALTER TABLE collector_card_days ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all operations" ON collector_card_days;
+
+CREATE POLICY "Allow all operations" ON collector_card_days
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+-- DISABLED: Trigger that automatically updates last_updated timestamp
+-- This trigger was causing sync issues because it overwrites client-provided timestamps.
+-- The client code explicitly manages timestamps, so this trigger should not be active.
+-- If you need automatic timestamp updates, modify the trigger to only update when last_updated is NULL.
+--
+-- CREATE OR REPLACE FUNCTION update_last_updated()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     NEW.last_updated = NOW() AT TIME ZONE 'America/Toronto';
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+--
+-- CREATE TRIGGER update_user_data_timestamp
+--     BEFORE UPDATE ON user_data
+--     FOR EACH ROW
+--     EXECUTE FUNCTION update_last_updated();
+
+-- Create the settings table to store parent settings
+CREATE TABLE IF NOT EXISTS settings (
+    id BIGSERIAL PRIMARY KEY,
+    parent_email VARCHAR(128),
+    pin VARCHAR(8),
+    aggressive_cleanup BOOLEAN DEFAULT true,
+    -- BaerenLock GuardianForegroundService: parent-configurable reward audio monitoring
+    reward_audio_monitor_enabled BOOLEAN DEFAULT true,
+    reward_audio_loudness_threshold INTEGER DEFAULT 75,
+    last_updated TIMESTAMP(3) DEFAULT (NOW() AT TIME ZONE 'America/Toronto')
+);
+
+
+-- Enable RLS
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Allow all operations on settings" ON settings;
+
+-- Allow all operations (for development)
+CREATE POLICY "Allow all operations on settings" ON settings
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+-- DISABLED: Trigger that automatically updates last_updated timestamp for settings
+-- This trigger was causing sync issues because it overwrites client-provided timestamps.
+-- The client code explicitly manages timestamps, so this trigger should not be active.
+--
+-- CREATE OR REPLACE FUNCTION update_settings_timestamp()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     NEW.last_updated = NOW() AT TIME ZONE 'America/Toronto';
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+--
+-- CREATE TRIGGER update_settings_timestamp
+--     BEFORE UPDATE ON settings
+--     FOR EACH ROW
+--     EXECUTE FUNCTION update_settings_timestamp();
+
+--insert default settings data: 
+insert into settings (parent_email, pin, aggressive_cleanup) values ('parent@gmail.com', '1234', true);
+
+-- Create a cron job extension if it doesn't exist (Supabase may have pg_cron available)
+-- Note: This requires pg_cron extension to be enabled in Supabase
+-- You may need to enable it in your Supabase project settings or contact support
+
+-- Create the cron job to run reset_daily_progress at midnight every day
+-- SELECT cron.schedule('reset-daily-progress', '0 0 * * *', 'SELECT reset_daily_progress();');
+
+-- Alternative: If pg_cron is not available, you can create a manual trigger
+-- that checks the date on each update and resets if it's a new day
+
+-- NOTE: Daily reset trigger has been removed.
+-- Daily reset is now handled by the app code (daily_reset_process() method).
+-- The app compares local.profile.last_reset with cloud.profile.last_reset to determine when to reset.
+-- To manually trigger a reset, set cloud.profile.last_reset and local.profile.last_reset to now() at America/Toronto - 1 day.
+
+-- Add devices table to store active profile per device
+-- This allows BaerenLock and BaerenEd to sync the active profile between apps on the same device
+
+-- Create the devices table
+CREATE TABLE IF NOT EXISTS devices (
+    device_id TEXT PRIMARY KEY, -- Android device ID (ANDROID_ID from Settings.Secure)
+    device_name TEXT, -- User-friendly device name (e.g., "Samsung Galaxy Tab", "Pixel 5")
+    active_profile TEXT NOT NULL DEFAULT 'AM', -- Active profile: "AM" or "BM"
+
+    -- BaerenLock health check information (per profile/device)
+    baerenlock_health_status TEXT, -- "healthy" or "unhealthy"
+    baerenlock_health_issues TEXT, -- Description of health issues (e.g., "Accessibility service is disabled")
+    baerenlock_last_health_check TIMESTAMP(3), -- Timestamp of last health check
+    
+    last_updated TIMESTAMP(3) DEFAULT (NOW() AT TIME ZONE 'America/Toronto')
+);
+
+-- Create index on device_id for faster lookups (though it's already the primary key)
+CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Allow all operations on devices" ON devices;
+
+-- Allow all operations (for development)
+-- In production, you should create more restrictive policies
+CREATE POLICY "Allow all operations on devices" ON devices
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+-- DISABLED: Trigger that automatically updates last_updated timestamp for devices
+-- This trigger was causing sync issues because it overwrites client-provided timestamps.
+-- The client code explicitly manages timestamps, so this trigger should not be active.
+--
+-- CREATE OR REPLACE FUNCTION update_devices_timestamp()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     NEW.last_updated = NOW() AT TIME ZONE 'America/Toronto';
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+--
+-- CREATE TRIGGER update_devices_timestamp
+--     BEFORE UPDATE ON devices
+--     FOR EACH ROW
+--     EXECUTE FUNCTION update_devices_timestamp();
+
+-- Create the image_uploads table to store photos of completed work
+-- This allows parents to verify that children completed tasks (e.g., spelling on paper)
+CREATE TABLE IF NOT EXISTS image_uploads (
+    id BIGSERIAL PRIMARY KEY,
+    profile TEXT NOT NULL, -- "AM" or "BM"
+    task TEXT NOT NULL, -- Task name (e.g., "englishSpellingJumblePhoto", "frenchSpellingJumblePhoto", "chore_{id}_{yyyy-MM-dd}")
+    image TEXT NOT NULL, -- Base64 encoded image data
+    capture_date_time TIMESTAMP(3) DEFAULT (NOW() AT TIME ZONE 'America/Toronto'), -- When the photo was taken/uploaded (Toronto time)
+    reward_granted BOOLEAN DEFAULT false, -- Parent granted kid_bank_balance for this photo
+    granted_amount NUMERIC(12,2), -- Amount actually credited (may differ from config rewardCash)
+
+    -- Unique task key per row; apps use distinct keys per word/day (retries overwrite same key only)
+    UNIQUE(profile, task)
+);
+
+-- Create index on profile and task for faster lookups
+CREATE INDEX IF NOT EXISTS idx_image_uploads_profile_task ON image_uploads(profile, task);
+
+-- Existing DBs created before parent cash-grant columns
+ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS reward_granted BOOLEAN DEFAULT false;
+ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS granted_amount NUMERIC(12,2);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE image_uploads ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Allow all operations on image_uploads" ON image_uploads;
+
+-- Allow all operations (for development)
+-- In production, you should create more restrictive policies
+CREATE POLICY "Allow all operations on image_uploads" ON image_uploads
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+-- Same-day spelling copy task. Wrong words stay on image_uploads.task (suffix X).
+-- webhook_sent stops a second Grok POST after the language list is uploaded.
+-- status becomes complete when the child finishes the copy task.
+CREATE TABLE IF NOT EXISTS spelling_dictation_reviews (
+    profile TEXT NOT NULL,
+    review_date DATE NOT NULL,
+    language TEXT NOT NULL CHECK (language IN ('eng', 'fr')),
+    status TEXT NOT NULL DEFAULT 'incomplete',
+    webhook_sent BOOLEAN NOT NULL DEFAULT false,
+    PRIMARY KEY (profile, review_date, language)
+);
+
+ALTER TABLE spelling_dictation_reviews ENABLE ROW LEVEL SECURITY;
+
+-- Web catalog. The tablet still reads GitHub JSON. sql/web_catalog_seed.sql copies the current lists.
+CREATE TABLE IF NOT EXISTS web_games (
+    launch TEXT PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS web_assignments (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    profile TEXT NOT NULL CHECK (profile IN ('AM', 'BM', 'TE')),
+    section TEXT NOT NULL CHECK (section IN ('required', 'optional', 'bonus', 'checklist')),
+    launch TEXT REFERENCES web_games (launch),
+    title TEXT NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    sort_order INT NOT NULL DEFAULT 0,
+    stars INT,
+    url TEXT,
+    web_game BOOLEAN NOT NULL DEFAULT false,
+    total_questions INT,
+    display_days TEXT,
+    easy_days TEXT,
+    hard_days TEXT,
+    extreme_days TEXT,
+    chrome_page BOOLEAN NOT NULL DEFAULT false,
+    video_sequence TEXT,
+    video TEXT,
+    easy BOOLEAN NOT NULL DEFAULT false,
+    description TEXT,
+    block_outlines BOOLEAN NOT NULL DEFAULT false,
+    UNIQUE (profile, section, title, launch)
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_assignments_profile ON web_assignments (profile, enabled, section, sort_order);
+
+ALTER TABLE web_games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE web_assignments ENABLE ROW LEVEL SECURITY;
+
+-- Daily Spin rewards table
+CREATE TABLE IF NOT EXISTS reward_spinner (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL,
+    percent SMALLINT NOT NULL CHECK (percent >= 0 AND percent <= 100)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reward_spinner_id ON reward_spinner(id);
+
+ALTER TABLE reward_spinner ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all operations on reward_spinner" ON reward_spinner;
+CREATE POLICY "Allow all operations on reward_spinner" ON reward_spinner
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+INSERT INTO reward_spinner (name, percent) VALUES
+    ('Pick a small treat', 20),
+    ('Extra 10 minutes screen time', 20),
+    ('Quick card/board game with parent', 15),
+    ('Pokemon Card', 20),
+    ('Trip to the park', 5),
+    ('Choose tomorrow night''s dinner', 20)
+ON CONFLICT DO NOTHING;
+
+CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+
+-- =============================================================================
+-- Storage: chore video evidence (kung fu forms, etc.)
+-- Live bucket/policies are managed in Supabase; keep this for greenfield deploys.
+-- image_uploads.image stores pointer: storage:chore-videos/{profile}/{task}.{ext}
+-- =============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'chore-videos',
+  'chore-videos',
+  true,
+  52428800,
+  ARRAY['video/webm', 'video/mp4', 'video/quicktime']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Allow public read chore-videos" ON storage.objects;
+DROP POLICY IF EXISTS "Allow anon upload chore-videos" ON storage.objects;
+DROP POLICY IF EXISTS "Allow anon update chore-videos" ON storage.objects;
+DROP POLICY IF EXISTS "Allow anon delete chore-videos" ON storage.objects;
+
+CREATE POLICY "Allow public read chore-videos"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'chore-videos');
+
+CREATE POLICY "Allow anon upload chore-videos"
+ON storage.objects FOR INSERT
+TO anon, authenticated, service_role
+WITH CHECK (bucket_id = 'chore-videos');
+
+CREATE POLICY "Allow anon update chore-videos"
+ON storage.objects FOR UPDATE
+TO anon, authenticated, service_role
+USING (bucket_id = 'chore-videos')
+WITH CHECK (bucket_id = 'chore-videos');
+
+CREATE POLICY "Allow anon delete chore-videos"
+ON storage.objects FOR DELETE
+TO anon, authenticated, service_role
+USING (bucket_id = 'chore-videos');
+

@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Behavior Log</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            padding: 16px;
+            line-height: 1.5;
+            color: #222;
+        }
+
+        .container { max-width: 720px; margin: 0 auto; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #5a7a9c;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .header h1 { font-size: 1.05em; margin: 0; font-weight: 700; }
+
+        .back-button {
+            flex: 0 0 auto;
+            padding: 7px 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .back-button:active { background: rgba(255, 255, 255, 0.3); }
+
+        .section {
+            background: white;
+            margin: 12px 0;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+        .section h3 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 1.15em;
+            border-bottom: 2px solid #EF5350;
+            padding-bottom: 8px;
+        }
+
+        .profile-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .profile-tab {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            background: #fafafa;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 700;
+            cursor: pointer;
+            color: #555;
+        }
+        .profile-tab.active {
+            border-color: #E53935;
+            background: #FFEBEE;
+            color: #C62828;
+        }
+
+        .behavior-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .behavior-btn {
+            width: 100%;
+            text-align: left;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 1.05em;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+            transition: transform 0.1s, opacity 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .behavior-btn:active { transform: scale(0.98); }
+        .behavior-btn:disabled { opacity: 0.55; cursor: wait; }
+        .behavior-btn .cat {
+            display: block;
+            font-size: 0.75em;
+            font-weight: 500;
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+
+        .behavior-btn.meltdown { background: linear-gradient(135deg, #EF5350 0%, #C62828 100%); }
+        .behavior-btn.activated { background: linear-gradient(135deg, #FFA726 0%, #EF6C00 100%); }
+        .behavior-btn.hyper { background: linear-gradient(135deg, #FDD835 0%, #F9A825 100%); color: #333; }
+        .behavior-btn.attention { background: linear-gradient(135deg, #42A5F5 0%, #1565C0 100%); }
+        .behavior-btn.medication { background: linear-gradient(135deg, #66BB6A 0%, #2E7D32 100%); }
+        .behavior-btn.refresh {
+            background: linear-gradient(135deg, #78909C 0%, #546E7A 100%);
+            text-align: center;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .view-toggle button,
+        .range-tabs button {
+            flex: 1;
+            padding: 11px 8px;
+            border: 2px solid #e0e0e0;
+            background: #fafafa;
+            border-radius: 10px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            color: #555;
+        }
+        .view-toggle button.active {
+            border-color: #E53935;
+            background: #FFEBEE;
+            color: #C62828;
+        }
+        .range-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .range-tabs button {
+            flex: 1 1 calc(50% - 4px);
+            min-width: 120px;
+        }
+        .range-tabs button.active {
+            border-color: #1565C0;
+            background: #E3F2FD;
+            color: #1565C0;
+        }
+        .chart-type-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .chart-type-row label {
+            flex: 0 0 auto;
+            font-size: 0.92em;
+            font-weight: 600;
+            color: #555;
+        }
+        .chart-type-row select {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #fafafa;
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+        }
+        .chart-type-row select:focus {
+            outline: none;
+            border-color: #00897B;
+            background: #E0F2F1;
+        }
+
+        .log-items { display: flex; flex-direction: column; gap: 8px; }
+        .log-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            border-left: 5px solid #999;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .log-item:hover { background: #f0f2f4; }
+        .log-item.editing { cursor: default; }
+        .log-item.editing:hover { background: #f8f9fa; }
+        .log-item.meltdown { border-left-color: #C62828; }
+        .log-item.activated { border-left-color: #EF6C00; }
+        .log-item.hyper { border-left-color: #F9A825; }
+        .log-item.attention { border-left-color: #1565C0; }
+        .log-item.medication { border-left-color: #2E7D32; }
+        .log-item .time {
+            flex: 0 0 auto;
+            font-weight: 700;
+            color: #333;
+            font-variant-numeric: tabular-nums;
+            min-width: 72px;
+        }
+        .log-item .detail { flex: 1; min-width: 0; }
+        .log-item .name { font-weight: 600; color: #222; }
+        .log-item .meta { font-size: 0.82em; color: #666; margin-top: 2px; }
+        .log-item .edit-time-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+        .log-item .edit-time-input {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: #C62828;
+            border: 2px solid #EF5350;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-variant-numeric: tabular-nums;
+        }
+        .log-item .save-button,
+        .log-item .cancel-button {
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+        }
+        .log-item .save-button { background: #4CAF50; }
+        .log-item .save-button:disabled { opacity: 0.55; cursor: wait; }
+        .log-item .cancel-button { background: #9e9e9e; }
+        .log-item .delete-button {
+            margin-left: auto;
+            border: none;
+            background: transparent;
+            color: #C62828;
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .log-item .delete-button:hover,
+        .log-item .delete-button:active { background: #FFEBEE; }
+        .log-item .delete-button:disabled { opacity: 0.55; cursor: wait; }
+        .log-item .delete-button svg { width: 22px; height: 22px; display: block; }
+
+        .empty, .loading, .status {
+            text-align: center;
+            padding: 18px 8px;
+            color: #666;
+            font-size: 0.95em;
+        }
+        .error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 12px;
+            color: #c62828;
+            margin: 12px 0;
+            display: none;
+        }
+        .chart-wrap { position: relative; height: 300px; margin-top: 8px; }
+        .chart-scroll {
+            margin-top: 8px;
+            overflow: auto;
+            max-height: min(75vh, 720px);
+            border: 1px solid #e8e8e8;
+            border-radius: 10px;
+            background: #fff;
+            -webkit-overflow-scrolling: touch;
+        }
+        .chart-scroll .chart-wrap { margin-top: 0; }
+        .legend-note { font-size: 0.85em; color: #666; margin-top: 10px; }
+        .hidden { display: none !important; }
+
+        .heatmap-wrap {
+            margin-top: 8px;
+            overflow: auto;
+            max-height: min(70vh, 560px);
+            border: 1px solid #e8e8e8;
+            border-radius: 10px;
+            background: #fff;
+            -webkit-overflow-scrolling: touch;
+        }
+        .heatmap-table {
+            border-collapse: separate;
+            border-spacing: 2px;
+            min-width: 100%;
+            font-variant-numeric: tabular-nums;
+        }
+        .heatmap-table th,
+        .heatmap-table td {
+            text-align: center;
+            font-size: 0.72em;
+            line-height: 1;
+        }
+        .heatmap-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #fafafa;
+            color: #555;
+            font-weight: 700;
+            padding: 6px 2px;
+            min-width: 22px;
+        }
+        .heatmap-table thead th.corner,
+        .heatmap-table tbody th {
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            background: #fafafa;
+            color: #333;
+            font-weight: 700;
+            text-align: left;
+            padding: 4px 8px 4px 6px;
+            white-space: nowrap;
+            min-width: 56px;
+        }
+        .heatmap-table thead th.corner { z-index: 4; }
+        .heatmap-table tbody th { z-index: 1; }
+        .heatmap-cell {
+            width: 22px;
+            height: 22px;
+            border-radius: 3px;
+            background: #f3f4f6;
+            color: transparent;
+            cursor: default;
+            padding: 0;
+        }
+        .heatmap-cell.has-count {
+            color: #1a1a1a;
+            font-weight: 700;
+            cursor: help;
+        }
+        .heatmap-cell.has-count.hot { color: #fff; }
+        .heatmap-scale {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #666;
+        }
+        .heatmap-scale .swatches {
+            display: flex;
+            gap: 2px;
+            flex: 1;
+            max-width: 180px;
+        }
+        .heatmap-scale .swatch {
+            flex: 1;
+            height: 12px;
+            border-radius: 2px;
+        }
+        .heatmap-tooltip {
+            position: fixed;
+            z-index: 20;
+            pointer-events: none;
+            background: rgba(33, 33, 33, 0.94);
+            color: #fff;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.82em;
+            max-width: 240px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+        .heatmap-tooltip .tt-title { font-weight: 700; margin-bottom: 4px; }
+        .heatmap-tooltip .tt-line { color: #ddd; margin-top: 2px; }
+
+        @media (max-width: 400px) {
+            .header h1 { font-size: 1.05em; }
+            .behavior-btn { font-size: 0.98em; padding: 13px 14px; }
+            .range-tabs button { font-size: 0.88em; }
+            .chart-type-row select { font-size: 0.88em; }
+            .heatmap-cell { width: 18px; height: 18px; }
+            .heatmap-table thead th { min-width: 18px; padding: 5px 1px; font-size: 0.68em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Behavior Log</h1>
+            <a href="index.html" class="back-button">← Back</a>
+        </div>
+
+        <div id="error" class="error"></div>
+
+        <div class="section">
+            <h3>Child</h3>
+            <div class="profile-tabs" id="profileTabs">
+                <button type="button" class="profile-tab" data-profile="AM">AM</button>
+                <button type="button" class="profile-tab active" data-profile="BM">BM</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Log a behavior</h3>
+            <div class="behavior-list" id="behaviorButtons"></div>
+        </div>
+
+        <div class="section">
+            <div class="view-toggle">
+                <button type="button" id="btnListMode" class="active">List</button>
+                <button type="button" id="btnGraphMode">Graph</button>
+            </div>
+
+            <div id="listPanel">
+                <h3>Today’s log</h3>
+                <div id="listStatus" class="status">Loading…</div>
+                <div id="logList" class="log-items"></div>
+            </div>
+
+            <div id="graphPanel" class="hidden">
+                <div class="range-tabs" id="rangeTabs">
+                    <button type="button" class="active" data-range="day">Last day</button>
+                    <button type="button" data-range="7d">Last 7 days</button>
+                    <button type="button" data-range="month">Last month</button>
+                    <button type="button" data-range="6mo">Last 6 mo</button>
+                </div>
+                <div class="chart-type-row">
+                    <label for="chartTypeSelect">Chart</label>
+                    <select id="chartTypeSelect">
+                        <option value="bar" selected>Bar</option>
+                        <option value="heatmap">Heatmap</option>
+                        <option value="scatter">Scatter</option>
+                    </select>
+                </div>
+                <h3 id="graphTitle">By hour of day</h3>
+                <div id="chartCanvasPanel">
+                    <div id="chartScroll" class="chart-scroll">
+                        <div class="chart-wrap" id="chartWrap">
+                            <canvas id="behaviorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div id="heatmapPanel" class="hidden">
+                    <div class="heatmap-wrap" id="heatmapWrap"></div>
+                    <div class="heatmap-scale" id="heatmapScale"></div>
+                </div>
+                <div id="heatmapTooltip" class="heatmap-tooltip" aria-hidden="true"></div>
+                <p class="legend-note" id="graphLegend">
+                    Last day: bars by hour (0–23), stacked by category.
+                    Longer ranges: one bar per day (oldest left, today right), all hours combined.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CATEGORIES = {
+            Meltdown: { css: 'meltdown', color: '#C62828' },
+            'Activated/Argumentative': { css: 'activated', color: '#EF6C00' },
+            Hyper: { css: 'hyper', color: '#F9A825' },
+            Attention: { css: 'attention', color: '#1565C0' },
+            Medication: { css: 'medication', color: '#2E7D32' }
+        };
+
+        const BEHAVIORS = [
+            { name: 'Physical Aggression: Hitting, hurting, etc', category: 'Meltdown' },
+            { name: 'Rage', category: 'Meltdown' },
+            { name: 'Destructive Anger: Throwing/Break Attempts, etc', category: 'Meltdown' },
+            { name: 'Verbal Aggression: Threats, Swears, Yelling, etc', category: 'Meltdown' },
+            { name: 'Defiance', category: 'Activated/Argumentative' },
+            { name: 'Conflict/putting others down', category: 'Activated/Argumentative' },
+            { name: 'Intrusiveness: getting in others space forcefully', category: 'Activated/Argumentative' },
+            { name: 'Loud Noises', category: 'Hyper' },
+            { name: 'Rowdiness when inappropriate', category: 'Hyper' },
+            { name: 'Out of seat when expected to sit (meals, homework, etc)', category: 'Hyper' },
+            { name: 'Not staying on task', category: 'Attention' },
+            { name: 'Medication administered', category: 'Medication' }
+        ];
+
+        let currentProfile = 'BM';
+        let viewMode = 'list';
+        let graphRange = 'day';
+        let chartType = 'bar';
+        let chart = null;
+        let logging = false;
+        let savingTime = false;
+        let deletingLog = false;
+        let editingLogId = null;
+
+        const HEAT_PALETTE = ['#f3f4f6', '#FFE0B2', '#FFB74D', '#FF8A65', '#EF5350', '#C62828'];
+        const BAR_LEGEND =
+            'Last day: bars by hour (0–23), stacked by category. Longer ranges: one bar per day (oldest left, today right), all hours combined.';
+        const HEAT_LEGEND =
+            'Heatmap: each row is a day, each column is an hour (0–23). Color intensity is total behaviors that hour — compare the same hour across days.';
+        const SCATTER_LEGEND =
+            'Scatter: each day is a labeled row (y), each hour is on the x axis (0–23). Points in the same day×hour cell are staggered so overlapping logs stay visible — scroll if the range is long.';
+
+        const supabaseUrl = () => localStorage.getItem('supabaseUrl');
+        const supabaseKey = () => localStorage.getItem('supabaseKey');
+
+        function showError(msg) {
+            const el = document.getElementById('error');
+            if (!msg) {
+                el.style.display = 'none';
+                el.textContent = '';
+                return;
+            }
+            el.style.display = 'block';
+            el.textContent = msg;
+        }
+
+        function authHeaders() {
+            const key = supabaseKey();
+            return {
+                apikey: key,
+                Authorization: `Bearer ${key}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        function torontoParts(d = new Date()) {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+                hourCycle: 'h23'
+            }).formatToParts(d);
+            const get = (type) => parts.find((p) => p.type === type)?.value;
+            return {
+                y: get('year'),
+                m: get('month'),
+                d: get('day'),
+                H: get('hour') === '24' ? '00' : get('hour'),
+                M: get('minute'),
+                S: get('second')
+            };
+        }
+
+        function torontoYmd(d = new Date()) {
+            const p = torontoParts(d);
+            return `${p.y}-${p.m}-${p.d}`;
+        }
+
+        function addDaysYmd(ymd, days) {
+            const [y, m, d] = ymd.split('-').map(Number);
+            const utc = new Date(Date.UTC(y, m - 1, d));
+            utc.setUTCDate(utc.getUTCDate() + days);
+            const yy = utc.getUTCFullYear();
+            const mm = String(utc.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(utc.getUTCDate()).padStart(2, '0');
+            return `${yy}-${mm}-${dd}`;
+        }
+
+        function rangeBounds(rangeKey) {
+            const today = torontoYmd();
+            const endExclusive = `${addDaysYmd(today, 1)} 00:00:00.000`;
+            if (rangeKey === 'day') {
+                return { start: `${today} 00:00:00.000`, end: endExclusive, label: 'Today' };
+            }
+            if (rangeKey === '7d') {
+                return { start: `${addDaysYmd(today, -6)} 00:00:00.000`, end: endExclusive, label: 'Last 7 days' };
+            }
+            if (rangeKey === 'month') {
+                return { start: `${addDaysYmd(today, -29)} 00:00:00.000`, end: endExclusive, label: 'Last month' };
+            }
+            return { start: `${addDaysYmd(today, -179)} 00:00:00.000`, end: endExclusive, label: 'Last 6 months' };
+        }
+
+        function parseLogDateTime(s) {
+            if (!s) return NaN;
+            const t = String(s).trim().replace(' ', 'T');
+            const ms = Date.parse(t);
+            if (!isNaN(ms)) return ms;
+            return Date.parse(t.replace(/\.\d{3}$/, ''));
+        }
+
+        function formatListTime(logDateTime) {
+            const raw = String(logDateTime || '').trim();
+            const m = raw.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+            if (m) return `${m[1]}:${m[2]}`;
+            const ms = parseLogDateTime(raw);
+            if (isNaN(ms)) return '--:--';
+            const p = torontoParts(new Date(ms));
+            return `${p.H}:${p.M}`;
+        }
+
+        function timeInputValue(logDateTime) {
+            return formatListTime(logDateTime);
+        }
+
+        function buildUpdatedLogDateTime(originalLogDateTime, hhmm) {
+            const ymd = logYmd(originalLogDateTime) || torontoYmd();
+            const m = String(hhmm || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+            if (!m) return null;
+            const H = String(Math.min(23, Math.max(0, Number(m[1])))).padStart(2, '0');
+            const M = String(Math.min(59, Math.max(0, Number(m[2])))).padStart(2, '0');
+            return `${ymd} ${H}:${M}:00.000`;
+        }
+
+        function categoryCss(category) {
+            return CATEGORIES[category]?.css || '';
+        }
+
+        function renderBehaviorButtons() {
+            const wrap = document.getElementById('behaviorButtons');
+            wrap.innerHTML = BEHAVIORS.map((b) => {
+                const css = categoryCss(b.category);
+                return `<button type="button" class="behavior-btn ${css}" data-behavior="${escapeAttr(b.name)}" data-category="${escapeAttr(b.category)}">
+                    ${escapeHtml(b.name)}
+                    <span class="cat">${escapeHtml(b.category)}</span>
+                </button>`;
+            }).join('') + `
+                <button type="button" class="behavior-btn refresh" id="btnRefresh">↻ Refresh</button>
+            `;
+
+            wrap.querySelectorAll('.behavior-btn[data-behavior]').forEach((btn) => {
+                btn.addEventListener('click', () => logBehavior(btn.dataset.behavior, btn.dataset.category, btn));
+            });
+            document.getElementById('btnRefresh').addEventListener('click', () => refreshCurrentView());
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+        function escapeAttr(s) {
+            return escapeHtml(s).replace(/'/g, '&#39;');
+        }
+
+        async function rpc(name, body) {
+            const url = supabaseUrl();
+            const key = supabaseKey();
+            if (!url || !key) {
+                throw new Error('Configure Supabase URL and API key on the reports home page first.');
+            }
+            const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`${name} failed (${response.status}): ${text}`);
+            }
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) return response.json();
+            return null;
+        }
+
+        async function fetchLogs(rangeKey) {
+            const bounds = rangeBounds(rangeKey);
+            return rpc('af_get_behavior_log', {
+                p_profile: currentProfile,
+                p_start_date_time: bounds.start,
+                p_end_date_time: bounds.end
+            });
+        }
+
+        async function logBehavior(behavior, category, btn) {
+            if (logging) return;
+            logging = true;
+            showError('');
+            const buttons = document.querySelectorAll('.behavior-btn');
+            buttons.forEach((b) => { b.disabled = true; });
+            try {
+                await rpc('af_log_behavior', {
+                    p_profile: currentProfile,
+                    p_behavior: behavior,
+                    p_category: category
+                });
+                await refreshCurrentView();
+            } catch (e) {
+                console.error(e);
+                showError(e.message || String(e));
+            } finally {
+                logging = false;
+                buttons.forEach((b) => { b.disabled = false; });
+                if (btn) btn.blur();
+            }
+        }
+
+        function renderList(rows) {
+            const list = document.getElementById('logList');
+            const status = document.getElementById('listStatus');
+            editingLogId = null;
+            if (!rows || rows.length === 0) {
+                list.innerHTML = '';
+                status.textContent = 'No behaviors logged today yet.';
+                status.classList.remove('hidden');
+                return;
+            }
+            status.classList.add('hidden');
+            list.innerHTML = rows.map((r) => {
+                const css = categoryCss(r.category);
+                return `<div class="log-item ${css}" data-id="${escapeAttr(String(r.id))}" data-log-date-time="${escapeAttr(String(r.log_date_time || ''))}" role="button" tabindex="0">
+                    <div class="time">${escapeHtml(formatListTime(r.log_date_time))}</div>
+                    <div class="detail">
+                        <div class="name">${escapeHtml(r.behavior)}</div>
+                        <div class="meta">${escapeHtml(r.category)}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            list.querySelectorAll('.log-item').forEach((item) => {
+                item.addEventListener('click', () => startEditLogTime(item));
+                item.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        startEditLogTime(item);
+                    }
+                });
+            });
+        }
+
+        function startEditLogTime(item) {
+            if (savingTime || deletingLog) return;
+            const id = item.dataset.id;
+            if (!id) return;
+            if (editingLogId === id) return;
+            if (editingLogId != null) {
+                refreshList();
+                return;
+            }
+
+            const logDateTime = item.dataset.logDateTime || '';
+            const name = item.querySelector('.name')?.textContent || '';
+            const meta = item.querySelector('.meta')?.textContent || '';
+
+            editingLogId = id;
+            item.classList.add('editing');
+            item.removeAttribute('role');
+            item.removeAttribute('tabindex');
+            item.innerHTML = `
+                <div class="edit-time-row">
+                    <input type="time" class="edit-time-input" id="edit-time-${escapeAttr(id)}" value="${escapeAttr(timeInputValue(logDateTime))}" step="60">
+                    <button type="button" class="save-button" id="save-time-${escapeAttr(id)}">Save</button>
+                    <button type="button" class="cancel-button" id="cancel-time-${escapeAttr(id)}">Cancel</button>
+                    <div class="detail">
+                        <div class="name">${escapeHtml(name)}</div>
+                        <div class="meta">${escapeHtml(meta)}</div>
+                    </div>
+                    <button type="button" class="delete-button" id="delete-log-${escapeAttr(id)}" title="Delete this log entry" aria-label="Delete this log entry">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                            <path d="M10 11v6"></path>
+                            <path d="M14 11v6"></path>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            const input = document.getElementById(`edit-time-${id}`);
+            const saveBtn = document.getElementById(`save-time-${id}`);
+            const cancelBtn = document.getElementById(`cancel-time-${id}`);
+            const deleteBtn = document.getElementById(`delete-log-${id}`);
+
+            saveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                saveLogTime(id, logDateTime, input.value, saveBtn);
+            });
+            cancelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cancelEditLogTime();
+            });
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteLogEntry(id, name, deleteBtn);
+            });
+            input.addEventListener('click', (e) => e.stopPropagation());
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveLogTime(id, logDateTime, input.value, saveBtn);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEditLogTime();
+                }
+            });
+            input.focus();
+        }
+
+        function cancelEditLogTime() {
+            if (savingTime || deletingLog) return;
+            editingLogId = null;
+            refreshList();
+        }
+
+        async function saveLogTime(id, originalLogDateTime, hhmm, saveBtn) {
+            if (savingTime || deletingLog) return;
+            const updated = buildUpdatedLogDateTime(originalLogDateTime, hhmm);
+            if (!updated) {
+                showError('Please enter a valid time (HH:MM).');
+                return;
+            }
+
+            savingTime = true;
+            showError('');
+            if (saveBtn) saveBtn.disabled = true;
+            try {
+                await rpc('af_update_behavior_log_time', {
+                    p_id: Number(id),
+                    p_log_date_time: updated
+                });
+                editingLogId = null;
+                await refreshList();
+            } catch (e) {
+                console.error(e);
+                showError(e.message || String(e));
+                if (saveBtn) saveBtn.disabled = false;
+            } finally {
+                savingTime = false;
+            }
+        }
+
+        async function deleteLogEntry(id, behaviorName, deleteBtn) {
+            if (savingTime || deletingLog) return;
+            const label = behaviorName ? `"${behaviorName}"` : 'this log entry';
+            if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
+
+            deletingLog = true;
+            showError('');
+            if (deleteBtn) deleteBtn.disabled = true;
+            try {
+                await rpc('af_delete_behavior_log', {
+                    p_id: Number(id)
+                });
+                editingLogId = null;
+                await refreshList();
+            } catch (e) {
+                console.error(e);
+                showError(e.message || String(e));
+                if (deleteBtn) deleteBtn.disabled = false;
+            } finally {
+                deletingLog = false;
+            }
+        }
+
+        function logYmd(logDateTime) {
+            const raw = String(logDateTime || '').trim();
+            const m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+            if (m) return m[1];
+            const ms = parseLogDateTime(raw);
+            if (isNaN(ms)) return null;
+            return torontoYmd(new Date(ms));
+        }
+
+        function logHour(logDateTime) {
+            const raw = String(logDateTime || '').trim();
+            // Prefer wall-clock hour from the stored string (space or ISO "T"),
+            // so browser timezone does not shift scatter/heatmap placement.
+            const m = raw.match(/[T\s](\d{1,2}):/);
+            if (m) {
+                const hour = Number(m[1]);
+                if (hour >= 0 && hour <= 23) return hour;
+            }
+            const ms = parseLogDateTime(raw);
+            if (isNaN(ms)) return null;
+            return Number(torontoParts(new Date(ms)).H);
+        }
+
+        function enumerateDays(startYmd, endYmdInclusive) {
+            const days = [];
+            let cur = startYmd;
+            while (cur <= endYmdInclusive) {
+                days.push(cur);
+                cur = addDaysYmd(cur, 1);
+            }
+            return days;
+        }
+
+        function formatDayLabel(ymd) {
+            const [, m, d] = ymd.split('-');
+            return `${m}-${d}`;
+        }
+
+        function emptyCategorySeries(length) {
+            const series = {};
+            Object.keys(CATEGORIES).forEach((cat) => {
+                series[cat] = Array(length).fill(0);
+            });
+            return series;
+        }
+
+        function buildHourCounts(rows) {
+            const hours = emptyCategorySeries(24);
+            (rows || []).forEach((r) => {
+                const hour = logHour(r.log_date_time);
+                if (hour == null || hour < 0 || hour > 23) return;
+                const cat = r.category;
+                if (!hours[cat]) hours[cat] = Array(24).fill(0);
+                hours[cat][hour] += 1;
+            });
+            return hours;
+        }
+
+        function buildDayCounts(rows, dayLabels) {
+            const indexByDay = Object.fromEntries(dayLabels.map((d, i) => [d, i]));
+            const counts = emptyCategorySeries(dayLabels.length);
+            (rows || []).forEach((r) => {
+                const ymd = logYmd(r.log_date_time);
+                if (!ymd || indexByDay[ymd] == null) return;
+                const cat = r.category;
+                if (!counts[cat]) counts[cat] = Array(dayLabels.length).fill(0);
+                counts[cat][indexByDay[ymd]] += 1;
+            });
+            return counts;
+        }
+
+        function buildDayHourMatrix(rows, dayKeys) {
+            const matrix = dayKeys.map(() => Array.from({ length: 24 }, () => ({
+                total: 0,
+                byCat: Object.fromEntries(Object.keys(CATEGORIES).map((c) => [c, 0]))
+            })));
+            const indexByDay = Object.fromEntries(dayKeys.map((d, i) => [d, i]));
+            (rows || []).forEach((r) => {
+                const ymd = logYmd(r.log_date_time);
+                const hour = logHour(r.log_date_time);
+                if (ymd == null || hour == null || hour < 0 || hour > 23) return;
+                const di = indexByDay[ymd];
+                if (di == null) return;
+                const cell = matrix[di][hour];
+                cell.total += 1;
+                const cat = r.category;
+                if (cell.byCat[cat] != null) cell.byCat[cat] += 1;
+                else cell.byCat[cat] = 1;
+            });
+            return matrix;
+        }
+
+        function heatColor(count, maxCount) {
+            if (!count || maxCount <= 0) return HEAT_PALETTE[0];
+            const t = count / maxCount;
+            if (t <= 0.2) return HEAT_PALETTE[1];
+            if (t <= 0.4) return HEAT_PALETTE[2];
+            if (t <= 0.6) return HEAT_PALETTE[3];
+            if (t <= 0.8) return HEAT_PALETTE[4];
+            return HEAT_PALETTE[5];
+        }
+
+        function heatLevel(count, maxCount) {
+            if (!count || maxCount <= 0) return 0;
+            const t = count / maxCount;
+            if (t <= 0.2) return 1;
+            if (t <= 0.4) return 2;
+            if (t <= 0.6) return 3;
+            if (t <= 0.8) return 4;
+            return 5;
+        }
+
+        function formatHourLabel(h) {
+            return String(h).padStart(2, '0');
+        }
+
+        function hideHeatmapTooltip() {
+            const tip = document.getElementById('heatmapTooltip');
+            tip.style.display = 'none';
+            tip.setAttribute('aria-hidden', 'true');
+        }
+
+        function showHeatmapTooltip(cell, clientX, clientY) {
+            const tip = document.getElementById('heatmapTooltip');
+            const day = cell.dataset.day;
+            const hour = Number(cell.dataset.hour);
+            const total = Number(cell.dataset.total || 0);
+            let byCat;
+            try { byCat = JSON.parse(cell.dataset.byCat || '{}'); } catch (_) { byCat = {}; }
+            const catLines = Object.keys(CATEGORIES)
+                .filter((c) => (byCat[c] || 0) > 0)
+                .map((c) => `<div class="tt-line">${escapeHtml(c)}: ${byCat[c]}</div>`)
+                .join('');
+            tip.innerHTML = `
+                <div class="tt-title">${escapeHtml(day)} · ${formatHourLabel(hour)}:00</div>
+                <div>Total: ${total}</div>
+                ${catLines || '<div class="tt-line">No behaviors</div>'}
+            `;
+            tip.style.display = 'block';
+            tip.setAttribute('aria-hidden', 'false');
+            const pad = 12;
+            const rect = tip.getBoundingClientRect();
+            let left = clientX + pad;
+            let top = clientY + pad;
+            if (left + rect.width > window.innerWidth - 8) left = clientX - rect.width - pad;
+            if (top + rect.height > window.innerHeight - 8) top = clientY - rect.height - pad;
+            tip.style.left = `${Math.max(8, left)}px`;
+            tip.style.top = `${Math.max(8, top)}px`;
+        }
+
+        function renderHeatmap(rows, rangeKey) {
+            const bounds = rangeBounds(rangeKey);
+            const today = torontoYmd();
+            const startYmd = bounds.start.slice(0, 10);
+            const dayKeys = enumerateDays(startYmd, today);
+            const matrix = buildDayHourMatrix(rows, dayKeys);
+            let maxCount = 0;
+            matrix.forEach((dayRow) => {
+                dayRow.forEach((cell) => {
+                    if (cell.total > maxCount) maxCount = cell.total;
+                });
+            });
+
+            document.getElementById('graphTitle').textContent = `Hour × day — ${bounds.label}`;
+            document.getElementById('graphLegend').textContent = HEAT_LEGEND;
+
+            const hourHeaders = Array.from({ length: 24 }, (_, h) =>
+                `<th scope="col">${formatHourLabel(h)}</th>`
+            ).join('');
+
+            const body = dayKeys.map((ymd, di) => {
+                const cells = matrix[di].map((cell, hour) => {
+                    const level = heatLevel(cell.total, maxCount);
+                    const bg = heatColor(cell.total, maxCount);
+                    const hot = level >= 4 ? ' hot' : '';
+                    const has = cell.total > 0 ? ' has-count' : '';
+                    const label = cell.total > 0 ? String(cell.total) : '';
+                    return `<td class="heatmap-cell${has}${hot}"
+                        style="background:${bg}"
+                        data-day="${escapeAttr(ymd)}"
+                        data-hour="${hour}"
+                        data-total="${cell.total}"
+                        data-by-cat="${escapeAttr(JSON.stringify(cell.byCat))}"
+                        title="${escapeAttr(`${ymd} ${formatHourLabel(hour)}:00 — ${cell.total}`)}"
+                    >${label}</td>`;
+                }).join('');
+                return `<tr>
+                    <th scope="row">${escapeHtml(formatDayLabel(ymd))}</th>
+                    ${cells}
+                </tr>`;
+            }).join('');
+
+            const wrap = document.getElementById('heatmapWrap');
+            wrap.innerHTML = `
+                <table class="heatmap-table" aria-label="Behavior heatmap by day and hour">
+                    <thead>
+                        <tr>
+                            <th class="corner" scope="col">Day</th>
+                            ${hourHeaders}
+                        </tr>
+                    </thead>
+                    <tbody>${body}</tbody>
+                </table>
+            `;
+
+            const scale = document.getElementById('heatmapScale');
+            scale.innerHTML = `
+                <span>0</span>
+                <div class="swatches" aria-hidden="true">
+                    ${HEAT_PALETTE.map((c) => `<div class="swatch" style="background:${c}"></div>`).join('')}
+                </div>
+                <span>${maxCount || 0} max</span>
+            `;
+
+            wrap.querySelectorAll('.heatmap-cell').forEach((cell) => {
+                cell.addEventListener('mouseenter', (e) => showHeatmapTooltip(cell, e.clientX, e.clientY));
+                cell.addEventListener('mousemove', (e) => showHeatmapTooltip(cell, e.clientX, e.clientY));
+                cell.addEventListener('mouseleave', hideHeatmapTooltip);
+                cell.addEventListener('click', (e) => showHeatmapTooltip(cell, e.clientX, e.clientY));
+            });
+            hideHeatmapTooltip();
+        }
+
+        function renderBarChart(rows, rangeKey) {
+            const bounds = rangeBounds(rangeKey);
+            const byHour = rangeKey === 'day';
+            const today = torontoYmd();
+            const startYmd = bounds.start.slice(0, 10);
+
+            let labels;
+            let counts;
+            let xTitle;
+            let chartTitle;
+            let tooltipTitle;
+
+            if (byHour) {
+                labels = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+                counts = buildHourCounts(rows);
+                xTitle = 'Hour of day';
+                chartTitle = `By hour — ${bounds.label}`;
+                tooltipTitle = (items) => items.length ? `Hour ${items[0].label}:00` : '';
+            } else {
+                const dayKeys = enumerateDays(startYmd, today);
+                labels = dayKeys.map(formatDayLabel);
+                counts = buildDayCounts(rows, dayKeys);
+                xTitle = 'Day';
+                chartTitle = `By day — ${bounds.label}`;
+                tooltipTitle = (items) => {
+                    if (!items.length) return '';
+                    const i = items[0].dataIndex;
+                    return dayKeys[i] || items[0].label;
+                };
+            }
+
+            document.getElementById('graphTitle').textContent = chartTitle;
+            document.getElementById('graphLegend').textContent = BAR_LEGEND;
+            const datasets = Object.keys(CATEGORIES).map((cat) => ({
+                label: cat,
+                data: counts[cat] || Array(labels.length).fill(0),
+                backgroundColor: CATEGORIES[cat].color,
+                borderWidth: 0,
+                borderRadius: 2
+            }));
+
+            const ctx = document.getElementById('behaviorChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: { title: tooltipTitle }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: { display: true, text: xTitle },
+                            ticks: {
+                                maxRotation: byHour ? 0 : 45,
+                                minRotation: byHour ? 0 : 0,
+                                autoSkip: true,
+                                maxTicksLimit: byHour ? 12 : (rangeKey === '6mo' ? 12 : 16)
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: { precision: 0 },
+                            title: { display: true, text: 'Count' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function cellStaggerOffsets(count) {
+            // Pack points in a small grid inside the 1×1 day×hour cell so
+            // different categories at the same time do not fully cover each other.
+            if (count <= 1) return [{ dx: 0, dy: 0 }];
+            const cols = Math.ceil(Math.sqrt(count));
+            const rows = Math.ceil(count / cols);
+            const xSpan = 0.72;
+            const ySpan = 0.72;
+            const xStep = cols > 1 ? xSpan / (cols - 1) : 0;
+            const yStep = rows > 1 ? ySpan / (rows - 1) : 0;
+            const offsets = [];
+            for (let i = 0; i < count; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                offsets.push({
+                    dx: cols > 1 ? -xSpan / 2 + col * xStep : 0,
+                    dy: rows > 1 ? -ySpan / 2 + row * yStep : 0
+                });
+            }
+            return offsets;
+        }
+
+        function buildScatterPoints(rows, dayKeys) {
+            const indexByDay = Object.fromEntries(dayKeys.map((d, i) => [d, i]));
+            const pointsByCat = Object.fromEntries(Object.keys(CATEGORIES).map((c) => [c, []]));
+            const cells = {};
+            (rows || []).forEach((r) => {
+                const ymd = logYmd(r.log_date_time);
+                const hour = logHour(r.log_date_time);
+                if (ymd == null || hour == null || hour < 0 || hour > 23) return;
+                const dayIndex = indexByDay[ymd];
+                if (dayIndex == null) return;
+                const key = `${dayIndex}:${hour}`;
+                if (!cells[key]) cells[key] = [];
+                cells[key].push({
+                    dayIndex,
+                    hour,
+                    ymd,
+                    behavior: r.behavior || '',
+                    category: r.category
+                });
+            });
+
+            Object.keys(cells).forEach((key) => {
+                const group = cells[key];
+                // Stable order so colors fan out consistently; medication last
+                // within the cell so it stays readable when many logs share a slot.
+                const catOrder = Object.keys(CATEGORIES);
+                group.sort((a, b) => {
+                    const ai = catOrder.indexOf(a.category);
+                    const bi = catOrder.indexOf(b.category);
+                    const ao = ai < 0 ? catOrder.length : ai;
+                    const bo = bi < 0 ? catOrder.length : bi;
+                    if (ao !== bo) return ao - bo;
+                    return String(a.behavior).localeCompare(String(b.behavior));
+                });
+                const offsets = cellStaggerOffsets(group.length);
+                group.forEach((item, i) => {
+                    const cat = item.category;
+                    if (!pointsByCat[cat]) pointsByCat[cat] = [];
+                    const { dx, dy } = offsets[i];
+                    pointsByCat[cat].push({
+                        x: item.hour + dx,
+                        y: item.dayIndex + dy,
+                        ymd: item.ymd,
+                        hour: item.hour,
+                        behavior: item.behavior,
+                        category: cat
+                    });
+                });
+            });
+            return pointsByCat;
+        }
+
+        function renderScatterChart(rows, rangeKey) {
+            const bounds = rangeBounds(rangeKey);
+            const today = torontoYmd();
+            const startYmd = bounds.start.slice(0, 10);
+            const dayKeys = enumerateDays(startYmd, today);
+            const pointsByCat = buildScatterPoints(rows, dayKeys);
+
+            document.getElementById('graphTitle').textContent = `Scatter hour × day — ${bounds.label}`;
+            document.getElementById('graphLegend').textContent = SCATTER_LEGEND;
+
+            const dayCount = dayKeys.length;
+            const scroll = document.getElementById('chartScroll');
+            const wrap = document.getElementById('chartWrap');
+            // One discrete row per day (scroll when the range is long). Cap was
+            // previously flattening a month into ~15px/day with blank axis labels.
+            const rowPx = rangeKey === '6mo' ? 18 : 28;
+            const chartHeight = Math.max(320, 100 + dayCount * rowPx);
+            wrap.style.height = `${chartHeight}px`;
+            if (scroll) {
+                scroll.style.maxHeight = rangeKey === '6mo'
+                    ? 'min(75vh, 720px)'
+                    : 'min(75vh, 900px)';
+            }
+
+            const catKeys = Object.keys(CATEGORIES);
+            Object.keys(pointsByCat).forEach((cat) => {
+                if (!catKeys.includes(cat) && (pointsByCat[cat] || []).length) catKeys.push(cat);
+            });
+            const datasets = catKeys.map((cat) => ({
+                label: cat,
+                data: pointsByCat[cat] || [],
+                backgroundColor: CATEGORIES[cat]?.color || '#607D8B',
+                borderColor: '#ffffff',
+                borderWidth: 1,
+                pointRadius: rangeKey === '6mo' ? 2.5 : 3,
+                pointHoverRadius: rangeKey === '6mo' ? 5 : 6,
+                pointHitRadius: 6,
+                showLine: false
+            }));
+
+            // Chart.js picks half-step ticks when min/max are ±0.5; integer-only
+            // tick callbacks then blank every label. Force one tick per day/hour.
+            const hourTickStep = 2;
+            const dayTickStep = rangeKey === '6mo' ? Math.max(1, Math.ceil(dayCount / 30)) : 1;
+
+            const ctx = document.getElementById('behaviorChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    interaction: { mode: 'nearest', intersect: true },
+                    layout: { padding: { top: 4, right: 8, bottom: 0, left: 0 } },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => {
+                                    if (!items.length) return '';
+                                    const p = items[0].raw;
+                                    return `${p.ymd} · ${formatHourLabel(p.hour)}:00`;
+                                },
+                                label: (item) => {
+                                    const p = item.raw;
+                                    const name = p.behavior ? ` — ${p.behavior}` : '';
+                                    return `${p.category}${name}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: -0.5,
+                            max: 23.5,
+                            offset: false,
+                            title: { display: true, text: 'Hour of day' },
+                            afterBuildTicks: (scale) => {
+                                scale.ticks = [];
+                                for (let h = 0; h <= 23; h += hourTickStep) {
+                                    scale.ticks.push({ value: h });
+                                }
+                            },
+                            ticks: {
+                                autoSkip: false,
+                                callback: (v) => {
+                                    const n = Number(v);
+                                    if (!Number.isInteger(n) || n < 0 || n > 23) return '';
+                                    return formatHourLabel(n);
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            reverse: true,
+                            min: -0.5,
+                            max: Math.max(0.5, dayCount - 0.5),
+                            offset: false,
+                            title: { display: true, text: 'Day' },
+                            afterBuildTicks: (scale) => {
+                                scale.ticks = [];
+                                for (let i = 0; i < dayCount; i += dayTickStep) {
+                                    scale.ticks.push({ value: i });
+                                }
+                                if (dayCount > 1 && (dayCount - 1) % dayTickStep !== 0) {
+                                    scale.ticks.push({ value: dayCount - 1 });
+                                }
+                            },
+                            ticks: {
+                                autoSkip: false,
+                                callback: (v) => {
+                                    const n = Number(v);
+                                    if (!Number.isInteger(n) || n < 0 || n >= dayKeys.length) return '';
+                                    return formatDayLabel(dayKeys[n]);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartTypePanels() {
+            const isHeat = chartType === 'heatmap';
+            document.getElementById('chartCanvasPanel').classList.toggle('hidden', isHeat);
+            document.getElementById('heatmapPanel').classList.toggle('hidden', !isHeat);
+            const select = document.getElementById('chartTypeSelect');
+            if (select && select.value !== chartType) select.value = chartType;
+            if (!isHeat) hideHeatmapTooltip();
+            if (chartType === 'bar') {
+                const wrap = document.getElementById('chartWrap');
+                wrap.style.height = '300px';
+                const scroll = document.getElementById('chartScroll');
+                if (scroll) scroll.style.maxHeight = '';
+            }
+        }
+
+        function renderGraph(rows, rangeKey) {
+            updateChartTypePanels();
+            if (chartType === 'heatmap') {
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+                renderHeatmap(rows, rangeKey);
+            } else if (chartType === 'scatter') {
+                renderScatterChart(rows, rangeKey);
+            } else {
+                renderBarChart(rows, rangeKey);
+            }
+        }
+
+        async function refreshList() {
+            const status = document.getElementById('listStatus');
+            status.classList.remove('hidden');
+            status.textContent = 'Loading…';
+            try {
+                const rows = await fetchLogs('day');
+                showError('');
+                renderList(rows || []);
+            } catch (e) {
+                console.error(e);
+                showError(e.message || String(e));
+                status.textContent = 'Could not load today’s log.';
+            }
+        }
+
+        async function refreshGraph() {
+            try {
+                const rows = await fetchLogs(graphRange);
+                showError('');
+                renderGraph(rows || [], graphRange);
+            } catch (e) {
+                console.error(e);
+                showError(e.message || String(e));
+            }
+        }
+
+        async function refreshCurrentView() {
+            if (viewMode === 'list') await refreshList();
+            else await refreshGraph();
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('btnListMode').classList.toggle('active', mode === 'list');
+            document.getElementById('btnGraphMode').classList.toggle('active', mode === 'graph');
+            document.getElementById('listPanel').classList.toggle('hidden', mode !== 'list');
+            document.getElementById('graphPanel').classList.toggle('hidden', mode !== 'graph');
+            if (mode !== 'graph') hideHeatmapTooltip();
+            refreshCurrentView();
+        }
+
+        function setChartType(type) {
+            if (type === 'heatmap' || type === 'scatter') chartType = type;
+            else chartType = 'bar';
+            updateChartTypePanels();
+            if (viewMode === 'graph') refreshGraph();
+        }
+
+        function wireUi() {
+            document.querySelectorAll('#profileTabs .profile-tab').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    currentProfile = btn.dataset.profile;
+                    document.querySelectorAll('#profileTabs .profile-tab').forEach((b) => {
+                        b.classList.toggle('active', b === btn);
+                    });
+                    refreshCurrentView();
+                });
+            });
+
+            document.getElementById('btnListMode').addEventListener('click', () => setViewMode('list'));
+            document.getElementById('btnGraphMode').addEventListener('click', () => setViewMode('graph'));
+
+            document.querySelectorAll('#rangeTabs button').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    graphRange = btn.dataset.range;
+                    document.querySelectorAll('#rangeTabs button').forEach((b) => {
+                        b.classList.toggle('active', b === btn);
+                    });
+                    if (viewMode === 'graph') refreshGraph();
+                });
+            });
+
+            document.getElementById('chartTypeSelect').addEventListener('change', (e) => {
+                setChartType(e.target.value);
+            });
+
+            document.addEventListener('scroll', hideHeatmapTooltip, true);
+            window.addEventListener('resize', hideHeatmapTooltip);
+        }
+
+        renderBehaviorButtons();
+        wireUi();
+        refreshList();
+    </script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwriting Snapshot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f0f7f4;
+            padding: 20px;
+            line-height: 1.55;
+        }
+        .container { max-width: 960px; margin: 0 auto; }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #5a7a9c;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .header h1 { font-size: 1.05em; margin: 0; font-weight: 700; }
+        .header-meta { font-size: 0.78em; opacity: 0.92; margin-top: 2px; }
+        .back-button {
+            flex: 0 0 auto;
+            padding: 7px 10px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .back-button:active { background: rgba(255,255,255,0.3); }
+        #meta { font-size: 0.78em; opacity: 0.92; }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .toolbar button {
+            background: #2e7d32;
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+        }
+        .toolbar button:hover { filter: brightness(1.06); }
+        .toolbar span { color: #444; font-size: 0.95em; }
+        .loading, .no-data, .error {
+            text-align: center;
+            padding: 36px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            color: #555;
+            font-size: 1.1em;
+        }
+        .error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .sheet {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .snapshots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+            text-align: left;
+        }
+        .snapshot-card {
+            background: #fafafa;
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid #e8e8e8;
+        }
+        .snapshot-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            cursor: zoom-in;
+        }
+        .task-line { margin-top: 10px; color: #666; font-size: 0.8em; word-break: break-all; }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show { display: flex; }
+        .modal img { max-width: 96%; max-height: 94vh; border-radius: 6px; }
+        .modal .close-x {
+            position: absolute;
+            top: 16px;
+            right: 24px;
+            color: #f1f1f1;
+            font-size: 38px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Handwriting · <span id="headerSubtitle">…</span></h1>
+                <div class="header-meta" id="meta"></div>
+            </div>
+            <a href="handwriting_practice_report.html" class="back-button">← Back</a>
+        </div>
+
+        <div class="toolbar">
+            <button type="button" id="prevDay">← Previous day</button>
+            <span id="dayLabel"></span>
+            <button type="button" id="nextDay">Next day →</button>
+            <button type="button" id="refreshBtn">Refresh</button>
+        </div>
+
+        <div id="loading" class="loading">Loading…</div>
+        <div id="error" class="error" style="display:none;"></div>
+        <div id="sheet" class="sheet" style="display:none;">
+            <div id="snapshotsGrid" class="snapshots-grid"></div>
+        </div>
+        <div id="noData" class="no-data" style="display:none;">No handwriting upload for this profile on this Toronto calendar day yet.</div>
+    </div>
+
+    <div id="modal" class="modal"><span class="close-x">&times;</span><img id="modalImg" alt="" /></div>
+
+    <script>
+        const TASK_PREFIX_ILIKE = 'HandwritingPractice';
+        const urlParams = new URLSearchParams(window.location.search);
+        const profileParam = urlParams.get('profile') || 'AM';
+
+        const supabaseUrl = () => localStorage.getItem('supabaseUrl');
+        const supabaseKey = () => localStorage.getItem('supabaseKey');
+
+        const TASK_KEY_DATE_RE = /^HandwritingPractice-(\d{4})(\d{2})(\d{2})-/i;
+
+        /** YYYY-MM-DD in America/Toronto for a UTC instant */
+        function captureTorontoYmd(isoOrMs) {
+            const d = typeof isoOrMs === 'number' ? new Date(isoOrMs) : new Date(isoOrMs);
+            if (isNaN(d.getTime())) return null;
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(d);
+        }
+
+        /** Calendar day encoded in the upload task key (authoritative for “which day”). */
+        function torontoYmdFromTask(task) {
+            const m = TASK_KEY_DATE_RE.exec(task || '');
+            if (!m) return null;
+            return `${m[1]}-${m[2]}-${m[3]}`;
+        }
+
+        /**
+         * image_uploads.capture_date_time is Toronto civil time without TZ in the DB.
+         * Use the leading YYYY-MM-DD when present instead of browser-local Date parsing.
+         */
+        function torontoYmdFromCapture(value) {
+            if (!value) return null;
+            const prefix = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+            if (prefix) return prefix[1];
+            return captureTorontoYmd(value);
+        }
+
+        function rowTorontoYmd(row) {
+            return torontoYmdFromTask(row.task) || torontoYmdFromCapture(row.capture_date_time);
+        }
+
+        /**
+         * Move a Toronto calendar YYYY-MM-DD by Δ days using a midday-UTC anchor, then map back via Toronto TZ.
+         * Good enough for parent prev/next day buttons (avoids DST off-by-one for civil dates).
+         */
+        function addTorontoDays(ymd, deltaDays) {
+            const parts = ymd.split('-').map(Number);
+            const y = parts[0], mo = parts[1], d = parts[2];
+            const base = new Date(Date.UTC(y, mo - 1, d, 17, 0, 0));
+            base.setUTCDate(base.getUTCDate() + deltaDays);
+            return captureTorontoYmd(base.getTime());
+        }
+
+        /** Today’s calendar date in Toronto as YYYY-MM-DD */
+        function torontoTodayYmd() {
+            return captureTorontoYmd(Date.now());
+        }
+
+        /** Long friendly label for a Toronto YYYY-MM-DD */
+        function formatTorontoLong(ymd) {
+            const parts = ymd.split('-').map(Number);
+            const ms = Date.UTC(parts[0], parts[1] - 1, parts[2], 17, 0, 0);
+            return new Date(ms).toLocaleDateString('en-US', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+        }
+
+        function formatTorontoDayTime(isoStr) {
+            const d = new Date(isoStr);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleString('en-US', {
+                timeZone: 'America/Toronto',
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        }
+
+        let selectedYmd = urlParams.get('ymd');
+        if (!selectedYmd || !/^\d{4}-\d{2}-\d{2}$/.test(selectedYmd)) {
+            selectedYmd = torontoTodayYmd();
+        }
+
+        document.getElementById('headerSubtitle').textContent = profileParam;
+
+        const fetchHeaders = (key) => ({
+            apikey: key,
+            Authorization: `Bearer ${key}`
+        });
+
+        function isHandwritingRow(row) {
+            return row && row.task && row.task.toLowerCase().startsWith(TASK_PREFIX_ILIKE.toLowerCase());
+        }
+
+        async function fetchHandwritingUploads(url, key) {
+            const pattern = encodeURIComponent(TASK_PREFIX_ILIKE) + '%25';
+            const primaryUrl = `${url}/rest/v1/image_uploads?profile=eq.${profileParam}&task=ilike.${pattern}&select=task,image,capture_date_time&order=capture_date_time.desc&limit=500`;
+            const res = await fetch(primaryUrl, { headers: fetchHeaders(key) });
+            if (res.ok) {
+                const rows = await res.json();
+                if (rows.length > 0) return rows;
+            } else {
+                const errText = await res.text();
+                console.warn('Handwriting ilike query failed:', res.status, errText);
+            }
+
+            // Fallback: fetch profile rows and filter client-side (same pattern as spelling OCR report).
+            const fallbackUrl = `${url}/rest/v1/image_uploads?profile=eq.${profileParam}&select=task,image,capture_date_time&order=capture_date_time.desc&limit=500`;
+            const alt = await fetch(fallbackUrl, { headers: fetchHeaders(key) });
+            if (!alt.ok) throw new Error(`image_uploads: ${alt.status} ${await alt.text()}`);
+            return (await alt.json()).filter(isHandwritingRow);
+        }
+
+        function wordOrderFromTask(task) {
+            const m = (task || '').match(/printing-(\d{2})-/i);
+            return m ? parseInt(m[1], 10) : 999;
+        }
+
+        function pickAllForDay(rows, ymdToronto) {
+            const hits = [];
+            for (const r of rows || []) {
+                if (!r.image) continue;
+                if (rowTorontoYmd(r) === ymdToronto) hits.push(r);
+            }
+            hits.sort((a, b) => {
+                const oa = wordOrderFromTask(a.task);
+                const ob = wordOrderFromTask(b.task);
+                if (oa !== ob) return oa - ob;
+                const ta = Date.parse(a.capture_date_time || '') || 0;
+                const tb = Date.parse(b.capture_date_time || '') || 0;
+                return ta - tb;
+            });
+            return hits;
+        }
+
+        function imageDataUrl(raw) {
+            if (!raw) return '';
+            return raw.startsWith('data:') ? raw : `data:image/jpeg;base64,${raw}`;
+        }
+
+        async function render() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('sheet').style.display = 'none';
+            document.getElementById('noData').style.display = 'none';
+
+            document.getElementById('dayLabel').textContent = `${formatTorontoLong(selectedYmd)} (America/Toronto)`;
+
+            const url = supabaseUrl();
+            const key = supabaseKey();
+            if (!url || !key) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent =
+                    'Open the home page and save your Supabase URL and API key first.';
+                return;
+            }
+
+            try {
+                const rows = await fetchHandwritingUploads(url, key);
+                const dayHits = pickAllForDay(rows, selectedYmd);
+                document.getElementById('loading').style.display = 'none';
+
+                if (dayHits.length === 0) {
+                    document.getElementById('noData').style.display = 'block';
+                    document.getElementById('meta').innerHTML =
+                        `<strong>No upload</strong> for ${profileParam} on <strong>${selectedYmd}</strong> (Toronto). ` +
+                        'If they finished Handwriting Practice after you opened this tab, tap Refresh.';
+                    return;
+                }
+
+                const latest = dayHits[dayHits.length - 1];
+                document.getElementById('meta').innerHTML =
+                    `Results for day: <strong>${formatTorontoLong(selectedYmd)}</strong><br>` +
+                    `<strong>${dayHits.length}</strong> snapshot${dayHits.length === 1 ? '' : 's'} ` +
+                    `(latest capture: <strong>${formatTorontoDayTime(latest.capture_date_time)}</strong>, America/Toronto)`;
+
+                const grid = document.getElementById('snapshotsGrid');
+                grid.innerHTML = '';
+                dayHits.forEach((hit) => {
+                    const card = document.createElement('div');
+                    card.className = 'snapshot-card';
+                    const img = document.createElement('img');
+                    img.alt = hit.task || 'Handwriting snapshot';
+                    img.src = imageDataUrl(hit.image);
+                    img.addEventListener('click', () => openModal(img.src));
+                    const line = document.createElement('p');
+                    line.className = 'task-line';
+                    line.textContent = hit.task || '';
+                    card.appendChild(img);
+                    card.appendChild(line);
+                    grid.appendChild(card);
+                });
+                document.getElementById('sheet').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = e.message || String(e);
+            }
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        document.getElementById('prevDay').onclick = () => {
+            selectedYmd = addTorontoDays(selectedYmd, -1);
+            syncUrl(); render();
+        };
+        document.getElementById('nextDay').onclick = () => {
+            selectedYmd = addTorontoDays(selectedYmd, 1);
+            syncUrl(); render();
+        };
+
+        function syncUrl() {
+            const u = new URL(window.location.href);
+            u.searchParams.set('profile', profileParam);
+            u.searchParams.set('ymd', selectedYmd);
+            window.history.replaceState({}, '', u);
+        }
+
+        const modal = document.getElementById('modal');
+        function openModal(src) {
+            document.getElementById('modalImg').src = src;
+            modal.classList.add('show');
+        }
+        modal.onclick = () => modal.classList.remove('show');
+        modal.querySelector('.close-x').onclick = (ev) => { ev.stopPropagation(); modal.classList.remove('show'); };
+
+        document.getElementById('refreshBtn').onclick = () => render();
+
+        render();
+        setInterval(render, 120000);
+    </script>
+</body>
+</html>

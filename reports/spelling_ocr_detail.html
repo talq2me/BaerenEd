@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling OCR Detail</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #5a7a9c;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .header h1 {
+            font-size: 1.05em;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .header-meta {
+            font-size: 0.78em;
+            opacity: 0.92;
+            margin-top: 2px;
+        }
+
+        .back-button {
+            flex: 0 0 auto;
+            padding: 7px 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .back-button:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .entry-container {
+            background: white;
+            margin: 20px 0;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .entry-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            padding: 10px;
+            margin: -10px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+            flex-wrap: wrap;
+        }
+
+        .entry-header:hover {
+            background-color: #f5f5f5;
+        }
+
+        .entry-header.collapsed {
+            margin-bottom: 0;
+        }
+
+        .entry-toggle {
+            font-size: 1.2em;
+            color: #666;
+            transition: transform 0.3s;
+            user-select: none;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .entry-header.collapsed .entry-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .entry-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .entry-number {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .day-heading {
+            margin: 18px 0 8px;
+            font-size: 0.95em;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .score-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: white;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+
+        .score-summary {
+            color: #334155;
+            font-size: 0.92em;
+            font-weight: 650;
+        }
+
+        .save-scores {
+            border: none;
+            background: #5a7a9c;
+            color: white;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .save-scores:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        .entry-word {
+            font-size: 1.05em;
+            font-weight: 700;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .entry-word.dirty {
+            outline: 2px dashed #64748b;
+            outline-offset: 2px;
+        }
+
+        .entry-word.correct {
+            color: #4CAF50;
+            background: #e8f5e9;
+            border: 2px solid #4CAF50;
+        }
+
+        .entry-word.incorrect {
+            color: #f44336;
+            background: #ffebee;
+            border: 2px solid #f44336;
+        }
+
+        .entry-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 5000px;
+            opacity: 1;
+        }
+
+        .entry-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .entry-image-container {
+            text-align: center;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .entry-image {
+            max-width: 100%;
+            max-height: 1200px;
+            width: auto;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        @media (max-width: 768px) {
+            .entry-image {
+                max-height: 800px;
+            }
+        }
+
+        .entry-image:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+            background: white;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            cursor: pointer;
+        }
+
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            margin-top: 5%;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Spelling OCR</h1>
+                <div class="header-meta" id="headerSubtitle">Loading...</div>
+            </div>
+            <a href="spelling_ocr_report.html" class="back-button">← Back</a>
+        </div>
+        <div id="lastUpdated" class="header-meta" style="margin: -4px 0 12px; color: #64748b; font-size: 0.78em;"></div>
+        <div class="score-bar" id="scoreBar" style="display: none;">
+            <div class="score-summary" id="scoreSummary"></div>
+            <button type="button" class="save-scores" id="saveScores" disabled>Save</button>
+        </div>
+
+        <div id="loading" class="loading">Loading spelling submissions...</div>
+        <div id="entriesContainer"></div>
+        <div id="noData" class="no-data" style="display: none;">
+            No spelling submissions found for this profile and game.
+        </div>
+    </div>
+
+    <!-- Modal for full-size image -->
+    <div id="imageModal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const profile = urlParams.get('profile') || 'AM';
+        const game = urlParams.get('game') || 'EngSpellingOCR';
+        let rowsState = [];
+
+        // Update header
+        document.getElementById('headerSubtitle').textContent = `${profile} - ${game}`;
+
+        // Load saved configuration
+        const supabaseUrl = localStorage.getItem('supabaseUrl');
+        const supabaseKey = localStorage.getItem('supabaseKey');
+
+        // Load spelling submissions
+        async function loadSpellingSubmissions() {
+            if (!supabaseUrl || !supabaseKey) {
+                document.getElementById('loading').innerHTML = 'Please configure Supabase URL and API Key in the main reports page.';
+                document.getElementById('loading').style.color = '#f44336';
+                return;
+            }
+            try {
+                // Query image_uploads table for entries matching the profile and game pattern
+                // Use ilike (case-insensitive) and proper URL encoding
+                const taskPattern = `${game}-`;
+                const encodedPattern = encodeURIComponent(taskPattern) + '%25';
+                
+                const queryUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&task=ilike.${encodedPattern}&select=id,task,image,capture_date_time&order=task`;
+                console.log('Querying:', queryUrl);
+                
+                const response = await fetch(queryUrl, {
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    }
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    
+                    // Try alternative query without LIKE if the first one fails
+                    console.log('Trying alternative query without pattern matching...');
+                    const altResponse = await fetch(
+                        `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&select=id,task,image,capture_date_time&order=task`,
+                        {
+                            headers: {
+                                'apikey': supabaseKey,
+                                'Authorization': `Bearer ${supabaseKey}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+                    
+                    if (!altResponse.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                    }
+                    
+                    // Filter client-side if LIKE doesn't work
+                    const allData = await altResponse.json();
+                    const data = allData.filter(entry => entry.task && entry.task.startsWith(taskPattern));
+                    console.log('Filtered data:', data);
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    if (!data || data.length === 0) {
+                        document.getElementById('noData').style.display = 'block';
+                        return;
+                    }
+                    
+                    // Continue with filtered data
+                    displayEntries(data);
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('Data received:', data);
+                
+                document.getElementById('loading').style.display = 'none';
+
+                if (!data || data.length === 0) {
+                    document.getElementById('noData').style.display = 'block';
+                    return;
+                }
+                
+                displayEntries(data);
+
+            } catch (error) {
+                console.error('Error loading spelling submissions:', error);
+                document.getElementById('loading').innerHTML = `Error loading submissions: ${error.message}. Please check your configuration and browser console for details.`;
+                document.getElementById('loading').style.color = '#f44336';
+            }
+        }
+        
+        /**
+         * Parse task strings like "EngSpellingOCR-2026-09-24-01-uncooked-X"
+         * or the older "EngSpellingOCR-01-uncooked-X".
+         * Words may contain "-" (hyphenated); the final segment is always the status marker.
+         */
+        function parseSpellingOcrTask(task) {
+            if (!task || typeof task !== 'string') return null;
+            const trimmed = task.trim();
+            const parts = trimmed.split('-');
+            if (parts.length < 4) return null;
+            const gamePrefix = parts[0];
+            const gp = gamePrefix.toLowerCase();
+            if (gp !== 'engspellingocr' && gp !== 'frspellingocr') return null;
+            let index = 1;
+            let ymd = null;
+            if (parts.length >= 7 && /^\d{4}$/.test(parts[1]) && /^\d{2}$/.test(parts[2]) && /^\d{2}$/.test(parts[3])) {
+                ymd = `${parts[1]}-${parts[2]}-${parts[3]}`;
+                index = 4;
+            }
+            const questionNumber = parseInt(parts[index], 10);
+            if (!Number.isFinite(questionNumber) || questionNumber < 1) return null;
+            const status = parts[parts.length - 1];
+            const word = parts.slice(index + 1, -1).join('-');
+            if (!word) return null;
+            const isCorrect = status === '✓' || status === 'checkmark' || status.toLowerCase() === 'correct';
+            return { gamePrefix, questionNumber, word, isCorrect, ymd };
+        }
+
+        function taskWithStatus(task, isCorrect) {
+            const parts = String(task || '').trim().split('-');
+            parts[parts.length - 1] = isCorrect ? '✓' : 'X';
+            return parts.join('-');
+        }
+
+        function updateScoreBar() {
+            const bar = document.getElementById('scoreBar');
+            const summary = document.getElementById('scoreSummary');
+            const saveBtn = document.getElementById('saveScores');
+            if (!rowsState.length) {
+                bar.style.display = 'none';
+                return;
+            }
+            const correct = rowsState.filter((row) => row.parsed.isCorrect).length;
+            const incorrect = rowsState.length - correct;
+            const dirty = rowsState.some((row) => row.parsed.isCorrect !== row.savedCorrect);
+            bar.style.display = 'flex';
+            summary.textContent = `${correct} correct, ${incorrect} incorrect`;
+            saveBtn.disabled = !dirty;
+            saveBtn.textContent = dirty ? 'Save' : 'Saved';
+        }
+
+        function formatTorontoLongDateFromMs(ms) {
+            const d = new Date(ms);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleDateString('en-US', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        function formatTorontoDateTime(isoStr) {
+            const d = new Date(isoStr);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleString('en-US', {
+                timeZone: 'America/Toronto',
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        }
+
+        function displayEntries(data) {
+            const lastUpdatedEl = document.getElementById('lastUpdated');
+            if (!data || data.length === 0) {
+                lastUpdatedEl.style.display = 'none';
+                return;
+            }
+
+            const dates = data.map(e => e.capture_date_time).filter(Boolean);
+            if (dates.length === 0) {
+                lastUpdatedEl.style.display = 'none';
+            } else {
+                const times = dates.map(d => new Date(d).getTime());
+                const validIdx = times.map((t, i) => (!isNaN(t) ? i : -1)).filter((i) => i >= 0);
+                if (validIdx.length === 0) {
+                    lastUpdatedEl.style.display = 'none';
+                } else {
+                    const validTimes = validIdx.map((i) => times[i]);
+                    const latestIdx = validIdx[validTimes.reduce((best, t, j, arr) => (t >= arr[best] ? j : best), 0)];
+                    const latestMs = times[latestIdx];
+                    const earliestMs = Math.min(...validTimes);
+                    const latestIso = dates[latestIdx];
+
+                    const torontoDayFmt = new Intl.DateTimeFormat('en-CA', {
+                        timeZone: 'America/Toronto',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                    const dayKeys = [...new Set(validTimes.map((ms) => torontoDayFmt.format(new Date(ms))))].sort();
+
+                    let dayLine = '';
+                    if (dayKeys.length === 1) {
+                        dayLine = `Results for day: ${formatTorontoLongDateFromMs(latestMs)} (America/Toronto)`;
+                    } else if (dayKeys.length > 1) {
+                        const firstLabel = formatTorontoLongDateFromMs(earliestMs);
+                        const lastLabel = formatTorontoLongDateFromMs(latestMs);
+                        dayLine = `Results span ${dayKeys.length} calendar days (${firstLabel} – ${lastLabel}, America/Toronto)`;
+                    }
+
+                    const lastUpdatedLine = `last_updated (latest capture): ${formatTorontoDateTime(latestIso)} (America/Toronto)`;
+                    lastUpdatedEl.innerHTML = [dayLine, lastUpdatedLine].filter(Boolean).join('<br>');
+                    lastUpdatedEl.style.display = 'block';
+                }
+            }
+
+            const parsedRows = [];
+            for (let i = 0; i < data.length; i++) {
+                const entry = data[i];
+                const p = parseSpellingOcrTask(entry.task);
+                if (!p) {
+                    console.warn('Skipping unparsable OCR task:', entry.task);
+                    continue;
+                }
+                parsedRows.push({
+                    entry,
+                    parsed: p,
+                    savedCorrect: p.isCorrect,
+                    savedTask: entry.task
+                });
+            }
+            rowsState = parsedRows;
+            updateScoreBar();
+
+            parsedRows.sort((a, b) => {
+                const dayA = a.parsed.ymd || '';
+                const dayB = b.parsed.ymd || '';
+                if (dayA !== dayB) return dayB.localeCompare(dayA);
+                return a.parsed.questionNumber - b.parsed.questionNumber;
+            });
+
+            const container = document.getElementById('entriesContainer');
+            const noDataEl = document.getElementById('noData');
+            container.innerHTML = '';
+
+            if (parsedRows.length > 0) {
+                noDataEl.style.display = 'none';
+            }
+
+            let lastDay = null;
+            parsedRows.forEach(({ entry, parsed }) => {
+                    const questionNumber = parsed.questionNumber;
+                    const word = parsed.word;
+                    const isCorrect = parsed.isCorrect;
+                    const dayKey = parsed.ymd || '';
+                    if (dayKey !== lastDay) {
+                        lastDay = dayKey;
+                        const dayHeading = document.createElement('div');
+                        dayHeading.className = 'day-heading';
+                        dayHeading.textContent = dayKey || 'Undated';
+                        container.appendChild(dayHeading);
+                    }
+
+                    const entryDiv = document.createElement('div');
+                    entryDiv.className = 'entry-container';
+
+                    // Create collapsible header
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = 'entry-header';
+                    headerDiv.innerHTML = `
+                        <div class="entry-toggle">▼</div>
+                        <div class="entry-info">
+                            <div class="entry-number">#${questionNumber}</div>
+                        </div>
+                    `;
+                    const wordBtn = document.createElement('button');
+                    wordBtn.type = 'button';
+                    wordBtn.className = `entry-word ${isCorrect ? 'correct' : 'incorrect'}`;
+                    wordBtn.textContent = `${word} · ${isCorrect ? 'Correct' : 'Incorrect'}`;
+                    wordBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const row = rowsState.find((item) => item.entry === entry);
+                        if (!row) return;
+                        row.parsed.isCorrect = !row.parsed.isCorrect;
+                        const nowCorrect = row.parsed.isCorrect;
+                        wordBtn.className = `entry-word ${nowCorrect ? 'correct' : 'incorrect'}`;
+                        if (nowCorrect !== row.savedCorrect) wordBtn.classList.add('dirty');
+                        wordBtn.textContent = `${word} · ${nowCorrect ? 'Correct' : 'Incorrect'}`;
+                        updateScoreBar();
+                    });
+                    headerDiv.querySelector('.entry-info').appendChild(wordBtn);
+
+                    // Create collapsible content
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'entry-content';
+
+                    const imageDiv = document.createElement('div');
+                    imageDiv.className = 'entry-image-container';
+                    const img = document.createElement('img');
+                    img.src = `data:image/png;base64,${entry.image}`;
+                    img.className = 'entry-image';
+                    img.alt = `Question ${questionNumber}: ${word}`;
+                    img.onclick = () => showModal(img.src);
+                    imageDiv.appendChild(img);
+
+                    contentDiv.appendChild(imageDiv);
+
+                    // Toggle functionality - only toggle when clicking the header, not the content
+                    headerDiv.addEventListener('click', function(e) {
+                        // Only toggle if clicking on the header itself or its direct children (not nested elements)
+                        if (e.target === headerDiv || e.target.closest('.entry-info') || e.target.closest('.entry-toggle')) {
+                            const isCollapsed = contentDiv.classList.contains('collapsed');
+                            if (isCollapsed) {
+                                contentDiv.classList.remove('collapsed');
+                                headerDiv.classList.remove('collapsed');
+                            } else {
+                                contentDiv.classList.add('collapsed');
+                                headerDiv.classList.add('collapsed');
+                            }
+                        }
+                    });
+
+                    img.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                    });
+
+                    entryDiv.appendChild(headerDiv);
+                    entryDiv.appendChild(contentDiv);
+                    container.appendChild(entryDiv);
+            });
+
+            if (parsedRows.length === 0 && data.length > 0) {
+                noDataEl.style.display = 'block';
+                noDataEl.textContent = 'Rows were returned but no spelling OCR tasks could be parsed. Check browser console.';
+            }
+        }
+
+        // Modal functionality
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        const span = document.getElementsByClassName('close')[0];
+
+        function showModal(src) {
+            modal.style.display = 'block';
+            modalImg.src = src;
+        }
+
+        span.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        modal.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        document.getElementById('saveScores').addEventListener('click', saveScoreChanges);
+
+        async function saveScoreChanges() {
+            const saveBtn = document.getElementById('saveScores');
+            const dirty = rowsState.filter((row) => row.parsed.isCorrect !== row.savedCorrect);
+            if (!dirty.length) return;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+            const headers = {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            };
+            try {
+                for (const row of dirty) {
+                    const newTask = taskWithStatus(row.savedTask, row.parsed.isCorrect);
+                    const response = await fetch(
+                        `${supabaseUrl}/rest/v1/image_uploads?id=eq.${encodeURIComponent(row.entry.id)}`,
+                        {
+                            method: 'PATCH',
+                            headers,
+                            body: JSON.stringify({ task: newTask })
+                        }
+                    );
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+                    row.savedCorrect = row.parsed.isCorrect;
+                    row.savedTask = newTask;
+                    row.entry.task = newTask;
+                }
+                document.querySelectorAll('.entry-word.dirty').forEach((el) => el.classList.remove('dirty'));
+                updateScoreBar();
+            } catch (error) {
+                console.error('Error saving spelling scores:', error);
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save failed';
+            }
+        }
+
+        // Load data on page load
+        loadSpellingSubmissions();
+    </script>
+</body>
+</html>

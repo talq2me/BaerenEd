@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Task Schedule</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            padding: 10px;
+            line-height: 1.3;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: #5a7a9c;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .header h1 {
+            font-size: 1.05em;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 0;
+            padding: 7px 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .back-button:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .schedule-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .schedule-header h2 {
+            color: #4a6a8a;
+            font-size: 0.85em;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            border-bottom: 1px solid #c5d0dc;
+            padding-bottom: 4px;
+            margin: 0;
+        }
+
+        .schedule-header .am-header {
+            text-align: left;
+        }
+
+        .schedule-header .bm-header {
+            text-align: right;
+        }
+
+        .kids-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .day-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            align-items: start;
+        }
+
+        .day-column {
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 4px;
+            min-height: 0;
+        }
+
+        .day-header {
+            font-weight: 700;
+            font-size: 0.72em;
+            color: #64748b;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            text-align: center;
+            padding: 3px 4px;
+            background: white;
+            border-radius: 4px;
+            border-bottom: none;
+        }
+
+        .task-item {
+            background: white;
+            border-left: 2px solid #5a7a9c;
+            padding: 3px 6px;
+            margin-bottom: 3px;
+            border-radius: 3px;
+            font-size: 0.78em;
+            line-height: 1.25;
+            box-shadow: none;
+        }
+
+        .task-name {
+            font-weight: 500;
+            color: #333;
+            margin: 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 24px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 12px;
+            color: #c62828;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        .no-tasks {
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+            padding: 6px;
+            font-size: 0.75em;
+        }
+
+        @media (max-width: 768px) {
+            .day-row,
+            .schedule-header {
+                gap: 6px;
+            }
+
+            .task-item {
+                padding: 2px 5px;
+                font-size: 0.72em;
+                margin-bottom: 2px;
+            }
+
+            .day-header {
+                font-size: 0.68em;
+                padding: 2px 3px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Schedule</h1>
+            <div class="header-actions">
+                <a href="schedule_editor.html" class="back-button">Edit</a>
+                <a href="index.html" class="back-button">← Back</a>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <p>Loading schedule data...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="scheduleContent" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Load Supabase configuration
+        const supabaseUrl = localStorage.getItem('supabaseUrl');
+        const supabaseKey = localStorage.getItem('supabaseKey');
+
+        // Days of the week
+        const daysOfWeekOriginal = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const daysShortOriginal = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        
+        // Get current day and reorder days to start with today
+        const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const daysOfWeek = [];
+        const daysShort = [];
+        for (let i = 0; i < 7; i++) {
+            const dayIndex = (today + i) % 7;
+            daysOfWeek.push(daysOfWeekOriginal[dayIndex]);
+            daysShort.push(daysShortOriginal[dayIndex]);
+        }
+
+        // Checks if a task should be visible on a specific day
+        // dayIndex is the original day index (0=Sunday, 1=Monday, etc.)
+        function isTaskVisibleOnDay(showdays, hidedays, displayDays, disable, dayIndex) {
+            const dayShort = daysShortOriginal[dayIndex];
+
+            // Check disable date first
+            if (disable) {
+                try {
+                    let disableDate;
+                    const dateMatch = disable.match(/(\w{3})\s+(\d{1,2}),\s+(\d{4})/);
+                    if (dateMatch) {
+                        const months = {jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+                                       jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11};
+                        const month = months[dateMatch[1].toLowerCase()];
+                        const day = parseInt(dateMatch[2]);
+                        const year = parseInt(dateMatch[3]);
+                        disableDate = new Date(year, month, day);
+                    } else {
+                        disableDate = new Date(disable);
+                    }
+                    
+                    if (disableDate && !isNaN(disableDate.getTime())) {
+                        // Check if task is disabled on this day of the week
+                        // If disable date is in the future, task is disabled (not visible)
+                        // If disable date is in the past, task is enabled and we check day restrictions
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        disableDate.setHours(0, 0, 0, 0);
+                        
+                        // If today is before the disable date, task is disabled (not visible)
+                        if (today < disableDate) {
+                            return false;
+                        }
+                        // If disable date has passed, check day restrictions normally
+                    }
+                } catch (e) {
+                    console.warn('Error parsing disable date:', disable, e);
+                }
+            }
+
+            // Check hidedays
+            if (hidedays) {
+                if (hidedays.split(',').map(d => d.trim().toLowerCase()).includes(dayShort)) {
+                    return false; // Hide if day is in hidedays
+                }
+            }
+
+            // Check displayDays (if set, only show on those days)
+            if (displayDays) {
+                return displayDays.split(',').map(d => d.trim().toLowerCase()).includes(dayShort);
+            }
+
+            // Check showdays
+            if (showdays) {
+                return showdays.split(',').map(d => d.trim().toLowerCase()).includes(dayShort);
+            }
+
+            // Default: visible on all days if no restrictions
+            return true;
+        }
+
+        // Get all days a task should be visible on
+        function getVisibleDaysForTask(task) {
+            const visibleDays = [];
+            for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                if (isTaskVisibleOnDay(task.showdays, task.hidedays, task.displayDays, task.disable, dayIndex)) {
+                    visibleDays.push(dayIndex);
+                }
+            }
+            return visibleDays;
+        }
+
+        // Fetch data for a specific kid
+        const WEB_SKIP = { boukili: 1, googleReadAlong: 1 };
+        const WEB_QUIZ = {
+            jkmath: 1, gr1MathStrategies: 1, gr3algebra: 1, gr3fractions: 1, gr3math: 1,
+            gr3mixedproblems: 1, gr3wordproblems: 1, canadianMoneyEasy: 1, canadianMoneyHard: 1,
+            conjugation: 1, conjugation_limparfait: 1, translation: 1, duologicalGame: 1, frenchStories: 1
+        };
+        const WEB_LATER = { printing: 1, tappableText: 1, storyRead: 1 };
+
+        function kidCanSee(row) {
+            if (!row || row.enabled === false) return false;
+            if (WEB_SKIP[row.launch] || row.chromePage || row.videoSequence) return false;
+            if (row.webGame && row.url) return true;
+            if (WEB_QUIZ[row.launch] || row.launch === 'spellingOCR' || WEB_LATER[row.launch]) return true;
+            return false;
+        }
+
+        async function fetchKidData(kid) {
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_web_report_assignments`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ p_profile: kid })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`af_web_report_assignments: ${response.status} ${response.statusText}`);
+                }
+
+                const rows = await response.json();
+                const tasks = {};
+                (Array.isArray(rows) ? rows : []).forEach(function (row) {
+                    if (!row || row.enabled === false) return;
+                    if (row.section === 'required' && kidCanSee(row)) {
+                        tasks[row.title] = { displayDays: row.displayDays || '' };
+                    }
+                });
+                return { tasks, checklistItems: {}, error: null };
+            } catch (error) {
+                console.error(`Error fetching data for ${kid}:`, error);
+                return { tasks: {}, checklistItems: {}, error: error.message };
+            }
+        }
+
+        // Organizes tasks by day of the week
+        function organizeTasksByDay(tasks, checklistItems) {
+            const schedule = {
+                0: [], // Sunday
+                1: [], // Monday
+                2: [], // Tuesday
+                3: [], // Wednesday
+                4: [], // Thursday
+                5: [], // Friday
+                6: []  // Saturday
+            };
+
+            // Add required tasks (only on days where they are visible)
+            for (const [taskName, task] of Object.entries(tasks)) {
+                const visibleDays = getVisibleDaysForTask(task);
+                visibleDays.forEach(dayIndex => {
+                    schedule[dayIndex].push({
+                        name: taskName,
+                        ...task,
+                        type: 'task'
+                    });
+                });
+            }
+
+            // Add checklist items (only on days where they are visible)
+            for (const [itemName, item] of Object.entries(checklistItems || {})) {
+                const visibleDays = getVisibleDaysForTask(item);
+                visibleDays.forEach(dayIndex => {
+                    schedule[dayIndex].push({
+                        name: itemName,
+                        ...item,
+                        type: 'checklist'
+                    });
+                });
+            }
+
+            // Sort tasks within each day alphabetically
+            for (let i = 0; i < 7; i++) {
+                schedule[i].sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            return schedule;
+        }
+
+
+        // Creates a task item element
+        function createTaskItem(task) {
+            const taskItem = document.createElement('div');
+            taskItem.className = 'task-item';
+
+            const taskNameDiv = document.createElement('div');
+            taskNameDiv.className = 'task-name';
+            let formattedName = task.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (task.type === 'checklist' && task.stars > 0) {
+                formattedName += ` (${task.stars}⭐)`;
+            }
+            taskNameDiv.textContent = formattedName;
+            taskItem.appendChild(taskNameDiv);
+
+            return taskItem;
+        }
+
+        // Creates a day column with tasks
+        function createDayColumn(dayName, tasks) {
+            const dayColumn = document.createElement('div');
+            dayColumn.className = 'day-column';
+            
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'day-header';
+            dayHeader.textContent = dayName;
+            dayColumn.appendChild(dayHeader);
+
+            if (tasks.length === 0) {
+                const noTasks = document.createElement('div');
+                noTasks.className = 'no-tasks';
+                noTasks.textContent = 'No tasks';
+                dayColumn.appendChild(noTasks);
+            } else {
+                tasks.forEach(task => {
+                    dayColumn.appendChild(createTaskItem(task));
+                });
+            }
+
+            return dayColumn;
+        }
+
+        // Creates the combined schedule with AM and BM side by side
+        function createCombinedSchedule(amSchedule, bmSchedule) {
+            const scheduleContainer = document.createElement('div');
+            
+            // Create header row
+            const headerRow = document.createElement('div');
+            headerRow.className = 'schedule-header';
+            headerRow.innerHTML = `
+                <h2 class="am-header">AM</h2>
+                <h2 class="bm-header">BM</h2>
+            `;
+            scheduleContainer.appendChild(headerRow);
+
+            // Create day rows
+            const daysContainer = document.createElement('div');
+            daysContainer.className = 'kids-container';
+
+            daysOfWeek.forEach((dayName, dayIndex) => {
+                const dayRow = document.createElement('div');
+                dayRow.className = 'day-row';
+                
+                // AM column (left)
+                const amTasks = amSchedule[dayIndex] || [];
+                const amColumn = createDayColumn(dayName, amTasks);
+                dayRow.appendChild(amColumn);
+                
+                // BM column (right)
+                const bmTasks = bmSchedule[dayIndex] || [];
+                const bmColumn = createDayColumn(dayName, bmTasks);
+                dayRow.appendChild(bmColumn);
+                
+                daysContainer.appendChild(dayRow);
+            });
+
+            scheduleContainer.appendChild(daysContainer);
+            return scheduleContainer;
+        }
+
+        // Main function to load and display schedules
+        async function loadSchedules() {
+            if (!supabaseUrl || !supabaseKey) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = 
+                    '<strong>Configuration Required:</strong> Please go back to the home page and configure your Supabase URL and API Key.';
+                return;
+            }
+
+            try {
+                // Fetch data for both kids in parallel
+                const [amData, bmData] = await Promise.all([
+                    fetchKidData('AM'),
+                    fetchKidData('BM')
+                ]);
+
+                document.getElementById('loading').style.display = 'none';
+                
+                // Check for errors
+                if (amData.error || bmData.error) {
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').innerHTML = 
+                        `<strong>Error:</strong> ${amData.error || bmData.error}`;
+                    return;
+                }
+
+                // Organize tasks by day for each kid
+                const amSchedule = organizeTasksByDay(amData.tasks, amData.checklistItems);
+                const bmSchedule = organizeTasksByDay(bmData.tasks, bmData.checklistItems);
+
+                // Create combined schedule display
+                const scheduleContent = document.getElementById('scheduleContent');
+                scheduleContent.innerHTML = '';
+
+                const amHasData = Object.keys(amData.tasks).length > 0;
+                const bmHasData = Object.keys(bmData.tasks).length > 0;
+
+                if (!amHasData && !bmHasData) {
+                    scheduleContent.innerHTML = '<div class="error"><strong>No Data:</strong> No schedule data found for either profile.</div>';
+                } else {
+                    const combinedSchedule = createCombinedSchedule(amSchedule, bmSchedule);
+                    scheduleContent.appendChild(combinedSchedule);
+                }
+
+                scheduleContent.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = 
+                    `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        // Load schedules on page load
+        loadSchedules();
+    </script>
+</body>
+</html>

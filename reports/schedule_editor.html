@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Schedule Editor</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f8;
+            padding: 16px;
+            line-height: 1.45;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: #5a7a9c;
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .header h1 { font-size: 1.05rem; margin: 0; font-weight: 700; }
+        .header-back {
+            padding: 7px 10px;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            border: none;
+            font-family: inherit;
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-start;
+            margin-top: 10px;
+        }
+        .toolbar select, .toolbar button, .toolbar a.btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .toolbar select {
+            width: 3.6rem;
+            min-width: 0;
+            padding: 10px 4px;
+            text-align: center;
+        }
+        .btn-save { background: #4CAF50; color: #fff; font-weight: 600; }
+        .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-link {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 0;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .card-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 14px 16px;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
+            color: #333;
+            border-bottom: 2px solid transparent;
+        }
+        .card-toggle:hover { background: #f7f8fc; }
+        .card-toggle h2 {
+            font-size: 1.1rem;
+            color: #333;
+            margin: 0;
+            flex: 1;
+            border: none;
+            padding: 0;
+        }
+        .card-chevron {
+            flex-shrink: 0;
+            width: 1.1rem;
+            height: 1.1rem;
+            color: #667eea;
+            transition: transform 0.2s;
+        }
+        .card.open .card-chevron { transform: rotate(90deg); }
+        .card.open .card-toggle { border-bottom-color: #667eea; }
+        .card-body {
+            display: none;
+            padding: 12px 16px 16px;
+        }
+        .card.open .card-body { display: block; }
+        .card h3 { font-size: 1rem; color: #555; margin: 12px 0 8px; }
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+        @media (max-width: 900px) {
+            .week-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        .day-col {
+            background: #f8f9fc;
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 80px;
+        }
+        .day-col h4 {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #667eea;
+            border-bottom: 1px solid #dde;
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+        }
+        .day-task {
+            font-size: 0.72rem;
+            background: #fff;
+            border-left: 3px solid #4CAF50;
+            padding: 4px 6px;
+            margin-bottom: 4px;
+            border-radius: 3px;
+        }
+        .day-task.practice { border-left-color: #9c27b0; }
+        .task-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px 12px;
+            border: 1px solid #e8e8e8;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            background: #fafafa;
+        }
+        .task-row.off { opacity: 0.72; background: #f5f5f5; }
+        .task-row .name { font-weight: 600; color: #222; font-size: 0.95rem; line-height: 1.3; }
+        .task-row .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 4px 6px;
+            overflow-x: auto;
+        }
+        .task-row .meta {
+            font-size: 0.72rem;
+            color: #666;
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+        .task-row .field {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 0.72rem;
+            color: #666;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .task-row input[type="number"] {
+            width: 2.2rem;
+            padding: 3px 2px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 0.85rem;
+            -moz-appearance: textfield;
+        }
+        .task-row input[type="number"].cash { width: 3.8rem; }
+        .task-row input[type="number"]::-webkit-outer-spin-button,
+        .task-row input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .icon-btn {
+            padding: 3px 6px;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .icon-btn:hover { border-color: #667eea; color: #667eea; }
+        .icon-btn.danger { border-color: #e53935; color: #e53935; margin-left: auto; }
+        .icon-btn.danger:hover { background: #ffebee; }
+        .toggle {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle span {
+            position: absolute;
+            inset: 0;
+            background: #ccc;
+            border-radius: 22px;
+            transition: 0.2s;
+            cursor: pointer;
+        }
+        .toggle span::before {
+            content: '';
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .toggle input:checked + span { background: #4CAF50; }
+        .toggle input:checked + span::before { transform: translateX(18px); }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            padding: 22px;
+            max-width: 420px;
+            width: 100%;
+        }
+        .modal.wide { max-width: 520px; max-height: 92vh; overflow-y: auto; }
+        .modal-field { margin: 10px 0; }
+        .modal-field > span, .modal-field > label.block-label {
+            display: block;
+            font-size: 0.82rem;
+            color: #555;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .modal-field input[type="text"],
+        .modal-field input[type="number"],
+        .modal-field textarea,
+        .modal-field select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font: inherit;
+        }
+        .modal-field textarea { min-height: 64px; resize: vertical; }
+        .type-picks, .profile-picks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+        }
+        .type-picks label, .profile-picks label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.92rem;
+        }
+        .media-extras { display: none; }
+        .media-extras.show { display: block; }
+        .modal h3 { margin-bottom: 12px; }
+        .day-picks {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+        .day-picks label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95rem;
+        }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .modal-actions button { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; }
+        .off-options { margin: 12px 0; }
+        .off-options label { display: block; margin: 8px 0; }
+        .off-options input[type="date"] { margin-left: 8px; }
+        .loading, .error, .success {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .error { background: #ffebee; color: #c62828; display: none; }
+        .success { background: #e8f5e9; color: #2e7d32; display: none; }
+        .add-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .add-row input { flex: 1; min-width: 140px; padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+        .hint { font-size: 0.85rem; color: #777; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-top">
+                <h1>Edit Schedule</h1>
+                <div class="header-actions">
+                    <button type="button" class="header-back" id="reloadBtn">↻ Reload</button>
+                    <a href="index.html" class="header-back">← Back</a>
+                </div>
+            </div>
+            <div class="toolbar">
+                <select id="profileSelect" aria-label="Child profile">
+                    <option value="AM">AM</option>
+                    <option value="BM">BM</option>
+                    <option value="TE">TE</option>
+                </select>
+                <button type="button" class="btn-save" id="saveBtn">💾 Save</button>
+                <a href="schedule.html" class="btn-link">View schedule</a>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">Loading…</div>
+        <div id="error" class="error"></div>
+        <div id="success" class="success"></div>
+
+        <div id="editorContent" style="display:none;">
+            <div class="card">
+                <button type="button" class="card-toggle" aria-expanded="false">
+                    <svg class="card-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h2>Required tasks this week</h2>
+                </button>
+                <div class="card-body">
+                    <div class="week-grid" id="requiredWeek"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <button type="button" class="card-toggle" aria-expanded="false">
+                    <svg class="card-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h2>Practice tasks this week</h2>
+                </button>
+                <div class="card-body">
+                    <div class="week-grid" id="practiceWeek"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <button type="button" class="card-toggle" aria-expanded="false">
+                    <svg class="card-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h2>Required tasks config</h2>
+                </button>
+                <div class="card-body">
+                    <p class="hint">On tasks appear first. Toggle off to hide until a date or always. Each task appears once (deduped by launch + URL). Tap 📅 to set which days it shows.</p>
+                    <div id="requiredList"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <button type="button" class="card-toggle" aria-expanded="false">
+                    <svg class="card-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h2>Required chores config</h2>
+                </button>
+                <div class="card-body">
+                    <p class="hint">Photo, audio, and video chores. Same on/off and days as required tasks. Reward is dollars (not stars). New chores are saved with the web schedule, and can be added to more than one profile.</p>
+                    <div id="requiredChoresList"></div>
+                    <div class="add-row">
+                        <button type="button" class="icon-btn" id="addChoreBtn">+ Add chore</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <button type="button" class="card-toggle" aria-expanded="false">
+                    <svg class="card-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h2>Practice tasks config</h2>
+                </button>
+                <div class="card-body">
+                    <p class="hint">Extra practice section — same controls as required tasks.</p>
+                    <div id="practiceList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="daysModal">
+        <div class="modal">
+            <h3>Display on these days</h3>
+            <p id="daysModalTaskName" style="color:#666;font-size:0.9rem;"></p>
+            <div class="day-picks" id="daysModalPicks"></div>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+                <input type="checkbox" id="daysAllWeek"> All days (clear day filter)
+            </label>
+            <div class="modal-actions">
+                <button type="button" id="daysModalCancel">Cancel</button>
+                <button type="button" style="background:#667eea;color:#fff;" id="daysModalSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="addChoreModal">
+        <div class="modal wide">
+            <h3>Add chore</h3>
+            <div class="modal-field">
+                <span>Chore type</span>
+                <div class="type-picks">
+                    <label><input type="radio" name="addChoreType" value="photo" checked> Photo</label>
+                    <label><input type="radio" name="addChoreType" value="audio"> Audio</label>
+                    <label><input type="radio" name="addChoreType" value="video"> Video</label>
+                </div>
+            </div>
+            <div class="modal-field">
+                <label class="block-label" for="addChoreName">Chore name</label>
+                <input type="text" id="addChoreName" placeholder="e.g. Sweep kitchen">
+            </div>
+            <div class="modal-field">
+                <label class="block-label" for="addChoreDescription">Description</label>
+                <textarea id="addChoreDescription" placeholder="Instructions shown to the child"></textarea>
+            </div>
+            <div class="modal-field">
+                <label class="block-label" for="addChoreReward">Reward $</label>
+                <input type="number" id="addChoreReward" min="0" step="0.01" value="0.25">
+            </div>
+            <div class="modal-field media-extras" id="addChoreAudioExtras">
+                <label class="block-label" for="addChoreAudioMax">Max recording seconds (audio)</label>
+                <input type="number" id="addChoreAudioMax" min="5" max="3600" value="300">
+            </div>
+            <div class="modal-field media-extras" id="addChoreVideoExtras">
+                <label class="block-label" for="addChoreVideoMax">Max recording seconds (video)</label>
+                <input type="number" id="addChoreVideoMax" min="5" max="600" value="60">
+                <label class="block-label" for="addChoreVideoCountdown" style="margin-top:8px;">Countdown seconds before record</label>
+                <input type="number" id="addChoreVideoCountdown" min="0" max="30" value="5">
+            </div>
+            <div class="modal-field">
+                <span>Days visible</span>
+                <div class="day-picks" id="addChoreDayPicks"></div>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+                    <input type="checkbox" id="addChoreAllWeek" checked> All days
+                </label>
+            </div>
+            <div class="modal-field">
+                <span>Add to profiles</span>
+                <div class="profile-picks">
+                    <label><input type="checkbox" id="addChoreProfileAM" value="AM"> AM</label>
+                    <label><input type="checkbox" id="addChoreProfileBM" value="BM"> BM</label>
+                    <label><input type="checkbox" id="addChoreProfileTE" value="TE"> TE</label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="addChoreCancel">Cancel</button>
+                <button type="button" style="background:#4CAF50;color:#fff;" id="addChoreSave">Add chore</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="offModal">
+        <div class="modal">
+            <h3>Turn task off</h3>
+            <p id="offModalTaskName" style="color:#666;font-size:0.9rem;"></p>
+            <div class="off-options">
+                <label>
+                    <input type="radio" name="offMode" value="until" checked>
+                    Off until this date (task returns on that date):
+                    <input type="date" id="offUntilDate">
+                </label>
+                <label>
+                    <input type="radio" name="offMode" value="always">
+                    Always off (hidden until you turn it back on)
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="offModalCancel">Cancel</button>
+                <button type="button" style="background:#e53935;color:#fff;" id="offModalSave">Turn off</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CHORE_HTML_BASE = 'https://talq2me.github.io/BaerenEd/app/src/main/assets/html/';
+        const ALL_PROFILES = ['AM', 'BM', 'TE'];
+        const DAYS = [
+            { key: 'sun', label: 'Sun' },
+            { key: 'mon', label: 'Mon' },
+            { key: 'tue', label: 'Tue' },
+            { key: 'wed', label: 'Wed' },
+            { key: 'thu', label: 'Thu' },
+            { key: 'fri', label: 'Fri' },
+            { key: 'sat', label: 'Sat' }
+        ];
+        const DAY_SHORT = { sun: 'su', mon: 'mo', tue: 'tu', wed: 'we', thu: 'th', fri: 'fr', sat: 'sa' };
+        const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        let profile = 'AM';
+        /** Task definitions loaded from web_assignments. */
+        let assignmentTasks = { required: [], practice: [] };
+        let dbRow = {
+            required_tasks: {},
+            practice_tasks: {},
+            checklist_items: {}
+        };
+
+        /** @type {{ required: object[], practice: object[], checklist: object[] }} */
+        let catalog = { required: [], practice: [], checklist: [] };
+
+        let modalCtx = { type: null, key: null };
+        /** Labels removed this session; kept out of catalog until save + reload */
+        let deletedChecklistLabels = new Set();
+        /** New chores queued for other profiles: { profiles: string[], task: object } */
+        let pendingChoreAdds = [];
+
+        function supabaseUrl() { return localStorage.getItem('supabaseUrl'); }
+        function supabaseKey() { return localStorage.getItem('supabaseKey'); }
+        const SCHEDULE_CONFIG_KEYS = ['stars', 'totalQuestions', 'displayDays', 'showdays', 'hidedays', 'disable'];
+
+        /** Stable id: launch + diagram/file/poolKey from URL, else launch+title. */
+        function taskScheduleKey(task, sectionId) {
+            const launch = String(task?.launch || '').trim();
+            const url = String(task?.url || '').trim();
+            let urlId = '';
+            if (url) {
+                try {
+                    const u = new URL(url);
+                    urlId = u.searchParams.get('diagram')
+                        || u.searchParams.get('file')
+                        || u.searchParams.get('poolKey')
+                        || '';
+                } catch (_) {
+                    urlId = url;
+                }
+            }
+            const title = String(task?.title || task?.label || '').trim();
+            if (launch && urlId) return `${sectionId}|${launch}|${urlId}`;
+            if (launch) return `${sectionId}|${launch}|${title}`;
+            return `${sectionId}|${title}`;
+        }
+
+        function entryLookupKey(entry) {
+            return entry.key || entry.title;
+        }
+
+        function applyScheduleFields(target, data) {
+            for (const k of SCHEDULE_CONFIG_KEYS) {
+                if (data[k] !== undefined && data[k] !== null && data[k] !== '') {
+                    target[k] = data[k];
+                } else {
+                    delete target[k];
+                }
+            }
+        }
+
+        function isChoreTask(task) {
+            const launch = String(task?.launch || '').toLowerCase();
+            if (launch.startsWith('chore')) return true;
+            const url = String(task?.url || '').toLowerCase();
+            return url.includes('chorephoto') || url.includes('choreaudio') || url.includes('chorevideo');
+        }
+
+        function isChoreEntry(entry) {
+            return isChoreTask(entry?.config) || isChoreTask(entry?.data);
+        }
+
+        function formatRewardCashParam(amount) {
+            const n = Number(amount);
+            if (isNaN(n)) return '0';
+            if (Math.abs(n - Math.round(n)) < 0.001) return String(Math.round(n));
+            return String(Math.round(n * 100) / 100);
+        }
+
+        function parseRewardCashFromUrl(url) {
+            if (!url) return null;
+            try {
+                const raw = new URL(url).searchParams.get('rewardCash');
+                if (raw == null || raw === '') return null;
+                const n = Number(raw);
+                return isNaN(n) ? null : n;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function parseRewardCash(entry) {
+            if (entry?.data?.rewardCash != null && entry.data.rewardCash !== '') {
+                const n = Number(entry.data.rewardCash);
+                if (!isNaN(n)) return n;
+            }
+            const fromUrl = parseRewardCashFromUrl(entry?.config?.url || entry?.data?.url || '');
+            return fromUrl != null ? fromUrl : 0;
+        }
+
+        function setRewardCashOnUrl(url, amount) {
+            if (!url) return url;
+            const value = encodeURIComponent(formatRewardCashParam(amount));
+            if (/[?&]rewardCash=/.test(url)) {
+                return url.replace(/([?&]rewardCash=)[^&]*/, '$1' + value);
+            }
+            const join = url.includes('?') ? '&' : '?';
+            return url + join + 'rewardCash=' + value;
+        }
+
+        function slugifyChoreId(name) {
+            return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+        }
+
+        function choreLaunchId(name) {
+            const pascal = String(name).trim().split(/[^A-Za-z0-9]+/).filter(Boolean)
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                .join('');
+            return 'chore' + pascal;
+        }
+
+        function buildChoreUrl(opts) {
+            const type = opts.type || 'photo';
+            const html = type === 'video' ? 'choreVideo.html' : type === 'audio' ? 'choreAudio.html' : 'chorePhoto.html';
+            const parts = [
+                'choreId=' + encodeURIComponent(opts.choreId),
+                'title=' + encodeURIComponent(opts.title),
+                'description=' + encodeURIComponent(opts.description || ''),
+                'rewardCash=' + formatRewardCashParam(opts.rewardCash)
+            ];
+            if (type === 'audio') {
+                parts.push('maxSeconds=' + encodeURIComponent(String(opts.maxSeconds || 300)));
+            }
+            if (type === 'video') {
+                parts.push('maxSeconds=' + encodeURIComponent(String(opts.maxSeconds || 60)));
+                parts.push('countdownSeconds=' + encodeURIComponent(String(opts.countdownSeconds || 5)));
+            }
+            return CHORE_HTML_BASE + html + '?' + parts.join('&');
+        }
+
+        function choreConfigFromEntry(entry) {
+            const reward = parseRewardCash(entry);
+            const task = {
+                url: setRewardCashOnUrl(entry.config?.url || entry.data?.url || '', reward),
+                stars: 0,
+                title: entry.title,
+                launch: entry.config?.launch || entry.data?.launch || choreLaunchId(entry.title),
+                webGame: true,
+                description: entry.config?.description || entry.data?.description || ''
+            };
+            applyScheduleFields(task, entry.data || {});
+            task.stars = 0;
+            if (entry.data?.rewardCash != null) {
+                task.url = setRewardCashOnUrl(task.url, entry.data.rewardCash);
+            }
+            return task;
+        }
+
+        function addChoreToLocalConfig(task) {
+            const copy = JSON.parse(JSON.stringify(task));
+            copy.scheduleKey = taskScheduleKey(copy, 'required');
+            if (!assignmentTasks.required.some(t => t.title === copy.title || t.launch === copy.launch)) {
+                assignmentTasks.required.push(copy);
+            }
+        }
+
+        const WEB_DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+        function webDisplayDays(data) {
+            if (!data) return null;
+            if (data.displayDays) return data.displayDays;
+            if (data.showdays) return data.showdays;
+            if (data.hidedays) {
+                const hide = new Set(String(data.hidedays).split(',').map(d => d.trim().toLowerCase()));
+                return WEB_DAY_KEYS.filter(d => !hide.has(d)).join(',');
+            }
+            return null;
+        }
+
+        function webScheduleRow(bucket, entry) {
+            const data = entry.data || {};
+            const cfg = entry.config || {};
+            const chore = isChoreEntry(entry);
+            const launch = bucket === 'checklist' ? null : (cfg.launch || data.launch || null);
+            let url = cfg.url || data.url || null;
+            if (chore && url) url = setRewardCashOnUrl(url, parseRewardCash(entry));
+            const questions = data.totalQuestions ?? cfg.totalQuestions;
+            return {
+                section: bucket === 'practice' ? 'optional' : (bucket === 'checklist' ? 'checklist' : 'required'),
+                title: entry.title,
+                launch: launch,
+                enabled: isScheduleOn(data),
+                display_days: webDisplayDays(data),
+                stars: chore ? 0 : (data.stars ?? cfg.stars ?? null),
+                total_questions: questions == null ? null : questions,
+                url: url,
+                web_game: cfg.webGame === true || data.webGame === true || chore,
+                description: cfg.description || data.description || null
+            };
+        }
+
+        function webRowsFromCatalog() {
+            const rows = [];
+            ['required', 'practice'].forEach(function (bucket) {
+                (catalog[bucket] || []).forEach(function (entry) {
+                    if (!entry.title) return;
+                    rows.push(webScheduleRow(bucket, entry));
+                });
+            });
+            return rows;
+        }
+
+        async function saveWebSchedule(targetProfile, rows, replaceChecklist) {
+            const url = supabaseUrl();
+            const key = supabaseKey();
+            const res = await fetch(`${url}/rest/v1/rpc/af_web_save_schedule`, {
+                method: 'POST',
+                headers: {
+                    apikey: key,
+                    Authorization: `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    p_profile: targetProfile,
+                    p_rows: rows,
+                    p_replace_checklist: !!replaceChecklist
+                })
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                let msg = t;
+                try {
+                    const j = JSON.parse(t);
+                    msg = j.message || j.error || j.hint || t;
+                } catch (_) { /* keep raw */ }
+                throw new Error(msg);
+            }
+        }
+
+        function parseDisableDate(disable) {
+            if (!disable || !String(disable).trim()) return null;
+            const m = String(disable).match(/(\w{3})\s+(\d{1,2}),\s+(\d{4})/i);
+            if (m) {
+                const mon = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+                const month = mon[m[1].toLowerCase()];
+                if (month !== undefined) {
+                    return new Date(parseInt(m[3], 10), month, parseInt(m[2], 10));
+                }
+            }
+            const d = new Date(disable);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function formatDisableDate(date) {
+            return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+        }
+
+        const ALWAYS_OFF_DISABLE = 'Dec 31, 2099';
+
+        function isAlwaysOffDisable(disable) {
+            if (!disable || !String(disable).trim()) return false;
+            if (String(disable).trim() === ALWAYS_OFF_DISABLE) return true;
+            const d = parseDisableDate(disable);
+            return d ? d.getFullYear() >= 2099 : false;
+        }
+
+        function startOfToday() {
+            const t = new Date();
+            t.setHours(0, 0, 0, 0);
+            return t;
+        }
+
+        function isTaskVisibleOnDay(task, dayIndex) {
+            const dayShort = DAYS[dayIndex].key;
+            const disable = task.disable;
+            if (disable) {
+                const disableDate = parseDisableDate(disable);
+                if (disableDate) {
+                    const today = startOfToday();
+                    disableDate.setHours(0, 0, 0, 0);
+                    if (today < disableDate) return false;
+                }
+            }
+            if (task.hidedays) {
+                const hide = task.hidedays.split(',').map(d => d.trim().toLowerCase());
+                if (hide.includes(dayShort)) return false;
+            }
+            if (task.displayDays) {
+                const show = task.displayDays.split(',').map(d => d.trim().toLowerCase());
+                return show.includes(dayShort);
+            }
+            if (task.showdays) {
+                const show = task.showdays.split(',').map(d => d.trim().toLowerCase());
+                return show.includes(dayShort);
+            }
+            return true;
+        }
+
+        /** Parent "on" = not hidden by a future disable date */
+        function isScheduleOn(task) {
+            if (!task.disable || !String(task.disable).trim()) return true;
+            const d = parseDisableDate(task.disable);
+            if (!d) return true;
+            d.setHours(0, 0, 0, 0);
+            return startOfToday() >= d;
+        }
+
+        function formatDaysList(csv) {
+            return String(csv || '').split(',')
+                .map(d => DAY_SHORT[d.trim().toLowerCase()] || d.trim())
+                .filter(Boolean)
+                .join(',');
+        }
+
+        function daysSummary(task) {
+            if (!isScheduleOn(task)) {
+                if (isAlwaysOffDisable(task.disable)) return 'Always off';
+                const d = parseDisableDate(task.disable);
+                return d ? `Off until ${formatDisableDate(d)}` : 'Off';
+            }
+            if (task.displayDays) return formatDaysList(task.displayDays);
+            if (task.showdays) return formatDaysList(task.showdays);
+            if (task.hidedays) return `all except ${formatDaysList(task.hidedays)}`;
+            return 'All days';
+        }
+
+        function defaultDbTask(title, cfgTask) {
+            const base = {
+                status: 'incomplete',
+                correct: 0,
+                incorrect: 0,
+                questions: 0,
+                stars: cfgTask?.stars ?? 1
+            };
+            if (cfgTask?.totalQuestions != null) base.totalQuestions = cfgTask.totalQuestions;
+            ['showdays', 'hidedays', 'displayDays', 'disable'].forEach(k => {
+                if (cfgTask?.[k] != null) base[k] = cfgTask[k];
+            });
+            return base;
+        }
+
+        function mergeTask(title, cfgTask, dbTasks) {
+            const db = dbTasks[title];
+            const merged = { ...defaultDbTask(title, cfgTask), ...(db || {}) };
+            if (cfgTask?.stars != null && merged.stars == null) merged.stars = cfgTask.stars;
+            if (cfgTask?.totalQuestions != null && merged.totalQuestions == null) {
+                merged.totalQuestions = cfgTask.totalQuestions;
+            }
+            // Days still come from DB when that row exists (parent day edits).
+            // disable: use DB when the key is present (including "" = parent turned on).
+            // If DB omits disable or it is null, keep config (e.g. off until 2099).
+            if (db) {
+                for (const k of ['displayDays', 'showdays', 'hidedays']) {
+                    if (k in db) {
+                        if (db[k] === undefined || db[k] === null || db[k] === '') {
+                            delete merged[k];
+                        }
+                    } else {
+                        delete merged[k];
+                    }
+                }
+                if (Object.prototype.hasOwnProperty.call(db, 'disable') && db.disable !== undefined && db.disable !== null) {
+                    if (String(db.disable).trim() === '') {
+                        merged.disable = '';
+                    } else {
+                        merged.disable = db.disable;
+                    }
+                }
+            }
+            if (isChoreTask(cfgTask) || isChoreTask(merged)) {
+                if (merged.rewardCash == null || merged.rewardCash === '') {
+                    const fromUrl = parseRewardCashFromUrl(cfgTask?.url || merged.url);
+                    if (fromUrl != null) merged.rewardCash = fromUrl;
+                }
+                if (merged.launch == null && cfgTask?.launch) merged.launch = cfgTask.launch;
+                if (merged.url == null && cfgTask?.url) merged.url = cfgTask.url;
+                merged.stars = 0;
+            }
+            return merged;
+        }
+
+        function mergeChecklistItem(label, cfgItem, dbItems) {
+            const db = dbItems[label];
+            const cfg = cfgItem || {};
+            const merged = {
+                done: db?.done === true,
+                stars: db?.stars ?? cfg.stars ?? 0,
+                id: db?.id ?? cfg.id
+            };
+            const hasDbRow = db && Object.keys(db).length > 0;
+            for (const k of ['displayDays', 'showdays', 'hidedays']) {
+                if (hasDbRow) {
+                    if (k in db && db[k] !== undefined && db[k] !== null && db[k] !== '') {
+                        merged[k] = db[k];
+                    }
+                } else if (cfg[k] != null && cfg[k] !== '') {
+                    merged[k] = cfg[k];
+                }
+            }
+            if (hasDbRow && Object.prototype.hasOwnProperty.call(db, 'disable') && db.disable !== undefined && db.disable !== null) {
+                merged.disable = String(db.disable).trim() === '' ? '' : db.disable;
+            } else if (cfg.disable != null && String(cfg.disable).trim() !== '') {
+                merged.disable = cfg.disable;
+            }
+            return merged;
+        }
+
+        function pushCatalogEntry(bucket, sectionKey, taskDef, dbTasks) {
+            const title = taskDef.title || taskDef.label;
+            if (!title) return;
+            const key = taskDef.scheduleKey || taskScheduleKey(taskDef, sectionKey);
+            if (catalog[bucket].some(e => e.key === key || e.title === title)) return;
+            catalog[bucket].push({
+                key,
+                title,
+                config: taskDef,
+                data: mergeTask(title, taskDef, dbTasks)
+            });
+        }
+
+        /** One row per title; DB schedule fields win over config defaults. */
+        function dedupeCatalogBucket(bucketName) {
+            const dbMap = bucketName === 'required' ? dbRow.required_tasks
+                : bucketName === 'practice' ? dbRow.practice_tasks
+                : dbRow.checklist_items;
+            const byTitle = new Map();
+            for (const entry of catalog[bucketName]) {
+                const prev = byTitle.get(entry.title);
+                if (!prev) {
+                    byTitle.set(entry.title, entry);
+                    continue;
+                }
+                const keep = isScheduleOn(entry.data) && !isScheduleOn(prev.data) ? entry : prev;
+                byTitle.set(entry.title, keep);
+            }
+            catalog[bucketName] = Array.from(byTitle.values()).map(entry => {
+                if (bucketName === 'checklist') {
+                    return {
+                        ...entry,
+                        data: mergeChecklistItem(entry.title, entry.config, dbMap)
+                    };
+                }
+                return {
+                    ...entry,
+                    data: mergeTask(entry.title, entry.config, dbMap)
+                };
+            });
+        }
+
+        function pushChecklistCatalogEntry(it, dbChecklist) {
+            const label = it.label;
+            if (!label) return;
+            if (deletedChecklistLabels.has(label)) return;
+            const key = it.scheduleKey || taskScheduleKey(it, 'checklist');
+            if (catalog.checklist.some(e => e.key === key || e.title === label)) return;
+            catalog.checklist.push({
+                key,
+                title: label,
+                config: it,
+                data: mergeChecklistItem(label, it, dbChecklist)
+            });
+        }
+
+        function buildCatalog() {
+            catalog = { required: [], practice: [], checklist: [] };
+
+            for (const t of assignmentTasks.required || []) {
+                pushCatalogEntry('required', 'required', t, dbRow.required_tasks);
+            }
+            for (const t of assignmentTasks.practice || []) {
+                pushCatalogEntry('practice', 'practice', t, dbRow.practice_tasks);
+            }
+
+            dedupeCatalogBucket('required');
+            dedupeCatalogBucket('practice');
+
+            const sortOnFirst = (a, b) => {
+                const ao = isScheduleOn(a.data) ? 0 : 1;
+                const bo = isScheduleOn(b.data) ? 0 : 1;
+                if (ao !== bo) return ao - bo;
+                return a.title.localeCompare(b.title);
+            };
+            catalog.required.sort(sortOnFirst);
+            catalog.practice.sort(sortOnFirst);
+        }
+
+        function syncCatalogToDb() {
+            function mergeBucket(entries, map) {
+                entries.forEach(entry => {
+                    const prev = map[entry.title] || {};
+                    const data = entry.data || {};
+                    const next = { ...prev, ...data };
+                    ['displayDays', 'showdays', 'hidedays'].forEach(k => {
+                        if (data[k] === undefined || data[k] === null || data[k] === '') delete next[k];
+                    });
+                    if (data.disable === undefined || data.disable === null) delete next.disable;
+                    else next.disable = data.disable;
+                    map[entry.title] = next;
+                });
+            }
+            mergeBucket(catalog.required, dbRow.required_tasks);
+            mergeBucket(catalog.practice, dbRow.practice_tasks);
+        }
+
+        function getOrderedWeekDays() {
+            const today = new Date().getDay();
+            const names = [];
+            const indices = [];
+            for (let i = 0; i < 7; i++) {
+                const idx = (today + i) % 7;
+                indices.push(idx);
+                names.push(DAYS_FULL[idx]);
+            }
+            return { names, indices };
+        }
+
+        function renderWeekGrid(containerId, entries) {
+            const el = document.getElementById(containerId);
+            const { names, indices } = getOrderedWeekDays();
+            el.innerHTML = '';
+            names.forEach((name, i) => {
+                const col = document.createElement('div');
+                col.className = 'day-col';
+                col.innerHTML = `<h4>${name}</h4>`;
+                const dayIdx = indices[i];
+                const dayTasks = entries.filter(e => isScheduleOn(e.data) && isTaskVisibleOnDay(e.data, dayIdx));
+                dayTasks.sort((a, b) => a.title.localeCompare(b.title));
+                if (dayTasks.length === 0) {
+                    col.innerHTML += '<div style="font-size:0.75rem;color:#999;text-align:center;">—</div>';
+                } else {
+                    dayTasks.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'day-task' + (containerId === 'practiceWeek' ? ' practice' : '');
+                        div.textContent = t.title;
+                        col.appendChild(div);
+                    });
+                }
+                el.appendChild(col);
+            });
+        }
+
+        function hasTotalQuestions(entry) {
+            return entry.config?.totalQuestions != null || entry.data?.totalQuestions != null;
+        }
+
+        function renderTaskList(containerId, entries, bucket) {
+            const el = document.getElementById(containerId);
+            el.innerHTML = '';
+            entries.forEach(entry => {
+                const on = isScheduleOn(entry.data);
+                const row = document.createElement('div');
+                row.className = 'task-row' + (on ? '' : ' off');
+                const starsVal = entry.data.stars ?? entry.config.stars ?? 1;
+                const rowKey = entryLookupKey(entry);
+                const isChoreRow = containerId === 'requiredChoresList' || isChoreEntry(entry);
+                const qBlock = hasTotalQuestions(entry)
+                    ? `<label class="field">Q <input type="number" min="1" max="99" value="${entry.data.totalQuestions ?? entry.config.totalQuestions ?? ''}" data-field="totalQuestions" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}"></label>`
+                    : '';
+                const rewardBlock = isChoreRow
+                    ? `<label class="field">$ <input type="number" class="cash" min="0" step="0.01" value="${formatRewardCashParam(parseRewardCash(entry))}" data-field="rewardCash" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Reward dollars"></label>`
+                    : `<label class="field">⭐ <input type="number" min="0" max="20" value="${starsVal}" data-field="stars" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}"></label>`;
+                const deleteBtn = bucket === 'checklist'
+                    ? `<button type="button" class="icon-btn danger" data-action="delete" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Delete from database">🗑</button>`
+                    : '';
+                row.innerHTML = `
+                    <div class="name">${escapeHtml(entry.title)}</div>
+                    <div class="controls">
+                        <label class="toggle" title="Schedule on/off">
+                            <input type="checkbox" ${on ? 'checked' : ''} data-action="toggle" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}">
+                            <span></span>
+                        </label>
+                        <button type="button" class="icon-btn" data-action="days" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" ${on ? '' : 'disabled'} title="Choose days">📅</button>
+                        <div class="meta">${escapeHtml(daysSummary(entry.data))}</div>
+                        ${rewardBlock}
+                        ${qBlock}
+                        ${deleteBtn}
+                    </div>
+                `;
+                el.appendChild(row);
+            });
+
+            el.querySelectorAll('input[data-action="toggle"]').forEach(inp => {
+                inp.addEventListener('change', () => onToggleSchedule(inp.dataset.bucket, inp.dataset.key, inp.checked));
+            });
+            el.querySelectorAll('button[data-action="days"]').forEach(btn => {
+                btn.addEventListener('click', () => openDaysModal(btn.dataset.bucket, btn.dataset.key));
+            });
+            el.querySelectorAll('input[data-field]').forEach(inp => {
+                inp.addEventListener('change', () => onFieldChange(inp.dataset.bucket, inp.dataset.key, inp.dataset.field, inp.value));
+            });
+            el.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', () => onDeleteChecklistItem(btn.dataset.key));
+            });
+        }
+
+        function onDeleteChecklistItem(key) {
+            const entry = findEntry('checklist', key);
+            if (!entry) return;
+            if (!confirm(`Delete checklist item "${entry.title}"? This removes it from the database when you save.`)) return;
+            deletedChecklistLabels.add(entry.title);
+            catalog.checklist = catalog.checklist.filter(e => entryLookupKey(e) !== key);
+            refreshUI();
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+        function escapeAttr(s) {
+            return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function findEntry(bucket, key) {
+            return catalog[bucket].find(e => entryLookupKey(e) === key);
+        }
+
+        function onToggleSchedule(bucket, key, turnOn) {
+            const entry = findEntry(bucket, key);
+            if (!entry) return;
+            if (turnOn) {
+                entry.data.disable = '';
+                if (!entry.data.displayDays && !entry.data.showdays) {
+                    openDaysModal(bucket, key);
+                } else {
+                    refreshUI();
+                }
+            } else {
+                modalCtx = { bucket, key };
+                document.getElementById('offModalTaskName').textContent = key;
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 7);
+                document.getElementById('offUntilDate').value = tomorrow.toISOString().slice(0, 10);
+                document.getElementById('offModal').classList.add('open');
+            }
+        }
+
+        function onFieldChange(bucket, key, field, value) {
+            const entry = findEntry(bucket, key);
+            if (!entry) return;
+            if (field === 'stars' || field === 'totalQuestions') {
+                const n = parseInt(value, 10);
+                entry.data[field] = isNaN(n) ? undefined : n;
+            } else if (field === 'rewardCash') {
+                const n = parseFloat(value);
+                entry.data.rewardCash = isNaN(n) ? 0 : n;
+                if (entry.config?.url) {
+                    entry.config.url = setRewardCashOnUrl(entry.config.url, entry.data.rewardCash);
+                }
+            }
+        }
+
+        function openDaysModal(bucket, key) {
+            modalCtx = { bucket, key };
+            document.getElementById('daysModalTaskName').textContent = key;
+            const entry = findEntry(bucket, key);
+            const picks = document.getElementById('daysModalPicks');
+            picks.innerHTML = '';
+            const current = (entry.data.displayDays || entry.data.showdays || '')
+                .split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+            const allWeek = !entry.data.displayDays && !entry.data.showdays && !entry.data.hidedays;
+            document.getElementById('daysAllWeek').checked = allWeek;
+            DAYS.forEach(d => {
+                const id = `day_${d.key}`;
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="checkbox" id="${id}" value="${d.key}" ${current.includes(d.key) || (allWeek && current.length === 0) ? 'checked' : ''}> ${d.label}`;
+                picks.appendChild(label);
+            });
+            document.getElementById('daysModal').classList.add('open');
+        }
+
+        function closeModals() {
+            document.getElementById('daysModal').classList.remove('open');
+            document.getElementById('offModal').classList.remove('open');
+            document.getElementById('addChoreModal').classList.remove('open');
+            modalCtx = { bucket: null, key: null };
+        }
+
+        function saveDaysModal() {
+            const entry = findEntry(modalCtx.bucket, modalCtx.key);
+            if (!entry) return closeModals();
+            if (document.getElementById('daysAllWeek').checked) {
+                delete entry.data.displayDays;
+                delete entry.data.showdays;
+                delete entry.data.hidedays;
+            } else {
+                const selected = [];
+                DAYS.forEach(d => {
+                    const cb = document.getElementById(`day_${d.key}`);
+                    if (cb?.checked) selected.push(d.key);
+                });
+                entry.data.displayDays = selected.join(',');
+                delete entry.data.showdays;
+                delete entry.data.hidedays;
+            }
+            entry.data.disable = '';
+            closeModals();
+            refreshUI();
+        }
+
+        function saveOffModal() {
+            const entry = findEntry(modalCtx.bucket, modalCtx.key);
+            if (!entry) return closeModals();
+            const mode = document.querySelector('input[name="offMode"]:checked')?.value;
+            if (mode === 'always') {
+                entry.data.disable = ALWAYS_OFF_DISABLE;
+            } else {
+                const raw = document.getElementById('offUntilDate').value;
+                if (!raw) { alert('Pick a date'); return; }
+                const [y, m, d] = raw.split('-').map(Number);
+                entry.data.disable = formatDisableDate(new Date(y, m - 1, d));
+            }
+            closeModals();
+            refreshUI();
+        }
+
+        function refreshUI() {
+            syncCatalogToDb();
+            buildCatalog();
+            renderWeekGrid('requiredWeek', catalog.required);
+            renderWeekGrid('practiceWeek', catalog.practice);
+            renderTaskList('requiredList', catalog.required.filter(e => !isChoreEntry(e)), 'required');
+            renderTaskList('requiredChoresList', catalog.required.filter(e => isChoreEntry(e)), 'required');
+            renderTaskList('practiceList', catalog.practice, 'practice');
+        }
+
+        function nowEST() {
+            const t = new Date();
+            const tf = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Toronto',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            });
+            const parts = tf.formatToParts(t);
+            const get = (type) => parts.find(p => p.type === type).value;
+            const pad2 = (s) => String(s).padStart(2, '0');
+            return `${get('year')}-${pad2(get('month'))}-${pad2(get('day'))} ${pad2(get('hour'))}:${pad2(get('minute'))}:${pad2(get('second'))}.${String(t.getMilliseconds()).padStart(3, '0')}`;
+        }
+
+        function seedTaskFromWeb(prev, row) {
+            const next = { ...(prev || {}) };
+            if (row.launch) next.launch = row.launch;
+            if (row.url) next.url = row.url;
+            if (row.webGame != null) next.webGame = row.webGame;
+            if (row.description) next.description = row.description;
+            if (row.stars != null) next.stars = row.stars;
+            if (row.totalQuestions != null) next.totalQuestions = row.totalQuestions;
+            delete next.showdays;
+            delete next.hidedays;
+            if (row.displayDays) next.displayDays = row.displayDays;
+            else delete next.displayDays;
+            next.disable = row.enabled === false ? ALWAYS_OFF_DISABLE : '';
+            if (isChoreTask(row) || isChoreTask(next)) {
+                next.stars = 0;
+                const cash = parseRewardCashFromUrl(row.url || next.url);
+                if (cash != null) next.rewardCash = cash;
+            }
+            return next;
+        }
+
+        function applyWebAssignments(rows, userRow) {
+            dbRow = {
+                required_tasks: { ...(userRow.required_tasks || {}) },
+                practice_tasks: { ...(userRow.practice_tasks || {}) },
+                checklist_items: userRow.checklist_items || {}
+            };
+            catalog = { required: [], practice: [], checklist: [] };
+            assignmentTasks = { required: [], practice: [] };
+            (Array.isArray(rows) ? rows : []).forEach(row => {
+                if (!row || (row.section !== 'required' && row.section !== 'optional')) return;
+                const bucket = row.section === 'optional' ? 'practice' : 'required';
+                const task = {
+                    title: row.title,
+                    launch: row.launch,
+                    url: row.url,
+                    webGame: row.webGame,
+                    stars: row.stars,
+                    totalQuestions: row.totalQuestions,
+                    description: row.description,
+                    displayDays: row.displayDays || ''
+                };
+                task.scheduleKey = taskScheduleKey(task, bucket);
+                assignmentTasks[bucket].push(task);
+                const map = bucket === 'practice' ? dbRow.practice_tasks : dbRow.required_tasks;
+                map[row.title] = seedTaskFromWeb(map[row.title], row);
+            });
+        }
+
+        async function loadAll() {
+            const url = supabaseUrl();
+            const key = supabaseKey();
+            if (!url || !key) {
+                showError('Configure Supabase URL and API key on the <a href="index.html">reports home</a> page first.');
+                return;
+            }
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('editorContent').style.display = 'none';
+            hideMessages();
+            deletedChecklistLabels = new Set();
+            pendingChoreAdds = [];
+            try {
+                const [assignRes, dbRes] = await Promise.all([
+                    fetch(`${url}/rest/v1/rpc/af_web_report_assignments`, {
+                        method: 'POST',
+                        headers: {
+                            apikey: key,
+                            Authorization: `Bearer ${key}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ p_profile: profile })
+                    }),
+                    fetch(`${url}/rest/v1/user_data?profile=eq.${profile}&select=required_tasks,practice_tasks,checklist_items`, {
+                        headers: {
+                            apikey: key,
+                            Authorization: `Bearer ${key}`
+                        }
+                    })
+                ]);
+                if (!assignRes.ok) throw new Error(`Assignment load failed: ${assignRes.status}`);
+                if (!dbRes.ok) throw new Error(`Database load failed: ${dbRes.status}`);
+                const assignments = await assignRes.json();
+                const rows = await dbRes.json();
+                applyWebAssignments(assignments, rows[0] || {});
+                refreshUI();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('editorContent').style.display = 'block';
+            } catch (e) {
+                document.getElementById('loading').style.display = 'none';
+                showError(e.message);
+            }
+        }
+
+        async function saveAll() {
+            const url = supabaseUrl();
+            const key = supabaseKey();
+            if (!url || !key) {
+                alert('Configure Supabase first');
+                return;
+            }
+            syncCatalogToDb();
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            hideMessages();
+            try {
+                const res = await fetch(`${url}/rest/v1/user_data?profile=eq.${profile}`, {
+                    method: 'PATCH',
+                    headers: {
+                        apikey: key,
+                        Authorization: `Bearer ${key}`,
+                        'Content-Type': 'application/json',
+                        Prefer: 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        required_tasks: dbRow.required_tasks,
+                        practice_tasks: dbRow.practice_tasks,
+                        last_updated: nowEST()
+                    })
+                });
+                if (!res.ok) {
+                    const t = await res.text();
+                    throw new Error(`${res.status} ${t}`);
+                }
+
+                await saveWebSchedule(profile, webRowsFromCatalog(), false);
+
+                const otherNotes = await savePendingChoresToOtherProfiles();
+                pendingChoreAdds = [];
+
+                document.getElementById('success').style.display = 'block';
+                document.getElementById('success').textContent =
+                    `Saved schedule for ${profile}.${otherNotes || ''}`;
+                deletedChecklistLabels = new Set();
+            } catch (e) {
+                showError('Save failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function latestChoreTask(pending) {
+            const entry = catalog.required.find(e =>
+                e.title === pending.task.title || e.config?.launch === pending.task.launch
+            );
+            return entry ? choreConfigFromEntry(entry) : JSON.parse(JSON.stringify(pending.task));
+        }
+
+        async function patchProfileRequiredTasks(targetProfile, requiredTasks) {
+            const url = supabaseUrl();
+            const key = supabaseKey();
+            const res = await fetch(`${url}/rest/v1/user_data?profile=eq.${targetProfile}`, {
+                method: 'PATCH',
+                headers: {
+                    apikey: key,
+                    Authorization: `Bearer ${key}`,
+                    'Content-Type': 'application/json',
+                    Prefer: 'return=minimal'
+                },
+                body: JSON.stringify({
+                    required_tasks: requiredTasks,
+                    last_updated: nowEST()
+                })
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                throw new Error(`${res.status} ${t}`);
+            }
+        }
+
+        async function addChoresToOtherProfile(targetProfile, choreTasks) {
+            const url = supabaseUrl();
+            const key = supabaseKey();
+            const dbRes = await fetch(`${url}/rest/v1/user_data?profile=eq.${targetProfile}&select=required_tasks`, {
+                headers: { apikey: key, Authorization: `Bearer ${key}` }
+            });
+            if (!dbRes.ok) throw new Error(`Database load failed for ${targetProfile}: ${dbRes.status}`);
+            const rows = await dbRes.json();
+            const requiredTasks = rows[0]?.required_tasks || {};
+            for (const task of choreTasks) {
+                if (!requiredTasks[task.title]) {
+                    const data = defaultDbTask(task.title, task);
+                    data.launch = task.launch;
+                    data.url = task.url;
+                    data.webGame = true;
+                    data.rewardCash = parseRewardCashFromUrl(task.url) ?? 0;
+                    data.stars = 0;
+                    data.disable = '';
+                    requiredTasks[task.title] = data;
+                }
+            }
+            await saveWebSchedule(targetProfile, choreTasks.map(function (task) {
+                return webScheduleRow('required', { title: task.title, config: task, data: task });
+            }), false);
+            await patchProfileRequiredTasks(targetProfile, requiredTasks);
+        }
+
+        async function savePendingChoresToOtherProfiles() {
+            const otherProfiles = [...new Set(
+                pendingChoreAdds.flatMap(p => (p.profiles || []).filter(pr => pr !== profile))
+            )];
+            if (otherProfiles.length === 0) return '';
+            const notes = [];
+            for (const pr of otherProfiles) {
+                const tasksToAdd = pendingChoreAdds
+                    .filter(p => (p.profiles || []).includes(pr))
+                    .map(latestChoreTask);
+                if (tasksToAdd.length === 0) continue;
+                try {
+                    await addChoresToOtherProfile(pr, tasksToAdd);
+                    notes.push(` Also added ${tasksToAdd.length} chore(s) to ${pr}.`);
+                } catch (e) {
+                    notes.push(` Failed adding chores to ${pr}: ${e.message}`);
+                }
+            }
+            return notes.join('');
+        }
+
+        function selectedAddChoreType() {
+            return document.querySelector('input[name="addChoreType"]:checked')?.value || 'photo';
+        }
+
+        function updateAddChoreMediaExtras() {
+            const type = selectedAddChoreType();
+            document.getElementById('addChoreAudioExtras').classList.toggle('show', type === 'audio');
+            document.getElementById('addChoreVideoExtras').classList.toggle('show', type === 'video');
+        }
+
+        function openAddChoreModal() {
+            document.getElementById('addChoreName').value = '';
+            document.getElementById('addChoreDescription').value = '';
+            document.getElementById('addChoreReward').value = '0.25';
+            document.getElementById('addChoreAudioMax').value = '300';
+            document.getElementById('addChoreVideoMax').value = '60';
+            document.getElementById('addChoreVideoCountdown').value = '5';
+            const photoRadio = document.querySelector('input[name="addChoreType"][value="photo"]');
+            if (photoRadio) photoRadio.checked = true;
+            updateAddChoreMediaExtras();
+            ALL_PROFILES.forEach(pr => {
+                const cb = document.getElementById('addChoreProfile' + pr);
+                if (cb) cb.checked = pr === profile;
+            });
+            const picks = document.getElementById('addChoreDayPicks');
+            picks.innerHTML = '';
+            DAYS.forEach(d => {
+                const id = `addChoreDay_${d.key}`;
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="checkbox" id="${id}" value="${d.key}" checked> ${d.label}`;
+                picks.appendChild(label);
+            });
+            document.getElementById('addChoreAllWeek').checked = true;
+            document.getElementById('addChoreModal').classList.add('open');
+            document.getElementById('addChoreName').focus();
+        }
+
+        function selectedAddChoreDays() {
+            if (document.getElementById('addChoreAllWeek').checked) return '';
+            const selected = [];
+            DAYS.forEach(d => {
+                const cb = document.getElementById(`addChoreDay_${d.key}`);
+                if (cb?.checked) selected.push(d.key);
+            });
+            return selected.join(',');
+        }
+
+        function selectedAddChoreProfiles() {
+            return ALL_PROFILES.filter(pr => document.getElementById('addChoreProfile' + pr)?.checked);
+        }
+
+        function submitAddChore() {
+            const title = document.getElementById('addChoreName').value.trim();
+            if (!title) { alert('Enter a chore name'); return; }
+            const description = document.getElementById('addChoreDescription').value.trim();
+            const rewardCash = parseFloat(document.getElementById('addChoreReward').value);
+            if (isNaN(rewardCash) || rewardCash < 0) { alert('Enter a valid reward $'); return; }
+            const profiles = selectedAddChoreProfiles();
+            if (profiles.length === 0) { alert('Pick at least one profile'); return; }
+            const type = selectedAddChoreType();
+            const choreId = slugifyChoreId(title);
+            if (!choreId) { alert('Enter a chore name with letters or numbers'); return; }
+            const launch = choreLaunchId(title);
+            if (profiles.includes(profile) && catalog.required.find(e => e.title === title || e.config?.launch === launch)) {
+                alert('A chore with this name already exists on the current profile');
+                return;
+            }
+            const url = buildChoreUrl({
+                type,
+                choreId,
+                title,
+                description,
+                rewardCash,
+                maxSeconds: type === 'audio'
+                    ? parseInt(document.getElementById('addChoreAudioMax').value, 10)
+                    : parseInt(document.getElementById('addChoreVideoMax').value, 10),
+                countdownSeconds: parseInt(document.getElementById('addChoreVideoCountdown').value, 10)
+            });
+            const displayDays = selectedAddChoreDays();
+            const task = {
+                url,
+                stars: 0,
+                title,
+                launch,
+                webGame: true,
+                description
+            };
+            if (displayDays) task.displayDays = displayDays;
+
+            pendingChoreAdds.push({ profiles: [...profiles], task: JSON.parse(JSON.stringify(task)) });
+
+            if (profiles.includes(profile)) {
+                addChoreToLocalConfig(task);
+                const data = defaultDbTask(title, task);
+                data.launch = launch;
+                data.url = url;
+                data.webGame = true;
+                data.rewardCash = rewardCash;
+                data.stars = 0;
+                dbRow.required_tasks[title] = data;
+                refreshUI();
+            } else {
+                document.getElementById('success').style.display = 'block';
+                document.getElementById('success').textContent =
+                    `Chore "${title}" will be added to ${profiles.join(', ')} when you Save.`;
+            }
+            closeModals();
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error');
+            el.style.display = 'block';
+            el.innerHTML = msg;
+        }
+        function hideMessages() {
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+        }
+
+        document.querySelectorAll('.card-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const card = btn.closest('.card');
+                const open = card.classList.toggle('open');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        });
+
+        document.getElementById('reloadBtn').addEventListener('click', loadAll);
+        document.getElementById('saveBtn').addEventListener('click', saveAll);
+        document.getElementById('daysModalCancel').addEventListener('click', closeModals);
+        document.getElementById('daysModalSave').addEventListener('click', saveDaysModal);
+        document.getElementById('offModalCancel').addEventListener('click', closeModals);
+        document.getElementById('offModalSave').addEventListener('click', saveOffModal);
+        document.getElementById('daysAllWeek').addEventListener('change', e => {
+            if (e.target.checked) {
+                DAYS.forEach(d => {
+                    const cb = document.getElementById(`day_${d.key}`);
+                    if (cb) cb.checked = true;
+                });
+            }
+        });
+
+        document.getElementById('addChoreBtn').addEventListener('click', openAddChoreModal);
+        document.getElementById('addChoreCancel').addEventListener('click', closeModals);
+        document.getElementById('addChoreSave').addEventListener('click', submitAddChore);
+        document.querySelectorAll('input[name="addChoreType"]').forEach(inp => {
+            inp.addEventListener('change', updateAddChoreMediaExtras);
+        });
+        document.getElementById('addChoreAllWeek').addEventListener('change', e => {
+            if (e.target.checked) {
+                DAYS.forEach(d => {
+                    const cb = document.getElementById(`addChoreDay_${d.key}`);
+                    if (cb) cb.checked = true;
+                });
+            }
+        });
+        document.getElementById('addChoreDayPicks').addEventListener('change', e => {
+            if (e.target && e.target.id && e.target.id.startsWith('addChoreDay_') && !e.target.checked) {
+                document.getElementById('addChoreAllWeek').checked = false;
+            }
+        });
+
+        profile = localStorage.getItem('scheduleEditorProfile') || 'AM';
+        document.getElementById('profileSelect').value = profile;
+        document.getElementById('profileSelect').addEventListener('change', e => {
+            profile = e.target.value;
+            localStorage.setItem('scheduleEditorProfile', profile);
+            loadAll();
+        });
+
+        if (!supabaseUrl() || !supabaseKey()) {
+            showError('Configure Supabase URL and API key on the <a href="index.html">reports home</a> page first.');
+        } else {
+            loadAll();
+        }
+    </script>
+</body>
+</html>
