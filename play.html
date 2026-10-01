@@ -18,9 +18,15 @@
   <p id="err" hidden></p>
   <script src="baeren.js"></script>
   <script>
-    const HTML_BASE = "https://talq2me.github.io/BaerenEd-Android-App/app/src/main/assets/html/";
+    const OLD_ASSETS = "https://talq2me.github.io/BaerenEd-Android-App/app/src/main/assets";
+    const ASSETS = "https://talq2me.github.io/BaerenEd/app/src/main/assets";
+    const HTML_BASE = ASSETS + "/html/";
+
+    function contentUrl(url) {
+      return String(url || "").split(OLD_ASSETS).join(ASSETS);
+    }
     const params = new URLSearchParams(location.search);
-    const src = params.get("src") || "";
+    const src = contentUrl(params.get("src") || "");
     const task = {
       title: params.get("title") || "Game",
       section: params.get("section") || "optional",

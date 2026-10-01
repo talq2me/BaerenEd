@@ -1,0 +1,164 @@
+{
+  "id": "ufli-chain-u-e-g1",
+  "concept": "u-e",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "mule",
+        "prompt": "Make the word mule.",
+        "correctChoices": [
+          {
+            "text": "m"
+          },
+          {
+            "text": "u"
+          },
+          {
+            "text": "l"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "t"
+          },
+          {
+            "text": "n"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "mule",
+          "to": "mute",
+          "prompt": "Say mule. Change the l to t for mute. Build mute."
+        },
+        {
+          "from": "mute",
+          "to": "cute",
+          "prompt": "Say mute. Change m to c for cute. Build cute."
+        },
+        {
+          "from": "cute",
+          "to": "cube",
+          "prompt": "Say cute. Change t to b for cube. Build cube."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "use",
+        "prompt": "Make the word use.",
+        "correctChoices": [
+          {
+            "text": "u"
+          },
+          {
+            "text": "s"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "i"
+          },
+          {
+            "text": "o"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "use",
+          "to": "muse",
+          "prompt": "Say use. Spell muse with m at the start."
+        },
+        {
+          "from": "muse",
+          "to": "fuse",
+          "prompt": "Say muse. Spell fuse with f at the start."
+        },
+        {
+          "from": "fuse",
+          "to": "fume",
+          "prompt": "Say fuse. Change s to m for fume. Build fume."
+        },
+        {
+          "word": "flute",
+          "prompt": "Build flute.",
+          "correctChoices": [
+            {
+              "text": "f"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "u"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "r"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "word": "tube",
+          "prompt": "Build tube.",
+          "correctChoices": [
+            {
+              "text": "t"
+            },
+            {
+              "text": "u"
+            },
+            {
+              "text": "b"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "c"
+            },
+            {
+              "text": "p"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "tube",
+      "steps": [
+        {
+          "from": "fume",
+          "to": "tune",
+          "prompt": "Build tune."
+        }
+      ]
+    }
+  ]
+}

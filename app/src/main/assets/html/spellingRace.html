@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Race</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .game-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .race-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #starCount {
+            text-align: center;
+            font-size: 24px;
+            color: #ffcc00;
+            margin-bottom: 20px;
+        }
+        .word-display {
+            text-align: center;
+            font-size: 1.5em;
+            color: #667eea;
+            margin: 20px 0;
+            font-weight: bold;
+            min-height: 104px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+        .revealed-spelling {
+            font-size: 1.4em;
+            margin-bottom: 12px;
+            color: #721c24;
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+        .race-track {
+            background: #f5f5f5;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 15px 10px;
+            margin: 10px 0;
+            position: relative;
+            min-height: 120px;
+            max-height: 200px;
+        }
+        .track-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: repeating-linear-gradient(
+                90deg,
+                #333 0px,
+                #333 20px,
+                #fff 20px,
+                #fff 40px
+            );
+        }
+        .track-line.finish {
+            right: 20px;
+            left: auto;
+            width: 5px;
+            height: 100%;
+            background: repeating-linear-gradient(
+                180deg,
+                #000 0px,
+                #000 10px,
+                #fff 10px,
+                #fff 20px
+            );
+        }
+        .racer {
+            position: absolute;
+            font-size: 3em;
+            transition: left 0.3s ease;
+            z-index: 2;
+        }
+        .racer.player {
+            left: 3%;
+            bottom: 60px;
+            transform: scaleX(-1);
+        }
+        .racer.opponent {
+            left: 3%;
+            bottom: 120px;
+            opacity: 0.7;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 40px;
+            background: #e0e0e0;
+            border-radius: 20px;
+            margin: 20px 0;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8bc34a);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .spelling-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.6em;
+            text-align: center;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .spelling-input:focus {
+            outline: none;
+            border-color: #ff8c00;
+            box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+        }
+        .spelling-input.correct {
+            border-color: #4CAF50;
+            background: #c8e6c9;
+        }
+        .button {
+            font-family: inherit;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: white;
+            background: #667eea;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #ff8c00;
+            transform: scale(1.05);
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .feedback {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: popIn 0.5s ease;
+        }
+        .feedback.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .feedback.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .timer {
+            text-align: center;
+            font-size: 1.5em;
+            color: #667eea;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .hidden {
+            display: none;
+        }
+        .race-info {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        @keyframes moveRacer {
+            from { transform: translateX(0); }
+            to { transform: translateX(calc(100vw - 100px)); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🏁 Spelling Race 🏁</h1>
+        <div id="starCount">⭐ 0 / 10</div>
+        
+        <div class="word-display" id="wordDisplay">
+            <button class="button" id="playButton" onclick="playInstruction()">🔊 Play Word</button>
+        </div>
+        
+        <div class="timer" id="timer">Time: 0.0s</div>
+        
+        <div class="race-track" id="raceTrack">
+            <div class="track-line" style="bottom: 80px;"></div>
+            <div class="track-line finish"></div>
+            <div class="racer player" id="playerRacer">🏃</div>
+            <div class="racer opponent" id="opponentRacer">🤖</div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+        
+        <div class="race-info">
+            <span>You: <span id="playerProgress">0%</span></span>
+            <span>Opponent: <span id="opponentProgress">0%</span></span>
+        </div>
+        
+        <input type="text" class="spelling-input" id="spellingInput" 
+               placeholder="Type the word here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        
+        <div id="feedbackContainer"></div>
+        
+        <div class="button-container">
+            <button class="button hidden" id="nextButton" onclick="nextWord()">Next Word →</button>
+        </div>
+    </div>
+
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingPool.js"></script>
+    <script>
+        function readText(text, lang, rate = 0.8, onEndCallback = null) {
+            if (window.Android && typeof window.Android.readText === 'function') {
+                window.Android.readText(text, lang);
+                setTimeout(() => {
+                    if (onEndCallback) onEndCallback();
+                }, 1000);
+            } else if ('speechSynthesis' in window) {
+                if (window.currentTTSUtterance) window.speechSynthesis.cancel();
+                window.currentTTSUtterance = new SpeechSynthesisUtterance(text);
+                window.currentTTSUtterance.lang = lang;
+                window.currentTTSUtterance.rate = rate;
+                window.currentTTSUtterance.onend = () => {
+                    if (onEndCallback) onEndCallback();
+                    window.currentTTSUtterance = null;
+                };
+                window.speechSynthesis.speak(window.currentTTSUtterance);
+            } else {
+                if (onEndCallback) onEndCallback();
+            }
+        }
+
+        let words = [];
+        let correctCount = 0;
+        let incorrectCount = 0;
+        // Use the full loaded word list by default.
+        let maxQuestions = 0;
+        let currentWordIndex = 0;
+        let currentWord = {};
+        let startTime = 0;
+        let timerInterval = null;
+        let opponentInterval = null;
+        let isFirstAttempt = true;
+        let raceStarted = false;
+        /** BCP-47 tag passed to Android TTS; set from URL or word-list filename (same idea as wordGarden / wordFishing). */
+        let ttsLanguage = 'en-US';
+
+        function showPlayWordButton() {
+            document.getElementById('wordDisplay').innerHTML =
+                `<button class="button" id="playButton" onclick="playInstruction()">🔊 Play Word</button>`;
+        }
+
+        function showRevealedCorrectWord() {
+            const w = (currentWord.word || '').toUpperCase();
+            const label = ttsLanguage === 'fr-FR' ? 'Bonne orthographe :' : 'Correct spelling:';
+            document.getElementById('wordDisplay').innerHTML =
+                `<div class="revealed-spelling">${label} <strong>${w}</strong></div>` +
+                `<button class="button" id="playButton" onclick="playInstruction()">🔊 Play Word</button>`;
+        }
+
+        function tryAgainFeedback() {
+            if (ttsLanguage === 'fr-FR') {
+                return '<div class="feedback incorrect">✗ Pas tout à fait. Essaie encore!</div>';
+            }
+            return '<div class="feedback incorrect">✗ Not quite right. Try again!</div>';
+        }
+
+        async function loadWords() {
+            try {
+                const prep = await SpellingPool.prepareSession();
+                ttsLanguage = prep.ttsLanguage;
+                if (prep.cfg.poolActive) {
+                    words = prep.sessionWords.map(SpellingPool.toPlayWord);
+                } else {
+                    words = prep.allWords.map(SpellingPool.toPlayWord);
+                }
+                maxQuestions = words.length;
+                startGame();
+            } catch (error) {
+                console.error('Error loading words file:', error);
+                words = [];
+                maxQuestions = 0;
+                startGame();
+            }
+        }
+
+        function startGame() {
+            currentWordIndex = 0;
+            correctCount = 0;
+            incorrectCount = 0;
+            updateStarCount();
+            loadWord();
+        }
+
+        function loadWord() {
+            if (currentWordIndex >= maxQuestions) {
+                endGame();
+                return;
+            }
+            
+            currentWord = words[currentWordIndex];
+            raceStarted = false;
+            isFirstAttempt = true;
+            showPlayWordButton();
+            document.getElementById('feedbackContainer').innerHTML = '';
+            document.getElementById('spellingInput').value = '';
+            document.getElementById('spellingInput').classList.remove('correct');
+            document.getElementById('spellingInput').disabled = false;
+            document.getElementById('nextButton').classList.add('hidden');
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressFill').textContent = '0%';
+            document.getElementById('playerProgress').textContent = '0%';
+            document.getElementById('opponentProgress').textContent = '0%';
+            document.getElementById('playerRacer').style.left = '3%';
+            document.getElementById('opponentRacer').style.left = '3%';
+            document.getElementById('timer').textContent = 'Time: 0.0s';
+            
+            if (timerInterval) clearInterval(timerInterval);
+            if (opponentInterval) clearInterval(opponentInterval);
+            
+            setTimeout(playInstruction, 500);
+        }
+
+        function playInstruction() {
+            const { word, sentence } = currentWord;
+            let textToRead;
+            if (ttsLanguage === 'fr-FR') {
+                textToRead = sentence
+                    ? `Épelez le mot rapidement : ${word}. ${sentence}`
+                    : `Épelez le mot rapidement : ${word}`;
+            } else {
+                textToRead = sentence
+                    ? `Race to spell: ${word}. ${sentence}`
+                    : `Race to spell: ${word}`;
+            }
+            readText(textToRead, ttsLanguage, 0.8, () => {
+                startRace();
+            });
+        }
+
+        function startRace() {
+            // Clear any existing intervals so we never have duplicates (fixes ghost robot + 76%/95% flicker)
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            if (opponentInterval) { clearInterval(opponentInterval); opponentInterval = null; }
+            // Reset opponent and player position so robot starts at start each round
+            document.getElementById('opponentRacer').style.left = '3%';
+            document.getElementById('opponentProgress').textContent = '0%';
+            document.getElementById('playerRacer').style.left = '3%';
+            document.getElementById('playerProgress').textContent = '0%';
+
+            raceStarted = true;
+            startTime = Date.now();
+            document.getElementById('spellingInput').focus();
+            
+            // Start timer
+            timerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                document.getElementById('timer').textContent = `Time: ${elapsed}s`;
+            }, 100);
+            
+            // Start opponent progress (moves slowly) - use % so layout works on tablets
+            let opponentProgress = 0;
+            opponentInterval = setInterval(() => {
+                opponentProgress += 0.5;
+                if (opponentProgress > 95) opponentProgress = 95; // Don't let opponent finish
+                document.getElementById('opponentProgress').textContent = Math.round(opponentProgress) + '%';
+                const leftPercent = 3 + (opponentProgress / 100) * 80; // 3% to 83%
+                document.getElementById('opponentRacer').style.left = leftPercent + '%';
+            }, 200);
+            
+            // Listen for input (remove first to avoid duplicate listeners on retry)
+            document.getElementById('spellingInput').removeEventListener('input', checkSpelling);
+            document.getElementById('spellingInput').addEventListener('input', checkSpelling);
+        }
+
+        function checkSpelling() {
+            const input = document.getElementById('spellingInput');
+            const typedWord = input.value.toLowerCase().trim();
+            const correctWord = currentWord.word.toLowerCase();
+            
+            // Update progress based on how many letters match
+            let matchCount = 0;
+            for (let i = 0; i < Math.min(typedWord.length, correctWord.length); i++) {
+                if (typedWord[i] === correctWord[i]) {
+                    matchCount++;
+                } else {
+                    break;
+                }
+            }
+            
+            const progress = (matchCount / correctWord.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressFill').textContent = Math.round(progress) + '%';
+            document.getElementById('playerProgress').textContent = Math.round(progress) + '%';
+            
+            const leftPercent = 3 + (progress / 100) * 80; // 3% to 83%
+            document.getElementById('playerRacer').style.left = leftPercent + '%';
+            
+            // Check if complete
+            if (typedWord === correctWord) {
+                finishRace(true);
+            }
+        }
+
+        function finishRace(isCorrect) {
+            if (!raceStarted) return;
+            raceStarted = false;
+            
+            clearInterval(timerInterval);
+            clearInterval(opponentInterval);
+            
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            document.getElementById('spellingInput').disabled = true;
+            
+            if (isCorrect) {
+                document.getElementById('spellingInput').classList.add('correct');
+                document.getElementById('progressFill').style.width = '100%';
+                document.getElementById('progressFill').textContent = '100%';
+                document.getElementById('playerProgress').textContent = '100%';
+                document.getElementById('playerRacer').style.left = '83%';
+                
+                document.getElementById('feedbackContainer').innerHTML = 
+                    `<div class="feedback correct">✓ You won! Time: ${elapsed}s 🏆</div>`;
+                
+                if (isFirstAttempt) {
+                    correctCount++;
+                    updateStarCount();
+                }
+                
+                setTimeout(() => {
+                    document.getElementById('nextButton').classList.remove('hidden');
+                }, 2000);
+            } else {
+                if (isFirstAttempt) {
+                    incorrectCount++;
+                    isFirstAttempt = false;
+                }
+                showRevealedCorrectWord();
+                document.getElementById('feedbackContainer').innerHTML = tryAgainFeedback();
+
+                setTimeout(() => {
+                    document.getElementById('feedbackContainer').innerHTML = '';
+                    document.getElementById('spellingInput').value = '';
+                    document.getElementById('spellingInput').classList.remove('correct');
+                    document.getElementById('spellingInput').disabled = false;
+                    document.getElementById('spellingInput').focus();
+                    startRace();
+                }, 2000);
+            }
+        }
+
+        function nextWord() {
+            currentWordIndex++;
+            loadWord();
+        }
+
+        function updateStarCount() {
+            document.getElementById("starCount").innerText = `⭐ ${correctCount} / ${maxQuestions}`;
+        }
+
+        function endGame() {
+            document.getElementById('wordDisplay').innerHTML = 
+                `<h2>🎉 Race Complete! 🎉</h2><p>Final Score: ${correctCount}/${maxQuestions}⭐</p>`;
+            document.getElementById('raceTrack').innerHTML = '';
+            document.getElementById('spellingInput').style.display = 'none';
+            document.querySelector('.button-container').innerHTML = '';
+            
+            if (window.Android && typeof window.Android.gameCompleted === 'function') {
+                window.Android.gameCompleted(correctCount, incorrectCount);
+            } else if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'gameCompleted', correct: correctCount, incorrect: incorrectCount }, '*');
+            }
+            setTimeout(() => {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'closeModal' }, '*');
+                } else {
+                    history.back();
+                }
+            }, 3000);
+        }
+
+        // Handle Enter key
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWords();
+
+            document.getElementById('spellingInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && raceStarted) {
+                    const input = document.getElementById('spellingInput');
+                    const typedWord = input.value.toLowerCase().trim();
+                    const correctWord = currentWord.word.toLowerCase();
+                    finishRace(typedWord === correctWord);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

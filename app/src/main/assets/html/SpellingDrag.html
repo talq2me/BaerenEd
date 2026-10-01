@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Spelling Drag</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        .game-container {
+            max-width: 720px;
+            margin: 0 auto;
+            background: #fffef8;
+            border-radius: 20px;
+            padding: 16px 20px 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        h1 { text-align: center; color: #3949ab; margin: 0 0 8px; font-size: 1.5em; }
+        #sessionLabel { text-align: center; color: #555; font-size: 1em; margin-bottom: 8px; }
+        .star-row {
+            text-align: center;
+            font-size: 2em;
+            letter-spacing: 6px;
+            margin: 8px 0 12px;
+            min-height: 1.2em;
+        }
+        .star-row .star { color: #ddd; transition: color 0.4s, transform 0.3s; }
+        .star-row .star.filled { color: #ffc107; }
+        .star-row .star.pop { transform: scale(1.25); }
+        .model-word {
+            text-align: center;
+            font-size: 3em;
+            font-weight: bold;
+            color: #1a237e;
+            margin: 16px 0;
+            min-height: 1.2em;
+            letter-spacing: 0.06em;
+        }
+        .model-word.revealed-hint {
+            font-size: 1.6em;
+            color: #721c24;
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            border-radius: 10px;
+            padding: 12px 16px;
+            min-height: 1.2em;
+        }
+        .model-word.hidden { visibility: hidden; }
+        .slots-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 16px 0;
+            min-height: 64px;
+        }
+        .spell-slot {
+            min-width: 52px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6em;
+            font-weight: bold;
+            background: #fff;
+            border: 3px dashed #7986cb;
+            border-radius: 12px;
+            color: #1a237e;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .spell-slot.wide { min-width: 72px; font-size: 1.35em; }
+        .spell-slot.filled { border-style: solid; background: #e8eaf6; border-color: #5c6bc0; }
+        .spell-slot.drag-over { background: #fff9c4; border-color: #ff9800; transform: scale(1.05); }
+        .tile-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            padding: 14px;
+            margin: 12px 0;
+            background: #e8eaf6;
+            border-radius: 14px;
+            border: 2px solid #7986cb;
+            min-height: 72px;
+        }
+        .tile {
+            min-width: 48px;
+            height: 48px;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4em;
+            font-weight: bold;
+            background: linear-gradient(145deg, #5c6bc0, #3949ab);
+            color: #fff;
+            border-radius: 12px;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+            touch-action: none;
+        }
+        .tile.wide { min-width: 64px; }
+        .tile.used { opacity: 0.35; pointer-events: none; cursor: default; }
+        .tile.dragging { opacity: 0.7; transform: scale(1.08); }
+        .tile-bank.locked,
+        .slots-row.locked {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+        .tile-bank.locked .tile:not(.used) {
+            cursor: not-allowed;
+            filter: grayscale(0.35);
+        }
+        .slots-row.locked .spell-slot:not(.filled) {
+            border-color: #b0bec5;
+            background: #f5f5f5;
+        }
+        .toast {
+            text-align: center;
+            font-size: 1.15em;
+            font-weight: bold;
+            padding: 10px 16px;
+            margin: 8px 0;
+            border-radius: 10px;
+            background: #ffecb3;
+            color: #e65100;
+            border: 2px solid #ffb74d;
+            animation: fadeIn 0.25s ease;
+        }
+        .toast.hidden { display: none; }
+        .toast.success { background: #c8e6c9; color: #1b5e20; border-color: #81c784; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+        .button-row { text-align: center; margin-top: 12px; }
+        .button {
+            font-family: inherit;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            padding: 12px 24px;
+            font-size: 1em;
+            color: white;
+            background: linear-gradient(145deg, #5c6bc0, #3949ab);
+            margin: 4px;
+        }
+        .loading { text-align: center; color: #555; padding: 24px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 id="gameTitle">Spelling Drag</h1>
+        <div id="sessionLabel"></div>
+        <div class="star-row" id="starRow" aria-label="Progress stars"></div>
+        <div class="model-word" id="modelWord"></div>
+        <div class="slots-row" id="slotsRow"></div>
+        <div id="toast" class="toast hidden"></div>
+        <div class="tile-bank" id="tileBank"></div>
+        <div class="button-row">
+            <button class="button" id="replayBtn" type="button">🔊 Play</button>
+            <button class="button" id="deleteBtn" type="button">⌫ Delete</button>
+        </div>
+        <div id="loadingMsg" class="loading">Loading…</div>
+    </div>
+
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingPool.js"></script>
+    <script>
+        const GITHUB_DATA = 'https://talq2me.github.io/BaerenEd/app/src/main/assets/data';
+
+        const UI = {
+            fr: {
+                title: 'Épeler en glissant',
+                wordOf: (n, total) => `Mot ${n} sur ${total}`,
+                hereIsWord: 'Voici le mot:',
+                spellPrompt: 'Peux-tu épeler le mot?',
+                again: (w) => `Épelle le mot « ${w} » encore.`,
+                lastTime: (w) => `Épelle le mot « ${w} » une dernière fois.`,
+                tryAgain: 'Essaie encore!',
+                correctSpelling: (w) => `Bonne orthographe : ${w}`,
+                nice: 'Bravo!',
+                loading: 'Chargement…'
+            },
+            en: {
+                title: 'Spelling Drag',
+                wordOf: (n, total) => `Word ${n} of ${total}`,
+                hereIsWord: 'Here is the word:',
+                spellPrompt: 'Can you spell the word?',
+                again: (w) => `Spell the word "${w}" again.`,
+                lastTime: (w) => `Spell the word "${w}" one last time.`,
+                tryAgain: 'Try again!',
+                correctSpelling: (w) => `Correct spelling: ${w}`,
+                nice: 'Great job!',
+                loading: 'Loading…'
+            }
+        };
+
+        window.onTTSFinished = function() {
+            if (window.pendingTTSCallback) {
+                const cb = window.pendingTTSCallback;
+                window.pendingTTSCallback = null;
+                cb();
+            }
+        };
+
+        const TTS_NORMAL = 0.9;
+        const TTS_SLOW = 0.10;
+
+        function readText(text, lang, rate, onEnd) {
+            if (!text) { if (onEnd) onEnd(); return; }
+            const useRate = rate != null ? rate : TTS_NORMAL;
+            if (window.Android && typeof window.Android.readText === 'function') {
+                window.pendingTTSCallback = onEnd || null;
+                if (useRate < 0.99) {
+                    window.Android.readText(text, lang, String(useRate));
+                } else {
+                    window.Android.readText(text, lang);
+                }
+            } else if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = lang;
+                u.rate = useRate;
+                u.onend = () => { if (onEnd) onEnd(); };
+                u.onerror = () => { if (onEnd) setTimeout(onEnd, 300); };
+                window.speechSynthesis.speak(u);
+            } else if (onEnd) onEnd();
+        }
+
+        function speakSteps(steps, done) {
+            let i = 0;
+            function next() {
+                if (i >= steps.length) { if (done) done(); return; }
+                const step = steps[i++];
+                readText(step.text, ttsLang, step.rate, next);
+            }
+            next();
+        }
+
+        let allWords = [];
+        let sessionWords = [];
+        let contentLang = 'fr';
+        let ttsLang = 'fr-FR';
+        let strings = UI.fr;
+        /** Lang declared on the word-list JSON, or null for flat school lists. */
+        let declaredLang = null;
+
+        let startIndex = 0;
+        let wordsPerSession = 5;
+        let sessionWordIndex = 0;
+        let currentEntry = null;
+
+        let correctCount = 0;
+        let incorrectCount = 0;
+
+        /** @type {'syllables'|'letters'|'blind'} */
+        let roundType = 'syllables';
+        let round3FirstAttempt = true;
+        let interactionLocked = true;
+        let hasSyllableRound = true;
+        let maxStars = 3;
+        /** Stars earned this word (0 until each round is completed correctly). */
+        let roundsCompleted = 0;
+
+        const filledSlots = [];
+        /** Most recent tile placements, for undo. */
+        const placementStack = [];
+
+        function setInteractionLocked(locked) {
+            interactionLocked = locked;
+            document.getElementById('tileBank').classList.toggle('locked', locked);
+            document.getElementById('slotsRow').classList.toggle('locked', locked);
+            document.querySelectorAll('#tileBank .tile:not(.used)').forEach((tile) => {
+                tile.draggable = !locked;
+            });
+        }
+
+        let poolActive = false;
+
+        function getConfig() {
+            const poolCfg = SpellingPool.getConfig();
+            const p = new URLSearchParams(window.location.search);
+            const tq = parseInt(p.get('totalQuestions') || '', 10);
+            const questionCap = Number.isFinite(tq) && tq > 0 ? tq : 0;
+            poolActive = poolCfg.poolActive;
+            return {
+                file: poolCfg.file,
+                poolAll: poolCfg.poolAll,
+                poolSize: poolCfg.poolSize,
+                questionCap,
+                wordsPerSession: poolActive
+                    ? (poolCfg.poolAll ? 0 : poolCfg.poolSize)
+                    : (questionCap || 5)
+            };
+        }
+
+        function normalizeLang(lang) {
+            const l = (lang || 'fr').toLowerCase();
+            if (l.startsWith('en')) return 'en';
+            return 'fr';
+        }
+
+        function parseContent(raw) {
+            const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (data && Array.isArray(data.words)) {
+                declaredLang = data.lang || null;
+                contentLang = normalizeLang(data.lang);
+                strings = UI[contentLang];
+                ttsLang = contentLang === 'en' ? 'en-US' : 'fr-FR';
+                return data.words;
+            }
+            if (Array.isArray(data) && data.length && data[0].word) {
+                declaredLang = null;
+                return data;
+            }
+            return [];
+        }
+
+        async function loadWords(fileName) {
+            if (window.Android && typeof window.Android.loadJsonFile === 'function') {
+                const jsonString = window.Android.loadJsonFile(fileName);
+                if (!jsonString || !String(jsonString).trim()) {
+                    throw new Error('Failed to load ' + fileName);
+                }
+                const words = parseContent(jsonString);
+                if (!words.length) {
+                    throw new Error('Empty word list: ' + fileName);
+                }
+                return words;
+            }
+            const r = await fetch(`${GITHUB_DATA}/${fileName}?nocache=${Date.now()}`);
+            if (!r.ok) throw new Error('Failed to load ' + fileName);
+            const words = parseContent(await r.json());
+            if (!words.length) throw new Error('Empty word list: ' + fileName);
+            return words;
+        }
+
+        function buildSession() {
+            const len = allWords.length;
+            if (!len) return;
+            sessionWords = [];
+            for (let i = 0; i < wordsPerSession; i++) {
+                sessionWords.push(allWords[(startIndex + i) % len]);
+            }
+        }
+
+        function getChunksForRound() {
+            if (roundType === 'syllables') {
+                return (currentEntry.syllables || []).slice();
+            }
+            return currentEntry.word.split('');
+        }
+
+        function updateStarDisplay(animateLatest) {
+            const row = document.getElementById('starRow');
+            const filled = roundsCompleted;
+            row.innerHTML = '';
+            for (let i = 0; i < maxStars; i++) {
+                const s = document.createElement('span');
+                const isFilled = i < filled;
+                const isNew = animateLatest && isFilled && i === filled - 1;
+                s.className = 'star' + (isFilled ? ' filled' : '') + (isNew ? ' pop' : '');
+                s.textContent = '★';
+                row.appendChild(s);
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.remove('hidden', 'success');
+            if (isSuccess) el.classList.add('success');
+            if (!isSuccess) {
+                setTimeout(() => el.classList.add('hidden'), 1600);
+            }
+        }
+
+        function hideToast() {
+            document.getElementById('toast').classList.add('hidden');
+        }
+
+        function expectedAt(index) {
+            const chunks = getChunksForRound();
+            return (chunks[index] || '').toLowerCase();
+        }
+
+        function slotFilledCount() {
+            return filledSlots.filter(Boolean).length;
+        }
+
+        function isRoundComplete() {
+            const chunks = getChunksForRound();
+            return slotFilledCount() === chunks.length;
+        }
+
+        function placeTileInSlot(tileEl, slotIndex) {
+            const slot = document.querySelector(`.spell-slot[data-index="${slotIndex}"]`);
+            if (!slot || filledSlots[slotIndex]) return false;
+
+            const chunk = tileEl.dataset.chunk;
+            filledSlots[slotIndex] = chunk;
+            slot.textContent = tileEl.textContent;
+            slot.classList.add('filled');
+            tileEl.classList.add('used');
+            tileEl.draggable = false;
+            placementStack.push({ slotIndex, tileEl });
+            return true;
+        }
+
+        function deleteLastPlacement() {
+            if (interactionLocked || !placementStack.length) return;
+            const { slotIndex, tileEl } = placementStack.pop();
+            filledSlots[slotIndex] = null;
+            const slot = document.querySelector(`.spell-slot[data-index="${slotIndex}"]`);
+            if (slot) {
+                slot.textContent = '';
+                slot.classList.remove('filled');
+            }
+            if (tileEl) {
+                tileEl.classList.remove('used');
+                tileEl.draggable = true;
+            }
+        }
+
+        function tryDropOnSlot(tileEl, slotIndex) {
+            if (interactionLocked) return false;
+            const expected = expectedAt(slotIndex);
+            const chunk = (tileEl.dataset.chunk || '').toLowerCase();
+            if (!expected || filledSlots[slotIndex]) return false;
+
+            if (chunk !== expected) {
+                if (roundType === 'blind' && round3FirstAttempt) {
+                    incorrectCount++;
+                    round3FirstAttempt = false;
+                }
+                if (roundType === 'blind') {
+                    const model = document.getElementById('modelWord');
+                    const label = strings.correctSpelling(currentEntry.word);
+                    model.textContent = label;
+                    model.classList.remove('hidden');
+                    model.classList.add('revealed-hint');
+                } else {
+                    showToast(strings.tryAgain, false);
+                }
+                return false;
+            }
+            return placeTileInSlot(tileEl, slotIndex);
+        }
+
+        function onRoundComplete() {
+            setInteractionLocked(true);
+            roundsCompleted++;
+            updateStarDisplay(true);
+            showToast(strings.nice, true);
+            setTimeout(() => {
+                hideToast();
+                advanceAfterRound();
+            }, 900);
+        }
+
+        function advanceAfterRound() {
+            if (roundType === 'syllables') {
+                roundType = 'letters';
+                startRound();
+                return;
+            }
+            if (roundType === 'letters') {
+                roundType = 'blind';
+                round3FirstAttempt = true;
+                startRound();
+                return;
+            }
+            if (round3FirstAttempt) correctCount++;
+            sessionWordIndex++;
+            if (sessionWordIndex >= sessionWords.length) {
+                finishGame();
+                return;
+            }
+            beginWord();
+        }
+
+        function buildBoard() {
+            const slotsRow = document.getElementById('slotsRow');
+            const bank = document.getElementById('tileBank');
+            slotsRow.innerHTML = '';
+            bank.innerHTML = '';
+
+            const chunks = getChunksForRound();
+            filledSlots.length = 0;
+            placementStack.length = 0;
+            for (let i = 0; i < chunks.length; i++) filledSlots[i] = null;
+
+            const isSyllable = roundType === 'syllables';
+            chunks.forEach((chunk, i) => {
+                const slot = document.createElement('div');
+                slot.className = 'spell-slot' + (isSyllable && chunk.length > 2 ? ' wide' : '');
+                slot.dataset.index = String(i);
+                slot.dataset.expected = chunk.toLowerCase();
+
+                slot.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                    if (!filledSlots[i]) slot.classList.add('drag-over');
+                });
+                slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+                slot.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    slot.classList.remove('drag-over');
+                    const tile = window.draggedTile;
+                    if (tile && tryDropOnSlot(tile, i) && isRoundComplete()) onRoundComplete();
+                    window.draggedTile = null;
+                });
+
+                slotsRow.appendChild(slot);
+            });
+
+            const shuffled = chunks.map((c, idx) => ({ text: c, idx }))
+                .sort(() => Math.random() - 0.5);
+
+            shuffled.forEach(({ text }) => {
+                const tile = document.createElement('div');
+                tile.className = 'tile' + (isSyllable && text.length > 2 ? ' wide' : '');
+                tile.textContent = isSyllable ? text : text.toUpperCase();
+                tile.dataset.chunk = text.toLowerCase();
+                tile.draggable = true;
+
+                tile.addEventListener('dragstart', (e) => {
+                    if (interactionLocked || tile.classList.contains('used')) { e.preventDefault(); return; }
+                    if (e.dataTransfer) {
+                        e.dataTransfer.setData('text/plain', tile.dataset.chunk);
+                        e.dataTransfer.effectAllowed = 'move';
+                    }
+                    tile.classList.add('dragging');
+                    window.draggedTile = tile;
+                });
+                tile.addEventListener('dragend', () => {
+                    tile.classList.remove('dragging');
+                });
+
+                tile.addEventListener('touchstart', (e) => {
+                    if (interactionLocked || tile.classList.contains('used')) return;
+                    e.preventDefault();
+                    tile.classList.add('dragging');
+                    window.draggedTile = tile;
+                }, { passive: false });
+
+                tile.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+                tile.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    tile.classList.remove('dragging');
+                    const touch = e.changedTouches[0];
+                    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                    const slotEl = el && (el.closest('.spell-slot') || (el.classList.contains('spell-slot') ? el : null));
+                    if (slotEl && window.draggedTile === tile) {
+                        const si = parseInt(slotEl.dataset.index, 10);
+                        if (tryDropOnSlot(tile, si) && isRoundComplete()) onRoundComplete();
+                    }
+                    window.draggedTile = null;
+                }, { passive: false });
+
+                bank.appendChild(tile);
+            });
+        }
+
+        function speakRoundIntro(done) {
+            const w = currentEntry.word;
+            const steps = [];
+
+            if (roundType === 'syllables') {
+                steps.push({ text: strings.hereIsWord, rate: TTS_NORMAL });
+                steps.push({ text: w, rate: TTS_NORMAL });
+                steps.push({ text: w, rate: TTS_SLOW });
+                steps.push({ text: strings.spellPrompt, rate: TTS_NORMAL });
+                steps.push({ text: w, rate: TTS_SLOW });
+            } else if (roundType === 'letters') {
+                steps.push({ text: strings.again(w), rate: TTS_NORMAL });
+                steps.push({ text: w, rate: TTS_SLOW });
+            } else {
+                steps.push({ text: strings.lastTime(w), rate: TTS_NORMAL });
+                steps.push({ text: w, rate: TTS_SLOW });
+            }
+
+            speakSteps(steps, () => {
+                setInteractionLocked(false);
+                if (done) done();
+            });
+        }
+
+        function startRound() {
+            setInteractionLocked(true);
+            hideToast();
+
+            const model = document.getElementById('modelWord');
+            model.classList.remove('revealed-hint');
+            if (roundType === 'blind') {
+                model.textContent = '';
+                model.classList.add('hidden');
+            } else {
+                model.textContent = currentEntry.word;
+                model.classList.remove('hidden');
+            }
+
+            buildBoard();
+            speakRoundIntro();
+        }
+
+        function beginWord() {
+            currentEntry = sessionWords[sessionWordIndex];
+            hasSyllableRound = Array.isArray(currentEntry.syllables) && currentEntry.syllables.length > 0
+                && currentEntry.syllables.join('').toLowerCase() === currentEntry.word.toLowerCase();
+            if (!hasSyllableRound) {
+                maxStars = 2;
+                roundType = 'letters';
+            } else {
+                maxStars = 3;
+                roundType = 'syllables';
+            }
+            roundsCompleted = 0;
+            round3FirstAttempt = true;
+
+            document.getElementById('sessionLabel').textContent =
+                strings.wordOf(sessionWordIndex + 1, sessionWords.length);
+
+            updateStarDisplay(false);
+            startRound();
+        }
+
+        function finishGame() {
+            const len = allWords.length;
+            const nextIndex = poolActive
+                ? -1
+                : (len > 0 ? (startIndex + sessionWords.length) % len : -1);
+            if (window.Android && typeof window.Android.gameCompleted === 'function') {
+                window.Android.gameCompleted(correctCount, incorrectCount, nextIndex);
+            } else if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'gameCompleted',
+                    correct: correctCount,
+                    incorrect: incorrectCount,
+                    finalIndex: nextIndex
+                }, '*');
+            }
+        }
+
+        async function init() {
+            const cfg = getConfig();
+            wordsPerSession = cfg.wordsPerSession;
+            document.getElementById('loadingMsg').textContent = strings.loading;
+
+            try {
+                allWords = await loadWords(cfg.file);
+            } catch (e) {
+                console.error(e);
+                allWords = [];
+            }
+
+            if (!allWords.length) {
+                document.getElementById('loadingMsg').textContent = 'No words loaded.';
+                return;
+            }
+
+            if (poolActive && cfg.poolAll) {
+                wordsPerSession = cfg.questionCap
+                    ? Math.min(allWords.length, cfg.questionCap)
+                    : allWords.length;
+            }
+
+            // "frenchWords" contains "en", so a raw includes('en') check speaks French lists in English.
+            if (window.SpellingPool && typeof SpellingPool.detectTtsLang === 'function') {
+                ttsLang = SpellingPool.detectTtsLang(cfg, declaredLang);
+            } else {
+                const fileLower = (cfg.file || '').toLowerCase();
+                const poolKey = (cfg.poolKey || '').toLowerCase();
+                if (poolKey.includes('fr') || fileLower.includes('fr')) {
+                    ttsLang = 'fr-FR';
+                } else if (poolKey.includes('eng') || fileLower.includes('en')) {
+                    ttsLang = 'en-US';
+                }
+            }
+            contentLang = ttsLang.toLowerCase().startsWith('en') ? 'en' : 'fr';
+            strings = UI[contentLang];
+            document.getElementById('gameTitle').textContent = strings.title;
+            document.getElementById('replayBtn').onclick = () => {
+                if (!currentEntry) return;
+                setInteractionLocked(true);
+                readText(currentEntry.word, ttsLang, TTS_SLOW, () => setInteractionLocked(false));
+            };
+            document.getElementById('deleteBtn').onclick = deleteLastPlacement;
+
+            startIndex = SpellingPool.loadProgressIndex();
+            buildSession();
+            sessionWordIndex = 0;
+
+            document.getElementById('loadingMsg').classList.add('hidden');
+            beginWord();
+        }
+
+        init();
+    </script>
+</body>
+</html>

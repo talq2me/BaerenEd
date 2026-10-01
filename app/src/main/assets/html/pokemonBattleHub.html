@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon Battle Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 15px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 5px;
+            animation: bounce 2s infinite;
+        }
+
+        .header p {
+            font-size: 1em;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .pokedex-section {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            border: 3px solid #ffd700;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 10px;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            color: #764ba2;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .toggle-button {
+            font-size: 1.5em;
+            color: #764ba2;
+            transition: transform 0.3s ease;
+            padding: 5px 10px;
+        }
+
+        .toggle-button.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .pokedex-content {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .pokedex-content.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .pokemon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Custom scrollbar for Pokedex */
+        .pokedex-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .pokedex-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .pokedex-content::-webkit-scrollbar-thumb {
+            background: #ffd700;
+            border-radius: 10px;
+        }
+
+        .pokedex-content::-webkit-scrollbar-thumb:hover {
+            background: #ffed4e;
+        }
+
+        .pokemon-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pokemon-card:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .pokemon-card.selected {
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
+        }
+
+        .pokemon-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+        }
+
+        .pokemon-sprite {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 5px;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
+        }
+
+        .pokemon-sprite img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .pokemon-name {
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .pokemon-level {
+            font-size: 0.75em;
+            color: #666;
+        }
+
+        .battle-arena {
+            background: white;
+            border-radius: 15px;
+            padding: 6px;
+            margin-bottom: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            border: 3px solid #ff6b6b;
+        }
+
+        .battle-instructions {
+            text-align: center;
+            font-size: 0.85em;
+            color: #764ba2;
+            margin-bottom: 5px;
+            padding: 4px;
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .battle-field {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 3px 0;
+            min-height: 140px;
+        }
+
+        .pokemon-battle-card {
+            text-align: center;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .pokemon-battle-sprite {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 5px;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.3));
+            animation: float 3s ease-in-out infinite;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .pokemon-battle-sprite img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        /* Battle animations */
+        .pokemon-battle-sprite.attacking {
+            animation: attack 0.5s ease-in-out;
+        }
+
+        .pokemon-battle-sprite.hit {
+            animation: hit 0.5s ease-in-out;
+        }
+
+        .pokemon-battle-sprite.defeated {
+            animation: defeated 1s ease-in-out forwards;
+            filter: grayscale(100%) brightness(0.5);
+        }
+
+        @keyframes attack {
+            0% { transform: translateX(0) scale(1); }
+            25% { transform: translateX(20px) scale(1.1); }
+            50% { transform: translateX(0) scale(1); }
+            100% { transform: translateX(0) scale(1); }
+        }
+
+        @keyframes hit {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+
+        @keyframes defeated {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(50px) rotate(180deg); opacity: 0.3; }
+        }
+
+        /* Attack effects */
+        .attack-effect {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .attack-effect::before {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(255,255,0,0.8) 0%, rgba(255,165,0,0.6) 50%, transparent 100%);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            animation: explode 0.6s ease-out;
+        }
+
+        @keyframes explode {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+
+        .damage-text {
+            position: absolute;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ff0000;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 20;
+            pointer-events: none;
+            animation: damageFloat 1s ease-out forwards;
+        }
+
+        @keyframes damageFloat {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+
+        .battle-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            z-index: 100;
+            text-align: center;
+            animation: messagePop 0.5s ease-out;
+        }
+
+        @keyframes messagePop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .battle-field.battling {
+            position: relative;
+        }
+
+        .pokemon-battle-name {
+            font-size: 1em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .pokemon-battle-stats {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 8px;
+            margin-top: 5px;
+        }
+
+        .stat-bar {
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .stat-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71 0%, #27ae60 100%);
+            border-radius: 10px;
+            transition: width 0.8s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8em;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-fill.damaging {
+            background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+            animation: damageFlash 0.3s ease-in-out;
+        }
+
+        @keyframes damageFlash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .vs-divider {
+            font-size: 2em;
+            color: #ff6b6b;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .berry-section {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            border: 3px solid #2ecc71;
+        }
+
+        .berry-meter-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .berry-meter-label {
+            font-size: 1.1em;
+            color: #764ba2;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .berry-meter {
+            width: 100%;
+            height: 40px;
+            background: #e0e0e0;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            border: 3px solid #2ecc71;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .berry-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b 0%, #ee5a6f 50%, #ffd700 100%);
+            border-radius: 30px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .berry-fill::before {
+            content: var(--stars-icon, '🍍');
+            position: absolute;
+            left: 10px;
+            font-size: 1.5em;
+            animation: berryBounce 1s infinite;
+        }
+
+        .berry-fill::after {
+            content: var(--stars-icon, '🍍');
+            position: absolute;
+            right: 10px;
+            font-size: 1.5em;
+            animation: berryBounce 1.2s infinite;
+        }
+
+        @keyframes berryBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .berry-fill.full {
+            animation: glow 1s infinite alternate;
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+            100% { box-shadow: 0 0 40px rgba(255, 215, 0, 1); }
+        }
+
+        .berry-count {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .action-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .action-button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+
+        .action-button:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .berry-button {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+        }
+
+        .battle-button {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+
+        .battle-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .battle-button:disabled:hover {
+            transform: none;
+        }
+
+        .educational-games-list {
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .game-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .game-item:hover {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            transform: translateX(5px);
+        }
+
+        .victory-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .victory-content {
+            background: white;
+            border-radius: 25px;
+            padding: 50px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: victoryPop 0.5s ease;
+        }
+
+        @keyframes victoryPop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .victory-content h2 {
+            font-size: 3em;
+            color: #2ecc71;
+            margin-bottom: 20px;
+        }
+
+        .victory-content .pokemon-sprite {
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+        }
+
+        .victory-button {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 1.3em;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Tablet optimizations */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            body {
+                padding: 8px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .pokemon-grid {
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+                gap: 8px;
+            }
+            
+            .battle-field {
+                gap: 8px;
+                min-height: 130px;
+                margin: 3px 0;
+            }
+            
+            .pokemon-battle-sprite {
+                width: 90px;
+                height: 90px;
+            }
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 767px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .pokemon-battle-sprite {
+                width: 70px;
+                height: 70px;
+            }
+
+            .battle-field {
+                flex-direction: column;
+                gap: 8px;
+                min-height: 120px;
+                margin: 3px 0;
+            }
+
+            .vs-divider {
+                transform: rotate(90deg);
+                font-size: 1.5em;
+            }
+            
+            .pokemon-grid {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Pokemon Battle Hub ⚡</h1>
+        </div>
+
+        <!-- Pokedex Section -->
+        <div class="pokedex-section">
+            <div class="section-header" onclick="togglePokedex()">
+                <h2 class="section-title">📖 My Pokedex</h2>
+                <span class="toggle-button" id="pokedexToggle">▼</span>
+            </div>
+            <div class="pokedex-content" id="pokedexContent">
+                <div class="pokemon-grid" id="pokedexGrid">
+                    <!-- Pokemon cards will be generated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Battle Arena -->
+        <div class="battle-arena">
+            <div class="battle-instructions">
+                💪 Power up your Pokemon with berries before battling the boss! 💪
+            </div>
+            
+            <!-- Battle Button (moved above VS) -->
+            <div style="text-align: center; margin-bottom: 5px;">
+                <button class="action-button battle-button" id="battleButton" disabled>
+                    ⚔️ Battle ⚔️
+                </button>
+            </div>
+            
+            <div class="battle-field">
+                <div class="pokemon-battle-card">
+                    <div class="pokemon-battle-sprite" id="playerPokemonSprite">🐉</div>
+                    <div class="pokemon-battle-name" id="playerPokemonName">Dragonite</div>
+                    <div class="pokemon-battle-stats">
+                        <div class="stat-bar">
+                            <div class="stat-label">HP</div>
+                            <div class="stat-value">
+                                <div class="stat-fill" id="playerHP" style="width: 100%;">100/100</div>
+                            </div>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-label">Power</div>
+                            <div class="stat-value">
+                                <div class="stat-fill" id="playerPower" style="width: 0%;">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vs-divider">VS</div>
+
+                <div class="pokemon-battle-card">
+                    <div class="pokemon-battle-sprite" id="bossPokemonSprite">🔥</div>
+                    <div class="pokemon-battle-name" id="bossPokemonName">Charizard</div>
+                    <div class="pokemon-battle-stats">
+                        <div class="stat-bar">
+                            <div class="stat-label">HP</div>
+                            <div class="stat-value">
+                                <div class="stat-fill" id="bossHP" style="width: 100%; background: linear-gradient(90deg, #ff6b6b 0%, #ee5a6f 100%);">100/100</div>
+                            </div>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-label">Power</div>
+                            <div class="stat-value">
+                                <div class="stat-fill" style="width: 100%; background: linear-gradient(90deg, #ff6b6b 0%, #ee5a6f 100%);">100%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Berry Section -->
+        <div class="berry-section">
+            <div class="berry-meter-container">
+                <div class="berry-meter-label" id="berryMeterLabel">🍍 Berry Power Meter 🍍</div>
+                <div class="berry-meter">
+                    <div class="berry-fill" id="berryFill" style="width: 0%;">
+                        <div class="berry-count" id="berryCount">0 / 100 Berries</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons" style="margin-top: 15px;">
+                <button class="action-button berry-button" id="earnBerriesButton" onclick="navigateToTrainingMap()">
+                    🍍 Earn Berries 🍍
+                </button>
+                <button class="action-button berry-button" id="earnExtraBerriesButton" onclick="navigateToOptionalTrainingMap()" style="margin-top: 10px;">
+                    🍍 Earn Extra Berries 🍍
+                </button>
+                <button class="action-button berry-button" id="nativeBattleHubButton" onclick="navigateToNativeBattleHub()" style="margin-top: 10px;">
+                    BH
+                </button>
+                <button class="action-button berry-button" id="testBerriesButton" onclick="grantTestBerries()" style="margin-top: 10px;">
+                    🧪 +50 Berries & Coins (Test)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Overlay -->
+    <div class="victory-overlay" id="victoryOverlay">
+        <div class="victory-content">
+            <h2>🎉 Victory! 🎉</h2>
+            <div class="pokemon-sprite" id="victoryPokemonSprite">🔥</div>
+            <p style="font-size: 1.5em; margin: 20px 0;">
+                You caught <span id="victoryPokemonName">Charizard</span>!
+            </p>
+            <p style="font-size: 1.2em; color: #666;">
+                Added to your Pokedex!
+            </p>
+            <button class="victory-button" onclick="closeVictory()">Continue</button>
+        </div>
+    </div>
+
+    <script>
+        // Pokemon data - will be loaded from assets
+        let pokemonList = [];
+        let unlockedCount = 0;
+        let playerPokemon = null;
+        let bossPokemon = null;
+        
+        // Icon configuration
+        let iconConfig = {
+            starsIcon: '🍍', // Default to pineapple
+            coinsIcon: '🪙'   // Default to coin
+        };
+        
+        // Load icon configuration
+        function loadIconConfig() {
+            if (isAndroidWebView() && typeof Android.getIconConfig === 'function') {
+                try {
+                    const configJson = Android.getIconConfig();
+                    const config = JSON.parse(configJson);
+                    iconConfig.starsIcon = config.starsIcon || '🍍';
+                    iconConfig.coinsIcon = config.coinsIcon || '🪙';
+                    console.log('Loaded icon config:', iconConfig);
+                } catch (e) {
+                    console.error('Error loading icon config:', e);
+                }
+            } else {
+                // Browser fallback: try to load from localStorage or use defaults
+                const savedConfig = localStorage.getItem('iconConfig');
+                if (savedConfig) {
+                    try {
+                        const config = JSON.parse(savedConfig);
+                        iconConfig.starsIcon = config.starsIcon || '🍍';
+                        iconConfig.coinsIcon = config.coinsIcon || '🪙';
+                    } catch (e) {
+                        console.error('Error parsing saved icon config:', e);
+                    }
+                }
+            }
+        }
+
+        // Parse Pokemon filename (format: "prefix-pokenum-variant.png")
+        function parsePokemonFilename(filename) {
+            if (!filename.endsWith('.png')) return null;
+            
+            const base = filename.replace('.png', '');
+            const shiny = base.endsWith('-s');
+            const baseNoShiny = shiny ? base.substring(0, base.length - 2) : base;
+            const parts = baseNoShiny.split('-');
+            
+            if (parts.length < 2) return null;
+            
+            const prefix = parseInt(parts[0]);
+            const pokenum = parseInt(parts[1]);
+            
+            if (isNaN(prefix) || isNaN(pokenum)) return null;
+            
+            return {
+                prefix: prefix,
+                pokenum: pokenum,
+                shiny: shiny,
+                filename: filename
+            };
+        }
+
+        // Get Pokemon name from number (simplified - you might want a full list)
+        function getPokemonName(pokenum) {
+            const names = {
+                1: 'Bulbasaur', 2: 'Ivysaur', 3: 'Venusaur', 4: 'Charmander', 5: 'Charmeleon',
+                6: 'Charizard', 7: 'Squirtle', 8: 'Wartortle', 9: 'Blastoise', 25: 'Pikachu',
+                130: 'Gyarados', 143: 'Snorlax', 149: 'Dragonite', 150: 'Mewtwo'
+            };
+            return names[pokenum] || `#${pokenum}`;
+        }
+
+        // Detect if we're running in Android WebView or browser
+        function isAndroidWebView() {
+            return typeof Android !== 'undefined';
+        }
+        
+        // Load icon configuration
+        function loadIconConfig() {
+            if (isAndroidWebView() && typeof Android.getIconConfig === 'function') {
+                try {
+                    const configJson = Android.getIconConfig();
+                    const config = JSON.parse(configJson);
+                    iconConfig.starsIcon = config.starsIcon || '🍍';
+                    iconConfig.coinsIcon = config.coinsIcon || '🪙';
+                    console.log('Loaded icon config:', iconConfig);
+                } catch (e) {
+                    console.error('Error loading icon config:', e);
+                }
+            } else {
+                // Browser fallback: try to load from localStorage or use defaults
+                const savedConfig = localStorage.getItem('iconConfig');
+                if (savedConfig) {
+                    try {
+                        const config = JSON.parse(savedConfig);
+                        iconConfig.starsIcon = config.starsIcon || '🍍';
+                        iconConfig.coinsIcon = config.coinsIcon || '🪙';
+                    } catch (e) {
+                        console.error('Error parsing saved icon config:', e);
+                    }
+                }
+            }
+        }
+
+        function getImageBaseUrl() {
+            return 'https://talq2me.github.io/BaerenEd/app/src/main/assets/images/pokeSprites/sprites/pokemon/';
+        }
+
+        // Helper function to get sprite path
+        function getSpritePath(filename) {
+            const baseUrl = getImageBaseUrl();
+            if (baseUrl) {
+                return baseUrl + filename;
+            }
+            // Android WebView - will load via interface
+            return 'loading';
+        }
+
+        // Load Pokemon image - works in both browser and Android WebView
+        function loadPokemonImageAsync(filename, imgElement) {
+            const baseUrl = getImageBaseUrl();
+            imgElement.src = baseUrl + filename;
+            imgElement.onerror = function() {
+                if (isAndroidWebView() && typeof Android.loadPokemonImage === 'function') {
+                    try {
+                        const base64Data = Android.loadPokemonImage(filename);
+                        if (base64Data) {
+                            imgElement.src = base64Data;
+                            imgElement.onerror = null;
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Error loading Pokemon image via Android interface:', e);
+                    }
+                }
+                imgElement.style.display = 'none';
+                if (imgElement.parentElement) {
+                    imgElement.parentElement.innerHTML = '❓';
+                }
+            };
+        }
+
+        // Load Pokemon data from Android or browser
+        // NOTE: This page needs the following JavaScript interface methods in Android:
+        // - Android.getUnlockedPokemonCount() -> returns number
+        // - Android.getPokemonFileList() -> returns JSON string array of filenames
+        // - Android.unlockPokemon(count) -> unlocks count Pokemon
+        function loadPokemonData() {
+            // Get unlocked count from Android or localStorage
+            if (isAndroidWebView() && typeof Android.getUnlockedPokemonCount === 'function') {
+                unlockedCount = parseInt(Android.getUnlockedPokemonCount()) || 0;
+            } else {
+                // Fallback for browser testing
+                unlockedCount = parseInt(localStorage.getItem('unlockedPokemonCount')) || 1;
+            }
+            
+            console.log('Loading Pokemon data, unlocked count:', unlockedCount);
+            
+            // Get Pokemon file list from Android or manifest
+            if (isAndroidWebView() && typeof Android.getPokemonFileList === 'function') {
+                try {
+                    const fileListJson = Android.getPokemonFileList();
+                    const fileList = JSON.parse(fileListJson);
+                    processPokemonFiles(fileList);
+                } catch (e) {
+                    console.error('Error parsing Pokemon file list:', e);
+                    loadPokemonFromManifest();
+                }
+            } else {
+                // Browser: load from GitHub manifest
+                console.log('Loading Pokemon data from manifest (browser mode)');
+                loadPokemonFromManifest();
+            }
+        }
+
+        // Process Pokemon files (matching Android logic)
+        function processPokemonFiles(fileList) {
+            // Parse all Pokemon files (don't filter yet - we need all to find the boss)
+            const allPokemonFiles = fileList
+                .map(filename => parsePokemonFilename(filename))
+                .filter(file => file !== null)
+                .sort((a, b) => {
+                    // Sort by pokenum, then by shiny (non-shiny first)
+                    if (a.pokenum !== b.pokenum) return a.pokenum - b.pokenum;
+                    return a.shiny ? 1 : -1;
+                });
+
+            // Build full Pokemon list (both unlocked and locked)
+            const allPokemon = allPokemonFiles.map(file => ({
+                prefix: file.prefix,
+                pokenum: file.pokenum,
+                name: getPokemonName(file.pokenum),
+                filename: file.filename,
+                shiny: file.shiny,
+                unlocked: file.prefix <= unlockedCount
+            }));
+
+            // Filter to only unlocked Pokemon for the Pokedex display (matching Android logic)
+            pokemonList = allPokemon.filter(p => p.unlocked);
+
+            // Find player Pokemon (last unlocked - highest prefix <= unlockedCount)
+            if (pokemonList.length > 0) {
+                // Get the one with the highest prefix
+                playerPokemon = pokemonList.reduce((prev, current) => 
+                    (current.prefix > prev.prefix) ? current : prev
+                );
+            } else {
+                // No Pokemon unlocked yet - use first available as default
+                playerPokemon = allPokemon.find(p => p.prefix === 1) || allPokemon[0] || null;
+            }
+
+            // Find boss Pokemon (next to unlock - prefix = unlockedCount + 1)
+            // Search in ALL Pokemon, not just unlocked ones
+            bossPokemon = allPokemon.find(p => p.prefix === unlockedCount + 1);
+            
+            // If no exact match, find the next available Pokemon with prefix > unlockedCount
+            if (!bossPokemon) {
+                const nextPokemon = allPokemon
+                    .filter(p => p.prefix > unlockedCount)
+                    .sort((a, b) => a.prefix - b.prefix)[0]; // Get the one with smallest prefix > unlockedCount
+                if (nextPokemon) {
+                    bossPokemon = nextPokemon;
+                }
+            }
+
+            console.log('Player Pokemon:', playerPokemon);
+            console.log('Boss Pokemon:', bossPokemon);
+            console.log('Unlocked count:', unlockedCount);
+
+            updateUI();
+        }
+
+        // Fallback: Load from manifest (if available)
+        function loadPokemonFromManifest() {
+            // Try using Android's loadPokemonManifest if available (preferred method for Android)
+            if (isAndroidWebView() && typeof Android.loadPokemonManifest === 'function') {
+                try {
+                    const manifestJson = Android.loadPokemonManifest();
+                    const fileList = JSON.parse(manifestJson);
+                    processPokemonFiles(fileList);
+                    return;
+                } catch (e) {
+                    console.error('Error loading manifest via Android.loadPokemonManifest:', e);
+                }
+            }
+            
+            // Browser: load from GitHub
+            const manifestPath =
+                'https://talq2me.github.io/BaerenEd/app/src/main/assets/images/pokeSprites/sprites/pokemon/pokedex_manifest.json';
+            
+            fetch(manifestPath)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load manifest');
+                    return response.json();
+                })
+                .then(fileList => processPokemonFiles(fileList))
+                .catch(err => {
+                    console.error('Error loading Pokemon manifest:', err);
+                    // Use minimal fallback
+                    useFallbackPokemon();
+                });
+        }
+
+        // Minimal fallback if nothing else works
+        function useFallbackPokemon() {
+            pokemonList = [
+                { prefix: 1, pokenum: 1, name: 'Bulbasaur', filename: '1-551-s.png', shiny: true, unlocked: true }
+            ];
+            playerPokemon = pokemonList[0];
+            bossPokemon = { prefix: 2, pokenum: 4, name: 'Charmander', filename: '4-1.png', shiny: false, unlocked: false };
+            updateUI();
+        }
+
+        // Game state
+        let gameState = {
+            earnedStars: 0, // Will be updated from Android to match daily homework dashboard
+            totalStars: 100 // Will be updated from Android to match total stars
+        };
+
+        // Load state from Android (earned stars from daily homework dashboard)
+        function loadState() {
+            // Get earned stars from Android to match daily homework dashboard
+            if (isAndroidWebView() && typeof Android.getEarnedStars === 'function') {
+                try {
+                    gameState.earnedStars = parseInt(Android.getEarnedStars()) || 0;
+                    console.log('Loaded earned stars from Android:', gameState.earnedStars);
+                } catch (e) {
+                    console.error('Error getting earned stars:', e);
+                }
+            } else {
+                // Browser fallback
+                const saved = localStorage.getItem('pokemonBattleState');
+                if (saved) {
+                    const savedState = JSON.parse(saved);
+                    gameState.earnedStars = savedState.earnedStars || 0;
+                }
+            }
+        }
+
+        // Save state to localStorage (for browser fallback)
+        function saveState() {
+            localStorage.setItem('pokemonBattleState', JSON.stringify({
+                earnedStars: gameState.earnedStars
+            }));
+        }
+
+        // Toggle Pokedex section
+        function togglePokedex() {
+            const content = document.getElementById('pokedexContent');
+            const toggle = document.getElementById('pokedexToggle');
+            
+            content.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed');
+        }
+
+        // Initialize
+        function init() {
+            loadState();
+
+            // Get total stars from Android to set totalStars
+            if (isAndroidWebView() && typeof Android.getTotalStars === 'function') {
+                try {
+                    gameState.totalStars = parseInt(Android.getTotalStars()) || 100;
+                    console.log('Set totalStars to:', gameState.totalStars);
+                } catch (e) {
+                    console.error('Error getting total stars:', e);
+                }
+            }
+            
+            // Get earned stars from Android to match daily homework dashboard
+            if (isAndroidWebView() && typeof Android.getEarnedStars === 'function') {
+                try {
+                    gameState.earnedStars = parseInt(Android.getEarnedStars()) || 0;
+                    console.log('Set earnedStars to:', gameState.earnedStars);
+                } catch (e) {
+                    console.error('Error getting earned stars:', e);
+                }
+            }
+            
+            loadPokemonData(); // This will call updateUI when done
+        }
+
+        // Update all UI elements
+        function updateUI() {
+            renderPokedex();
+            updateBattleArena();
+            updateBerryMeter();
+            updateBattleButton();
+        }
+
+        // Render Pokedex
+        function renderPokedex() {
+            const grid = document.getElementById('pokedexGrid');
+            grid.innerHTML = '';
+
+            if (pokemonList.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #666;">Loading Pokemon...</p>';
+                return;
+            }
+
+            // Show unlocked Pokemon (sorted by pokenum)
+            const unlockedPokemon = pokemonList.filter(p => p.unlocked);
+            const isPlayerSelected = (pokemon) => playerPokemon && pokemon.prefix === playerPokemon.prefix && pokemon.pokenum === playerPokemon.pokenum;
+
+            unlockedPokemon.forEach(pokemon => {
+                const isSelected = isPlayerSelected(pokemon);
+                
+                const card = document.createElement('div');
+                card.className = `pokemon-card ${isSelected ? 'selected' : ''}`;
+                card.innerHTML = `
+                    <div class="pokemon-sprite">
+                        <img src="" alt="${pokemon.name}" data-filename="${pokemon.filename}" onerror="this.style.display='none'; this.parentElement.innerHTML='❓';">
+                    </div>
+                    <div class="pokemon-name">${pokemon.name}</div>
+                `;
+                
+                // Load image asynchronously
+                const imgElement = card.querySelector('img');
+                if (imgElement) {
+                    loadPokemonImageAsync(pokemon.filename, imgElement);
+                }
+                
+                card.onclick = () => selectPokemon(pokemon);
+                
+                grid.appendChild(card);
+            });
+
+            // Show locked Pokemon (next few to unlock) as locked
+            const lockedPokemon = pokemonList.filter(p => !p.unlocked).slice(0, 8);
+            lockedPokemon.forEach(pokemon => {
+                const card = document.createElement('div');
+                card.className = 'pokemon-card locked';
+                card.innerHTML = `
+                    <div class="pokemon-sprite">
+                        <img src="" alt="${pokemon.name}" data-filename="${pokemon.filename}" style="filter: grayscale(100%) brightness(0.3);" onerror="this.style.display='none'; this.parentElement.innerHTML='❓';">
+                    </div>
+                    <div class="pokemon-name">${pokemon.name}</div>
+                    <div class="pokemon-level">Locked</div>
+                `;
+                
+                // Load image asynchronously
+                const imgElement = card.querySelector('img');
+                if (imgElement) {
+                    loadPokemonImageAsync(pokemon.filename, imgElement);
+                }
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Select Pokemon (only unlocked ones)
+        function selectPokemon(pokemon) {
+            if (!pokemon.unlocked) return;
+            playerPokemon = pokemon;
+            updateUI();
+        }
+
+        // Update Battle Arena
+        function updateBattleArena() {
+            const playerSprite = document.getElementById('playerPokemonSprite');
+            const bossSprite = document.getElementById('bossPokemonSprite');
+            
+            if (playerPokemon) {
+                playerSprite.innerHTML = `<img src="" alt="${playerPokemon.name}" data-filename="${playerPokemon.filename}" onerror="this.parentElement.innerHTML='❓';">`;
+                const playerImg = playerSprite.querySelector('img');
+                if (playerImg) {
+                    loadPokemonImageAsync(playerPokemon.filename, playerImg);
+                }
+                document.getElementById('playerPokemonName').textContent = playerPokemon.name;
+            } else {
+                playerSprite.innerHTML = '<div style="font-size: 4em;">❓</div>';
+                document.getElementById('playerPokemonName').textContent = 'No Pokemon';
+            }
+            
+            if (bossPokemon) {
+                bossSprite.innerHTML = `<img src="" alt="${bossPokemon.name}" data-filename="${bossPokemon.filename}" onerror="this.parentElement.innerHTML='❓';">`;
+                const bossImg = bossSprite.querySelector('img');
+                if (bossImg) {
+                    loadPokemonImageAsync(bossPokemon.filename, bossImg);
+                }
+                document.getElementById('bossPokemonName').textContent = bossPokemon.name;
+            } else {
+                bossSprite.innerHTML = '<div style="font-size: 4em;">❓</div>';
+                document.getElementById('bossPokemonName').textContent = 'No Boss';
+            }
+
+            // Update player power based on earned stars
+            const powerPercent = (gameState.earnedStars / gameState.totalStars) * 100;
+            const powerFill = document.getElementById('playerPower');
+            powerFill.style.width = powerPercent + '%';
+            powerFill.textContent = Math.round(powerPercent) + '%';
+        }
+
+        // Update Berry Meter (shows earned stars, matching daily homework dashboard)
+        function updateBerryMeter() {
+            // Refresh earned stars from Android to match daily homework dashboard
+            if (isAndroidWebView() && typeof Android.getEarnedStars === 'function') {
+                try {
+                    gameState.earnedStars = parseInt(Android.getEarnedStars()) || 0;
+                } catch (e) {
+                    console.error('Error getting earned stars:', e);
+                }
+            }
+            
+            const percent = (gameState.earnedStars / gameState.totalStars) * 100;
+            const fill = document.getElementById('berryFill');
+            const count = document.getElementById('berryCount');
+            const label = document.getElementById('berryMeterLabel');
+
+            fill.style.width = percent + '%';
+            count.textContent = `${gameState.earnedStars} / ${gameState.totalStars} ${iconConfig.starsIcon}`;
+            label.textContent = `${iconConfig.starsIcon} Berry Power Meter ${iconConfig.starsIcon}`;
+            
+            // Update the ::before and ::after pseudo-elements by updating the parent
+            const berryFillStyle = document.createElement('style');
+            berryFillStyle.textContent = `
+                .berry-fill::before { content: '${iconConfig.starsIcon}'; }
+                .berry-fill::after { content: '${iconConfig.starsIcon}'; }
+            `;
+            // Remove old style if exists
+            const oldStyle = document.getElementById('berryIconStyle');
+            if (oldStyle) oldStyle.remove();
+            berryFillStyle.id = 'berryIconStyle';
+            document.head.appendChild(berryFillStyle);
+
+            if (percent >= 100) {
+                fill.classList.add('full');
+            } else {
+                fill.classList.remove('full');
+            }
+        }
+
+        // Update Battle Button
+        function updateBattleButton() {
+            const button = document.getElementById('battleButton');
+            const isFull = gameState.earnedStars >= gameState.totalStars;
+            button.disabled = !isFull;
+            
+            if (isFull) {
+                button.style.animation = 'glow 1s infinite alternate';
+            } else {
+                button.style.animation = 'none';
+            }
+        }
+
+        // Refresh berries from Android (earned stars from daily homework dashboard)
+        function refreshBerries() {
+            if (isAndroidWebView() && typeof Android.getEarnedStars === 'function') {
+                try {
+                    gameState.earnedStars = parseInt(Android.getEarnedStars()) || 0;
+                    saveState();
+                    updateBerryMeter();
+                    updateBattleArena();
+                    updateBattleButton();
+                } catch (e) {
+                    console.error('Error refreshing berries:', e);
+                }
+            }
+        }
+
+        // Battle Boss
+        function battleBoss() {
+            if (gameState.earnedStars < gameState.totalStars) {
+                alert('You need to earn all stars to battle the boss!');
+                return;
+            }
+
+            if (!bossPokemon) {
+                alert('No boss Pokemon available!');
+                return;
+            }
+
+            // Disable battle button during battle
+            const battleButton = document.getElementById('battleButton');
+            battleButton.disabled = true;
+            battleButton.textContent = '⚔️ Battling... ⚔️';
+
+            const battleField = document.querySelector('.battle-field');
+            const playerSprite = document.querySelector('.pokemon-battle-card:first-child .pokemon-battle-sprite');
+            const bossSprite = document.querySelector('.pokemon-battle-card:last-child .pokemon-battle-sprite');
+            const playerHP = document.getElementById('playerHP');
+            const bossHP = document.getElementById('bossHP');
+            
+            // Reset sprite states
+            if (bossSprite) {
+                bossSprite.classList.remove('defeated', 'attacking', 'hit');
+                bossSprite.style.opacity = '1';
+                bossSprite.style.filter = '';
+                bossSprite.style.transform = '';
+            }
+            if (playerSprite) {
+                playerSprite.classList.remove('defeated', 'attacking', 'hit');
+            }
+            
+            battleField.classList.add('battling');
+
+            // Initial HP values
+            let playerHealth = 100;
+            let bossHealth = 100;
+            const maxHealth = 100;
+
+            // Battle sequence
+            let round = 0;
+            const maxRounds = 5;
+            let battleEnded = false; // Flag to prevent multiple endBattle calls
+
+            function battleRound() {
+                // Don't continue if battle already ended
+                if (battleEnded) return;
+                
+                round++;
+                
+                // Check if max rounds reached (but don't check health here - check after damage)
+                if (round > maxRounds) {
+                    // Battle complete - player wins (but only if boss wasn't already defeated)
+                    if (!battleEnded && bossHealth > 0) {
+                        battleEnded = true;
+                        endBattle(true);
+                    }
+                    return;
+                }
+
+                // Player attacks
+                setTimeout(() => {
+                    showBattleMessage('You attack!');
+                    playerSprite.classList.add('attacking');
+                    
+                    setTimeout(() => {
+                        playerSprite.classList.remove('attacking');
+                        
+                        // Boss takes damage
+                        const damage = 15 + Math.floor(Math.random() * 10);
+                        bossHealth = Math.max(0, bossHealth - damage);
+                        const bossHPPercent = (bossHealth / maxHealth) * 100;
+                        
+                        bossSprite.classList.add('hit');
+                        bossHP.classList.add('damaging');
+                        showDamage(bossSprite, damage);
+                        
+                        // Update boss HP bar
+                        bossHP.style.width = bossHPPercent + '%';
+                        bossHP.textContent = Math.round(bossHealth) + '/' + maxHealth;
+                        
+                        setTimeout(() => {
+                            bossSprite.classList.remove('hit');
+                            bossHP.classList.remove('damaging');
+                            
+                            // Check if boss is defeated AFTER damage animation completes
+                            if (bossHealth <= 0 && !battleEnded) {
+                                // Mark battle as ended to prevent multiple calls
+                                battleEnded = true;
+                                
+                                console.log('Boss defeated! Health:', bossHealth);
+                                
+                                // Wait for player attack animation to fully complete first
+                                // The player attack animation takes 300ms forward + 300ms back = 600ms total
+                                // Plus the boss hit shake animation which takes 400ms (4 flashes of 100ms each)
+                                // So we wait for all animations to complete before showing defeated message
+                                setTimeout(() => {
+                                    showBattleMessage(`${bossPokemon.name} was defeated!`);
+                                    console.log('Showing defeated message');
+                                    
+                                    // Wait for message to be visible, then start shake animation
+                                    setTimeout(() => {
+                                        // Make sure boss sprite exists and is visible
+                                        if (bossSprite) {
+                                            // Reset any transforms that might interfere
+                                            bossSprite.style.transform = '';
+                                            bossSprite.style.opacity = '1';
+                                            bossSprite.style.filter = '';
+                                            
+                                            // Remove any conflicting classes first
+                                            bossSprite.classList.remove('attacking', 'hit');
+                                            
+                                            // Boss shake animation (shake left/right before rolling over)
+                                            let shakeCount = 0;
+                                            const maxShakes = 4;
+                                            const shakeDistance = 20;
+                                            
+                                            function doShake() {
+                                                if (shakeCount >= maxShakes) {
+                                                    // Shake complete, now roll over and grey out
+                                                    bossSprite.classList.add('defeated');
+                                                    console.log('Defeated class added to boss sprite');
+                                                    
+                                                    // Wait for defeated animation to fully complete (1s animation + extra time to see it)
+                                                    setTimeout(() => {
+                                                        console.log('Defeated animation should be complete');
+                                                        // Clear the defeated message before showing victory
+                                                        clearBattleMessage();
+                                                        // Small delay before victory message to ensure animation is visible
+                                                        setTimeout(() => {
+                                                            if (battleEnded) { // Double check flag
+                                                                console.log('Calling endBattle');
+                                                                endBattle(true);
+                                                            }
+                                                        }, 500);
+                                                    }, 1500);
+                                                    return;
+                                                }
+                                                
+                                                const direction = shakeCount % 2 === 0 ? shakeDistance : -shakeDistance;
+                                                bossSprite.style.transition = 'transform 0.1s ease';
+                                                bossSprite.style.transform = `translateX(${direction}px)`;
+                                                
+                                                shakeCount++;
+                                                setTimeout(doShake, 100);
+                                            }
+                                            
+                                            // Start shake animation
+                                            doShake();
+                                        } else {
+                                            console.error('Boss sprite not found!');
+                                            // Fallback: just end battle
+                                            endBattle(true);
+                                        }
+                                    }, 1000); // Wait 1 second for defeated message to be visible
+                                }, 1000); // Wait 1 second after HP animations complete to ensure player attack is fully done
+                                return; // Don't continue with boss attack
+                            }
+                            
+                            // Don't continue if battle ended
+                            if (battleEnded) return;
+                            
+                            // Boss attacks back (only if still alive)
+                            setTimeout(() => {
+                                showBattleMessage('Boss attacks!');
+                                bossSprite.classList.add('attacking');
+                                
+                                setTimeout(() => {
+                                    bossSprite.classList.remove('attacking');
+                                    
+                                    // Player takes damage (less because berries = power)
+                                    const playerDamage = 5 + Math.floor(Math.random() * 5);
+                                    playerHealth = Math.max(0, playerHealth - playerDamage);
+                                    const playerHPPercent = (playerHealth / maxHealth) * 100;
+                                    
+                                    playerSprite.classList.add('hit');
+                                    playerHP.classList.add('damaging');
+                                    showDamage(playerSprite, playerDamage);
+                                    
+                                    // Update player HP bar
+                                    playerHP.style.width = playerHPPercent + '%';
+                                    playerHP.textContent = Math.round(playerHealth) + '/' + maxHealth;
+                                    
+                                    setTimeout(() => {
+                                        playerSprite.classList.remove('hit');
+                                        playerHP.classList.remove('damaging');
+                                        
+                                        // Continue to next round
+                                        battleRound();
+                                    }, 500);
+                                }, 300);
+                            }, 800);
+                        }, 500);
+                    }, 300);
+                }, 500);
+            }
+
+            // Reset battle ended flag
+            battleEnded = false;
+            
+            // Start battle
+            showBattleMessage('Battle begins!');
+            setTimeout(() => {
+                clearBattleMessage();
+                battleRound();
+            }, 1500);
+        }
+
+        // Show battle message
+        function showBattleMessage(text) {
+            const battleField = document.querySelector('.battle-field');
+            const existingMessage = battleField.querySelector('.battle-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            const message = document.createElement('div');
+            message.className = 'battle-message';
+            message.textContent = text;
+            battleField.appendChild(message);
+        }
+
+        // Clear battle message
+        function clearBattleMessage() {
+            const message = document.querySelector('.battle-message');
+            if (message) {
+                message.style.animation = 'messagePop 0.3s ease-out reverse';
+                setTimeout(() => message.remove(), 300);
+            }
+        }
+
+        // Show damage number
+        function showDamage(target, damage) {
+            const damageText = document.createElement('div');
+            damageText.className = 'damage-text';
+            damageText.textContent = '-' + damage;
+            
+            const rect = target.getBoundingClientRect();
+            const battleField = document.querySelector('.battle-field');
+            const fieldRect = battleField.getBoundingClientRect();
+            
+            damageText.style.left = (rect.left - fieldRect.left + rect.width / 2) + 'px';
+            damageText.style.top = (rect.top - fieldRect.top) + 'px';
+            
+            battleField.appendChild(damageText);
+            
+            setTimeout(() => {
+                damageText.remove();
+            }, 1000);
+        }
+
+        // End battle
+        function endBattle(playerWon) {
+            const battleField = document.querySelector('.battle-field');
+            const battleButton = document.getElementById('battleButton');
+            const playerSprite = document.querySelector('.pokemon-battle-card:first-child .pokemon-battle-sprite');
+            const bossSprite = document.querySelector('.pokemon-battle-card:last-child .pokemon-battle-sprite');
+            const playerHP = document.getElementById('playerHP');
+            const bossHP = document.getElementById('bossHP');
+            
+            if (playerWon) {
+                // Save the defeated Pokemon BEFORE reloading data
+                const defeatedPokemon = bossPokemon ? {...bossPokemon} : null;
+                
+                // Wait a moment to ensure defeated animation is fully visible
+                // The defeated animation should have already completed by the time endBattle is called
+                // But add a small delay to make sure it's visible
+                setTimeout(() => {
+                    // Clear any existing battle messages
+                    clearBattleMessage();
+                    
+                    // Show victory message after defeated animation is clearly visible
+                    setTimeout(() => {
+                        showBattleMessage('🎉 Victory! 🎉');
+                        
+                        setTimeout(() => {
+                            clearBattleMessage();
+                            
+                            // Unlock new Pokemon FIRST (before reloading data)
+                            if (isAndroidWebView() && typeof Android.unlockPokemon === 'function') {
+                                Android.unlockPokemon(1);
+                            } else {
+                                unlockedCount += 1;
+                                localStorage.setItem('unlockedPokemonCount', unlockedCount.toString());
+                            }
+                            
+                            // Reset earned stars (will be refreshed from Android)
+                            gameState.earnedStars = 0;
+                            saveState();
+                            
+                            // Show victory screen with the defeated Pokemon
+                            if (defeatedPokemon) {
+                                showVictory(defeatedPokemon);
+                            } else {
+                                console.error('No defeated Pokemon to show');
+                            }
+                            
+                            // Clean up battle state immediately (but don't reload data yet - wait for victory screen to close)
+                            battleField.classList.remove('battling');
+                            
+                            // Reset battle animations
+                            playerSprite.classList.remove('attacking', 'hit', 'defeated');
+                            bossSprite.classList.remove('attacking', 'hit', 'defeated');
+                            playerHP.classList.remove('damaging');
+                            bossHP.classList.remove('damaging');
+                            
+                            // Reset HP bars
+                            playerHP.style.width = '100%';
+                            playerHP.textContent = '100/100';
+                            bossHP.style.width = '100%';
+                            bossHP.textContent = '100/100';
+                            
+                            // Reset battle button (will be updated when victory screen closes)
+                            battleButton.disabled = true;
+                            battleButton.textContent = '⚔️ Battle ⚔️';
+                            
+                            // Note: UI refresh will happen when victory screen is closed via closeVictory()
+                        }, 1500);
+                    }, 800);
+                }, 500);
+            } else {
+                battleField.classList.remove('battling');
+                playerSprite.classList.remove('attacking', 'hit', 'defeated');
+                bossSprite.classList.remove('attacking', 'hit', 'defeated');
+                playerHP.classList.remove('damaging');
+                bossHP.classList.remove('damaging');
+                battleButton.disabled = false;
+                battleButton.textContent = '⚔️ Battle ⚔️';
+                alert('Not enough power! Earn more berries!');
+            }
+        }
+
+        // Show Victory
+        function showVictory(pokemonToShow) {
+            // Use provided Pokemon or fall back to current bossPokemon
+            const pokemon = pokemonToShow || bossPokemon;
+            if (!pokemon) {
+                console.error('No Pokemon to show in victory screen');
+                return;
+            }
+            
+            const victorySprite = document.getElementById('victoryPokemonSprite');
+            victorySprite.innerHTML = `<img src="" alt="${pokemon.name}" data-filename="${pokemon.filename}" onerror="this.parentElement.innerHTML='❓';">`;
+            const victoryImg = victorySprite.querySelector('img');
+            if (victoryImg) {
+                loadPokemonImageAsync(pokemon.filename, victoryImg);
+            }
+            document.getElementById('victoryPokemonName').textContent = pokemon.name;
+            document.getElementById('victoryOverlay').style.display = 'flex';
+        }
+
+        // Close Victory
+        function closeVictory() {
+            document.getElementById('victoryOverlay').style.display = 'none';
+            // Refresh the UI to show the new Pokemon in Pokedex and next boss
+            refreshAfterVictory();
+        }
+
+        // Refresh UI after victory
+        function refreshAfterVictory() {
+            // Reload Pokemon data to get updated unlocked count and new boss
+            // This will automatically call updateUI() which refreshes everything
+            loadPokemonData();
+            
+            // Also update berry meter and battle button state
+            updateBerryMeter();
+            updateBattleButton();
+        }
+
+        // Event Listeners
+        document.getElementById('battleButton').addEventListener('click', battleBoss);
+        
+        // Navigate to training map screen
+        function navigateToTrainingMap() {
+            if (isAndroidWebView() && typeof Android.navigateToTrainingMap === 'function') {
+                Android.navigateToTrainingMap();
+            } else {
+                alert('Training map navigation is only available in Android app');
+            }
+        }
+        
+        // Navigate to optional training map screen
+        function navigateToOptionalTrainingMap() {
+            if (isAndroidWebView() && typeof Android.navigateToOptionalTrainingMap === 'function') {
+                Android.navigateToOptionalTrainingMap();
+            } else {
+                alert('Optional training map navigation is only available in Android app');
+            }
+        }
+        
+        // Navigate to native Android battle hub
+        function navigateToNativeBattleHub() {
+            if (isAndroidWebView() && typeof Android.navigateToNativeBattleHub === 'function') {
+                Android.navigateToNativeBattleHub();
+            } else {
+                alert('Native battle hub is only available in Android app');
+            }
+        }
+        
+        // Test function to grant berries
+        function grantTestBerries() {
+            console.log('grantTestBerries called');
+            if (isAndroidWebView() && typeof Android !== 'undefined' && typeof Android.grantTestBerries === 'function') {
+                try {
+                    console.log('Calling Android.grantTestBerries(50)');
+                    Android.grantTestBerries(50);
+                    // Refresh berry meter after granting (give it time to process)
+                    setTimeout(() => {
+                        console.log('Refreshing berry meter after test grant');
+                        updateBerryMeter();
+                        updateBattleButton();
+                    }, 1000);
+                } catch (e) {
+                    console.error('Error granting test berries:', e);
+                    alert('Error granting test berries: ' + e.message);
+                }
+            } else {
+                console.log('Test berries not available - isAndroidWebView:', isAndroidWebView(), 'Android:', typeof Android, 'grantTestBerries:', typeof Android?.grantTestBerries);
+                alert('Test berries only available in Android app');
+            }
+        }
+
+        // Function to be called from Android after game completion
+        window.onGameComplete = function() {
+            refreshBerries();
+        };
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
+

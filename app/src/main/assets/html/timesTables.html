@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Times Tables</title>
+    <style>
+        :root {
+            --tile-bg: #ffc107; /* Amber */
+            --tile-flipped-bg: #607d8b; /* Blue Grey */
+            --tile-correct-bg: #8bc34a; /* Light Green */
+            --tile-text-color: #212121;
+            --tile-flipped-text-color: #ffffff;
+        }
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background-color: #fffcf9;
+            text-align: center;
+        }
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+            perspective: 1000px;
+        }
+        .tile {
+            background-color: var(--tile-bg);
+            color: var(--tile-text-color);
+            border-radius: 15px;
+            aspect-ratio: 4 / 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: transform 0.6s, background-color 0.3s;
+            transform-style: preserve-3d;
+        }
+        .tile .tile-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+        }
+        .tile .tile-front {
+            background-color: var(--tile-bg);
+        }
+        .tile .tile-back {
+            background-color: var(--tile-flipped-bg);
+            color: var(--tile-flipped-text-color);
+            transform: rotateY(180deg);
+            font-size: 3rem;
+        }
+        .tile.flipped {
+            transform: rotateY(180deg);
+        }
+        .tile.correct, .tile.correct .tile-front {
+            background-color: var(--tile-correct-bg);
+            color: white;
+        }
+        .tile.selector {
+            background-color: #2196f3; /* Blue */
+            color: white;
+        }
+        .tile.selector:hover {
+            background-color: #1976d2;
+        }
+        .answer-input {
+            color: #f44336; /* Red */
+            text-decoration: underline;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button, .modal-btn {
+            font-family: inherit;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .button.green-button { background-color: #4CAF50; color: white; }
+        .modal-btn {
+            padding: 20px;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>Times Tables</h1>
+    <div class="grid-container" id="gridContainer"></div>
+</div>
+
+<div id="selectorModal" class="modal">
+    <div class="modal-content">
+        <h2>Choose a times table</h2>
+        <div id="selectorGrid" class="modal-grid"></div>
+    </div>
+</div>
+
+<script src="quizProgress.js"></script>
+<script>
+    // --- Minimal TTS Function ---
+    window.currentTTSUtterance = null;
+    function readText(text, lang, rate = 1.0, onEndCallback = null) {
+        if ('speechSynthesis' in window) {
+            if (window.currentTTSUtterance) {
+                window.speechSynthesis.cancel();
+            }
+            window.currentTTSUtterance = new SpeechSynthesisUtterance(text);
+            window.currentTTSUtterance.lang = lang;
+            window.currentTTSUtterance.rate = rate;
+            window.currentTTSUtterance.onend = function() {
+                if (onEndCallback) onEndCallback();
+                window.currentTTSUtterance = null;
+            };
+            window.speechSynthesis.speak(window.currentTTSUtterance);
+        } else {
+            console.warn("Text-to-speech not supported.");
+            if (onEndCallback) onEndCallback();
+        }
+    }
+
+    // --- Game Logic ---
+    const gridContainer = document.getElementById('gridContainer');
+    const selectorModal = document.getElementById('selectorModal');
+    const selectorGrid = document.getElementById('selectorGrid');
+
+    // Check URL parameters for table parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableParam = urlParams.get('table');
+    const isLocked = tableParam !== null; // Lock if table parameter is provided
+
+    let currentTimesTable = 3; // Default
+    if (tableParam) {
+        if (tableParam.toLowerCase() === 'random') {
+            // Pick a random table from 0-10
+            currentTimesTable = Math.floor(Math.random() * 11);
+        } else {
+            // Try to parse as number
+            const parsed = parseInt(tableParam, 10);
+            if (!isNaN(parsed) && parsed >= 0 && parsed <= 10) {
+                currentTimesTable = parsed;
+            }
+        }
+    }
+
+    let questions = [];
+    let solvedCount = 0;
+    let activeTile = null;
+    let correctCount = 0;
+    let incorrectCount = 0;
+
+    let quiz = null;
+    function initQuizProgress(defaultRequired) {
+        quiz = QuizProgress.create({ defaultRequired: defaultRequired });
+        syncQuizVars();
+    }
+    function syncQuizVars() {
+        if (!quiz) return;
+        correctCount = quiz.getCorrectCount();
+        incorrectCount = quiz.getIncorrectCount();
+    }
+    function recordQuizAnswer(wasCorrect) {
+        const r = quiz.recordAnswer(wasCorrect);
+        syncQuizVars();
+        return r;
+    }
+    function quizIsComplete() { return quiz && quiz.isComplete(); }
+
+    function initializeGame() {
+        setupSelectorModal();
+        // Allow initialization even if locked (to generate questions and render grid)
+        setTimesTable(currentTimesTable, true);
+    }
+
+    function setupSelectorModal() {
+        selectorGrid.innerHTML = '';
+        
+        // If locked, don't set up the modal buttons at all
+        if (isLocked) {
+            return;
+        }
+        
+        for (let i = 0; i <= 10; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'button modal-btn';
+            btn.textContent = i;
+            btn.onclick = () => {
+                if (!isLocked) {
+                    setTimesTable(i);
+                    selectorModal.style.display = 'none';
+                }
+            };
+            selectorGrid.appendChild(btn);
+        }
+    }
+
+    function setTimesTable(num, force = false) {
+        // Prevent changing table if locked (unless forced during initialization)
+        if (isLocked && !force) {
+            return;
+        }
+        currentTimesTable = num;
+        solvedCount = 0;
+        activeTile = null;
+        initQuizProgress(10);
+        generateQuestions();
+        renderGrid();
+        setTimeout(revealRandomTile, 800);
+    }
+
+    function generateQuestions() {
+        questions = [];
+        for (let i = 0; i <= 10; i++) {
+            questions.push({
+                id: i,
+                multiplicand: currentTimesTable,
+                multiplier: i,
+                answer: currentTimesTable * i,
+                solved: false,
+                revealed: false,
+                firstAnswerCounted: false // Track if first answer has been counted for this question
+            });
+        }
+    }
+
+    function renderGrid() {
+        gridContainer.innerHTML = '';
+        
+        // Only show selector tile if not locked
+        if (!isLocked) {
+            const selectorTile = document.createElement('div');
+            selectorTile.className = 'tile selector';
+            selectorTile.innerHTML = `<div class="tile-face tile-front">${currentTimesTable} times table</div>`;
+            selectorTile.onclick = () => { 
+                if (!isLocked) {
+                    selectorModal.style.display = 'flex'; 
+                }
+            };
+            gridContainer.appendChild(selectorTile);
+        } else {
+            // When locked, ensure modal cannot be opened
+            if (selectorModal) {
+                selectorModal.style.display = 'none';
+                // Remove any existing click handlers
+                selectorModal.onclick = null;
+            }
+        }
+
+        questions.forEach(q => {
+            const tile = document.createElement('div');
+            tile.className = 'tile flipped';
+            tile.dataset.id = q.id;
+            tile.innerHTML = `
+                <div class="tile-face tile-front">
+                    ${q.multiplicand} &times; ${q.multiplier} = <span class="answer-input">?</span>
+                </div>
+                <div class="tile-face tile-back">★</div>
+            `;
+            tile.onclick = () => handleTileClick(tile, q);
+            gridContainer.appendChild(tile);
+        });
+    }
+
+    function handleTileClick(tile, question) {
+        if (!question.revealed || question.solved) return;
+        showNumberPadPrompt({
+            title: `What is ${question.multiplicand} × ${question.multiplier}?`,
+            maxLength: 3,
+            allowZero: true,
+            onSubmit: (answer) => {
+                if (answer === null) return;
+                if (parseInt(answer, 10) === question.answer) {
+                    handleCorrectAnswer(tile, question);
+                } else {
+                    handleIncorrectAnswer(tile, question);
+                }
+            }
+        });
+    }
+
+    function handleCorrectAnswer(tile, question) {
+        question.solved = true;
+        solvedCount++;
+        // Only count as correct if this is the first answer attempt for this question
+        if (!question.firstAnswerCounted) {
+            /* LEGACY (pre-quizProgress) correctCount++; */
+            recordQuizAnswer(true);
+            question.firstAnswerCounted = true; // Mark that we've counted the first answer
+        }
+        tile.classList.add('correct');
+        tile.querySelector('.tile-front').innerHTML = `${question.multiplicand} &times; ${question.multiplier} = ${question.answer}`;
+        readText("Correct!", "en-US");
+        /* LEGACY (pre-quizProgress) if (solvedCount === questions.length) */
+        if (quizIsComplete()) {
+            endGame();
+        } else {
+            setTimeout(revealRandomTile, 1000);
+        }
+    }
+
+    function handleIncorrectAnswer(tile, question) {
+        // Only count as incorrect if this is the first answer attempt for this question
+        if (!question.firstAnswerCounted) {
+            /* LEGACY (pre-quizProgress) incorrectCount++; */
+            recordQuizAnswer(false);
+            question.firstAnswerCounted = true; // Mark that we've counted the first answer
+        }
+        question.revealed = false;
+        tile.classList.add('flipped');
+        readText("Oops, try another one.", "en-US");
+        setTimeout(revealRandomTile, 800);
+    }
+
+    function revealRandomTile() {
+        const unsolvedQuestions = questions.filter(q => !q.solved);
+        if (unsolvedQuestions.length === 0) return;
+
+        if (activeTile) {
+            const activeQuestion = questions.find(q => q.id == activeTile.dataset.id);
+            if (activeQuestion && !activeQuestion.solved) {
+                activeQuestion.revealed = false;
+                activeTile.classList.add('flipped');
+            }
+        }
+
+        const randomQuestion = unsolvedQuestions[Math.floor(Math.random() * unsolvedQuestions.length)];
+        randomQuestion.revealed = true;
+        // Note: We don't reset firstAnswerCounted here - it's tracked per question
+        const tileToReveal = gridContainer.querySelector(`.tile[data-id='${randomQuestion.id}']`);
+        if (tileToReveal) {
+            activeTile = tileToReveal;
+            tileToReveal.classList.remove('flipped');
+        }
+    }
+
+    function endGame() {
+        gridContainer.innerHTML = `<div class="tile correct" style="grid-column: 1 / -1; font-size: 2rem; aspect-ratio: auto; height: 200px;">🎉 Well Done! 🎉</div>`;
+        readText("Great job! You're a multiplying master'!", "en-US");
+        /* LEGACY (pre-quizProgress)
+        if (window.Android && typeof window.Android.gameCompleted === 'function') {
+            window.Android.gameCompleted(correctCount, incorrectCount);
+        } else if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'gameCompleted', correct: correctCount, incorrect: incorrectCount }, '*');
+        }
+        */
+        if (quiz) quiz.notifyAndroidComplete();
+        setTimeout(() => {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'closeModal' }, '*');
+            } else {
+                history.back();
+            }
+        }, 3000);
+    }
+
+    function showNumberPadPrompt({ title, maxLength = 3, onSubmit, allowZero = false }) {
+        const oldModal = document.getElementById('numberPadModal');
+        if (oldModal) oldModal.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'numberPadModal';
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <h2 style="margin:0 0 12px 0;">${title}</h2>
+            <input id="numberPadInput" type="text" inputmode="numeric" style="font-size:2em;text-align:center;width:100%;margin-bottom:12px;letter-spacing:0.3em; border: 2px solid #ccc; padding: 5px; border-radius: 5px;" readonly />
+            <div id="numberPadButtons" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;"></div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        const input = modal.querySelector('#numberPadInput');
+        const buttons = modal.querySelector('#numberPadButtons');
+        const deleteBtn = modal.querySelector('#numberPadDelete');
+        const enterBtn = modal.querySelector('#numberPadEnter');
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                onSubmit(null);
+            }
+        });
+
+        const btnOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '⏎'];
+        btnOrder.forEach(val => {
+            const btn = document.createElement('button');
+            btn.className = 'button modal-btn';
+            btn.textContent = val;
+            if (val === 'C') {
+                btn.style.backgroundColor = '#ff9800';
+                btn.onclick = () => { input.value = ''; };
+            } else if (val === '⏎') {
+                btn.style.backgroundColor = '#4CAF50';
+                btn.onclick = () => {
+                    const val = input.value;
+                    if (val.length > 0 && (allowZero || parseInt(val, 10) >= 0)) {
+                        document.body.removeChild(modal);
+                        onSubmit(val);
+                    }
+                };
+            } else {
+                btn.onclick = () => {
+                    if (input.value.length < maxLength) input.value += val;
+                };
+            }
+            buttons.appendChild(btn);
+        });
+
+    }
+
+    document.addEventListener('DOMContentLoaded', initializeGame);
+</script>
+
+</body>
+</html>

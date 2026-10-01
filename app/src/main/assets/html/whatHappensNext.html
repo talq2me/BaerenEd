@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Happens Next?</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #starCount {
+            text-align: center;
+            font-size: 24px;
+            color: #ffcc00;
+            margin-bottom: 20px;
+        }
+        .story-display {
+            background: #f0f8ff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 1.1em;
+            line-height: 1.6;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+            display: inline-block;
+            width: 100%;
+        }
+        .question {
+            text-align: center;
+            font-size: 1.4em;
+            color: #764ba2;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .options-container {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .option {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .option:hover {
+            background: #e3f2fd;
+            border-color: #ff8c00;
+            transform: translateX(10px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .option.selected {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        .option.correct {
+            background: #c8e6c9;
+            border-color: #4CAF50;
+        }
+        .option.incorrect {
+            background: #ffcdd2;
+            border-color: #f44336;
+        }
+        .option::before {
+            content: '○';
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        .option.selected::before {
+            content: '●';
+        }
+        .button {
+            font-family: inherit;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: white;
+            background: #667eea;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #ff8c00;
+            transform: scale(1.05);
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .popup-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px 50px;
+            font-size: 1.8em;
+            font-weight: bold;
+            z-index: 2000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-radius: 15px;
+            animation: popupIn 0.3s ease, popupOut 0.3s ease 1.7s forwards;
+            pointer-events: none;
+        }
+        .popup-message.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 3px solid #c3e6cb;
+        }
+        .popup-message.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 3px solid #f5c6cb;
+        }
+        @keyframes popupIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes popupOut {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        }
+        .feedback {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: popIn 0.5s ease;
+        }
+        .feedback.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .feedback.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>📖 What Happens Next? 📖</h1>
+        <div id="starCount">⭐ 0 / 5</div>
+        
+        <div class="story-display" id="storyDisplay">
+            <p>Loading story...</p>
+        </div>
+        
+        <div class="question">What do you think happens next?</div>
+        
+        <div class="options-container" id="optionsContainer"></div>
+        
+        <div id="feedbackContainer"></div>
+        
+        <div class="button-container">
+            <button class="button" id="submitButton" onclick="submitAnswer()">Submit Answer</button>
+            <button class="button hidden" id="nextButton" onclick="nextStory()">Next Story →</button>
+        </div>
+    </div>
+
+    <script src="quizProgress.js"></script>
+    <script src="gameJsonLoader.js"></script>
+    <script>
+        function readText(text, lang, rate = 0.8, onEndCallback = null) {
+            if (window.Android && typeof window.Android.readText === 'function') {
+                window.Android.readText(text, lang);
+                setTimeout(() => {
+                    if (onEndCallback) onEndCallback();
+                }, 1000);
+            } else if ('speechSynthesis' in window) {
+                if (window.currentTTSUtterance) window.speechSynthesis.cancel();
+                window.currentTTSUtterance = new SpeechSynthesisUtterance(text);
+                window.currentTTSUtterance.lang = lang;
+                window.currentTTSUtterance.rate = rate;
+                window.currentTTSUtterance.onend = () => {
+                    if (onEndCallback) onEndCallback();
+                    window.currentTTSUtterance = null;
+                };
+                window.speechSynthesis.speak(window.currentTTSUtterance);
+            } else {
+                if (onEndCallback) onEndCallback();
+            }
+        }
+
+        let stories = [];
+        let currentStoryIndex = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let maxQuestions = 5;
+        let currentStory = null;
+        let selectedOption = null;
+        let isFirstAttempt = true;
+
+        let quiz = null;
+        function initQuizProgress(defaultRequired) {
+            quiz = QuizProgress.create({ defaultRequired: defaultRequired });
+            syncQuizVars();
+        }
+        function syncQuizVars() {
+            if (!quiz) return;
+            correctCount = quiz.getCorrectCount();
+            incorrectCount = quiz.getIncorrectCount();
+            if (typeof maxQuestions !== 'undefined') maxQuestions = quiz.getRequiredCorrect();
+        }
+        function recordQuizAnswer(wasCorrect) {
+            const r = quiz.recordAnswer(wasCorrect);
+            syncQuizVars();
+            return r;
+        }
+        function quizIsComplete() { return quiz && quiz.isComplete(); }
+
+        /* LEGACY (pre-quizProgress) — revert by uncommenting this block and removing quiz usage below
+        const urlParams = new URLSearchParams(window.location.search);
+        const totalQuestionsParam = urlParams.get('totalQuestions');
+        let maxQuestions = 5;
+        if (totalQuestionsParam) {
+            const parsed = parseInt(totalQuestionsParam, 10);
+            if (!isNaN(parsed) && parsed > 0) {
+                maxQuestions = parsed;
+                console.log('Using totalQuestions from URL parameter:', maxQuestions);
+            }
+        }
+        */
+        const urlParams = new URLSearchParams(window.location.search);
+        const totalQuestionsParam = urlParams.get('totalQuestions');
+        function getGameConfig() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const file = urlParams.get('file');
+            return file || 'whatHappensNext.json';
+        }
+
+        async function loadStories() {
+            const fileName = getGameConfig();
+            try {
+                const data = await GameJsonLoader.loadDataJson(fileName);
+                if (!Array.isArray(data) || !data.length) {
+                    throw new Error('Empty data');
+                }
+                stories = data;
+                maxQuestions = Math.min(stories.length, maxQuestions);
+                startGame();
+            } catch (error) {
+                console.error('Failed to load game data:', error);
+                GameJsonLoader.failGameLoad('Failed to load game data.');
+            }
+        }
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function startGame() {
+            stories = shuffleArray(stories);
+            currentStoryIndex = 0;
+            initQuizProgress(maxQuestions);
+            if (quiz) quiz.setRequiredCorrect(maxQuestions);
+            syncQuizVars();
+            updateStarCount();
+            loadStory();
+        }
+
+        function loadStory() {
+            if (quizIsComplete()) {
+                endGame();
+                return;
+            }
+
+            currentStory = stories[quiz.wrapIndex(stories.length)];
+            selectedOption = null;
+            isFirstAttempt = true;
+            
+            document.getElementById('storyDisplay').innerHTML = `<p>${currentStory.story}</p>`;
+            document.getElementById('feedbackContainer').innerHTML = '';
+            document.getElementById('submitButton').disabled = false;
+            document.getElementById('nextButton').classList.add('hidden');
+
+            createOptions();
+            
+            setTimeout(() => {
+                readText(currentStory.story, 'en-US', 0.7);
+            }, 500);
+        }
+
+        function createOptions() {
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+            
+            // Shuffle options array and track where correct answer moved to
+            const originalOptions = [...currentStory.options];
+            const correctAnswer = originalOptions[currentStory.correct];
+            const shuffledOptions = shuffleArray(originalOptions);
+            const newCorrectIndex = shuffledOptions.indexOf(correctAnswer);
+            
+            // Update currentStory.correct to the new position
+            currentStory.correct = newCorrectIndex;
+            
+            shuffledOptions.forEach((option, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'option';
+                optionDiv.textContent = option;
+                optionDiv.dataset.index = index;
+                optionDiv.onclick = () => selectOption(optionDiv, index);
+                container.appendChild(optionDiv);
+            });
+        }
+
+        function selectOption(optionDiv, index) {
+            // Remove previous selection
+            document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            optionDiv.classList.add('selected');
+            selectedOption = index;
+        }
+
+        function submitAnswer() {
+            if (selectedOption === null) {
+                document.getElementById('feedbackContainer').innerHTML = 
+                    '<div class="feedback incorrect">Please select an answer first!</div>';
+                setTimeout(() => {
+                    document.getElementById('feedbackContainer').innerHTML = '';
+                }, 2000);
+                return;
+            }
+
+            const isCorrect = selectedOption === currentStory.correct;
+            const options = document.querySelectorAll('.option');
+            
+            options.forEach((opt, index) => {
+                opt.onclick = null; // Disable further clicks
+                if (index === currentStory.correct) {
+                    opt.classList.add('correct');
+                } else if (index === selectedOption && !isCorrect) {
+                    opt.classList.add('incorrect');
+                }
+            });
+
+            /* LEGACY (pre-quizProgress)
+            if (isCorrect) { if (isFirstAttempt) correctCount++; }
+            else { if (isFirstAttempt) { incorrectCount++; isFirstAttempt = false; } }
+            */
+            recordQuizAnswer(isCorrect);
+            updateStarCount();
+            document.getElementById('submitButton').disabled = true;
+            if (isCorrect) {
+                showPopupMessage('✓ Great thinking! That makes sense! 🎉', 'correct');
+            } else {
+                showPopupMessage('✗ Not quite. Think about what would make the most sense!', 'incorrect');
+            }
+            setTimeout(() => {
+                if (quizIsComplete()) endGame();
+                else loadStory();
+            }, 2000);
+        }
+
+        function nextStory() {
+            currentStoryIndex++;
+            loadStory();
+        }
+
+        function showPopupMessage(message, type) {
+            const popup = document.createElement('div');
+            popup.className = `popup-message ${type}`;
+            popup.textContent = message;
+            document.body.appendChild(popup);
+            
+            setTimeout(() => {
+                popup.remove();
+            }, 2000);
+        }
+
+        function updateStarCount() {
+            document.getElementById("starCount").innerText = quiz ? `⭐ ${quiz.progressLabel()}` : `⭐ ${correctCount} / ${maxQuestions}`;
+        }
+
+        function endGame() {
+            document.getElementById('storyDisplay').innerHTML = 
+                `<h2>🎉 Game Complete! 🎉</h2><p>Final Score: ${correctCount}/${maxQuestions}⭐</p>`;
+            document.getElementById('optionsContainer').innerHTML = '';
+            document.querySelector('.button-container').innerHTML = '';
+            
+            /* LEGACY (pre-quizProgress)
+            if (window.Android && typeof window.Android.gameCompleted === 'function') {
+                window.Android.gameCompleted(correctCount, incorrectCount);
+            } else if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'gameCompleted', correct: correctCount, incorrect: incorrectCount }, '*');
+            }
+            */
+            if (quiz) quiz.notifyAndroidComplete();
+            setTimeout(() => {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'closeModal' }, '*');
+                } else {
+                    history.back();
+                }
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadStories);
+    </script>
+</body>
+</html>
+

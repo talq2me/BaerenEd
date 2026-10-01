@@ -1,0 +1,120 @@
+{
+  "id": "ufli-chain-i-e-g1",
+  "concept": "i-e",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "side",
+        "prompt": "Make the word side.",
+        "correctChoices": [
+          {
+            "text": "s"
+          },
+          {
+            "text": "i"
+          },
+          {
+            "text": "d"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "h"
+          },
+          {
+            "text": "t"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "side",
+          "to": "hide",
+          "prompt": "Say side. Change s to h for hide. Build hide."
+        },
+        {
+          "from": "hide",
+          "to": "tide",
+          "prompt": "Say hide. Change h to t for tide. Build tide."
+        },
+        {
+          "from": "tide",
+          "to": "wide",
+          "prompt": "Say tide. Change t to w for wide. Build wide."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "like",
+        "prompt": "Make the word like.",
+        "correctChoices": [
+          {
+            "text": "l"
+          },
+          {
+            "text": "i"
+          },
+          {
+            "text": "k"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "b"
+          },
+          {
+            "text": "h"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "like",
+          "to": "bike",
+          "prompt": "Say like. Change l to b for bike. Build bike."
+        },
+        {
+          "from": "bike",
+          "to": "hike",
+          "prompt": "Say bike. Change b to h for hike. Build hike."
+        },
+        {
+          "from": "hike",
+          "to": "pike",
+          "prompt": "Say hike. Change h to p for pike. Build pike."
+        },
+        {
+          "from": "kite",
+          "to": "rack",
+          "prompt": "Build rack."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "rack",
+      "steps": [
+        {
+          "from": "pike",
+          "to": "five",
+          "prompt": "Build five."
+        },
+        {
+          "from": "five",
+          "to": "kite",
+          "prompt": "Build kite."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "id": "ufli-chain-soft-ge-g1",
+  "concept": "soft-ge",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "cage",
+        "prompt": "Make the word cage.",
+        "correctChoices": [
+          {
+            "text": "c"
+          },
+          {
+            "text": "a"
+          },
+          {
+            "text": "g"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "w"
+          },
+          {
+            "text": "t"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "cage",
+          "to": "wage",
+          "prompt": "Say cage. Change the c to w. Build wage."
+        },
+        {
+          "from": "wage",
+          "to": "sage",
+          "prompt": "Say wage. Change wage to sage. Build sage."
+        },
+        {
+          "from": "sage",
+          "to": "stage",
+          "prompt": "Say sage. Add t between s and a. Build stage."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "age",
+        "prompt": "Make the word age.",
+        "correctChoices": [
+          {
+            "text": "a"
+          },
+          {
+            "text": "g"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "i"
+          },
+          {
+            "text": "o"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "age",
+          "to": "page",
+          "prompt": "Say age. Add p at the beginning. Build page."
+        },
+        {
+          "from": "page",
+          "to": "rage",
+          "prompt": "Say page. Change p to r for rage. Build rage."
+        },
+        {
+          "from": "rage",
+          "to": "range",
+          "prompt": "Say rage. Spell range."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Gyms Map</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            padding: 12px 15px;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .section-header:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #1f618d 100%);
+        }
+
+        .section-title {
+            color: white;
+            font-size: 1.3em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .toggle-button {
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-button.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .gym-map-content {
+            background: white;
+            border-radius: 0 0 10px 10px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            overflow: hidden;
+        }
+
+        .gym-map-content.collapsed {
+            max-height: 0;
+            padding: 0 15px;
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #8b6914;
+            border: 2px solid #654321;
+            border-radius: 10px;
+            overflow: hidden;
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139, 105, 20, 0.3) 2px, rgba(139, 105, 20, 0.3) 4px),
+                repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(139, 105, 20, 0.3) 2px, rgba(139, 105, 20, 0.3) 4px);
+        }
+
+        .gym {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: #ffd700;
+            border: 3px solid #ff8c00;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .gym:hover {
+            transform: scale(1.15);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+        }
+
+        .gym.completed {
+            background: #4CAF50;
+            border-color: #2e7d32;
+            cursor: default;
+        }
+
+        .gym.completed:hover {
+            transform: scale(1);
+        }
+
+        .gym-number {
+            font-size: 0.6em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 2px;
+        }
+
+        .gym-title {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #ff8c00;
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-size: 0.7em;
+            white-space: nowrap;
+            color: #2c3e50;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+
+        .gym.completed .gym-title {
+            border-color: #2e7d32;
+            color: #7f8c8d;
+        }
+
+        .path {
+            position: absolute;
+            background: #ffd700;
+            height: 3px;
+            z-index: 1;
+            transform-origin: 0 50%;
+        }
+
+        .error {
+            text-align: center;
+            color: #e74c3c;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            margin: 10px;
+        }
+
+        /* Tablet optimizations */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .map-container {
+                height: 550px;
+            }
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 767px) {
+            .map-container {
+                height: 500px;
+            }
+            .gym {
+                width: 70px;
+                height: 70px;
+                font-size: 1.3em;
+            }
+            .gym-title {
+                font-size: 0.65em;
+                top: 75px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section-header" onclick="toggleMap()">
+            <h2 class="section-title">🗺️ Training Gyms Map</h2>
+            <span class="toggle-button" id="mapToggle">▼</span>
+        </div>
+        <div class="gym-map-content" id="mapContent">
+            <div class="map-container" id="mapContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        let gyms = [];
+        let completedGyms = new Set();
+
+        // Detect if we're running in Android WebView or browser
+        function isAndroidWebView() {
+            return typeof Android !== 'undefined';
+        }
+
+        // Load required tasks using the same method the main page uses
+        function loadGymsFromConfig() {
+            try {
+                // Use the Android interface method that uses getCurrentMainContent() like the main page
+                if (isAndroidWebView() && typeof Android.getRequiredTasks === 'function') {
+                    const requiredTasksJson = Android.getRequiredTasks();
+                    console.log('Got required tasks from Android, length:', requiredTasksJson.length);
+                    
+                    const requiredTasks = JSON.parse(requiredTasksJson);
+                    console.log('Parsed required tasks, count:', requiredTasks.length);
+                    
+                    gyms = requiredTasks.map((task, index) => ({
+                        id: index + 1,
+                        title: task.title,
+                        launch: task.launch,
+                        stars: task.stars || 3
+                    }));
+                    
+                    console.log('Loaded gyms from required tasks:', gyms.length, gyms);
+                } else {
+                    // Browser fallback: try to load from localStorage or use defaults
+                    const savedTasks = localStorage.getItem('gymMapRequiredTasks');
+                    if (savedTasks) {
+                        const requiredTasks = JSON.parse(savedTasks);
+                        gyms = requiredTasks.map((task, index) => ({
+                            id: index + 1,
+                            title: task.title,
+                            launch: task.launch,
+                            stars: task.stars || 3
+                        }));
+                    } else {
+                        // Use hardcoded defaults for browser testing
+                        gyms = [
+                            { id: 1, title: 'Duological', launch: 'duologicalGame', stars: 3 },
+                            { id: 2, title: 'Translation', launch: 'translation', stars: 3 },
+                            { id: 3, title: 'French Stories', launch: 'frenchStories', stars: 3 }
+                        ];
+                        console.log('Using browser defaults, gyms count:', gyms.length);
+                    }
+                }
+                
+                if (gyms.length === 0) {
+                    console.error('No gyms loaded!');
+                    document.getElementById('mapContainer').innerHTML = '<div class="error">No required tasks found.</div>';
+                    return;
+                }
+                
+                initMap();
+            } catch (e) {
+                console.error('Error loading gyms:', e, e.stack);
+                document.getElementById('mapContainer').innerHTML = '<div class="error">Error loading gyms: ' + e.message + '</div>';
+            }
+        }
+
+        // Load completed gyms from Android or localStorage
+        function loadCompletedGyms() {
+            completedGyms.clear();
+            if (isAndroidWebView() && typeof Android.getCompletedTasks === 'function') {
+                try {
+                    const completedJson = Android.getCompletedTasks();
+                    const completed = JSON.parse(completedJson);
+                    completed.forEach(taskId => {
+                        completedGyms.add(taskId);
+                    });
+                    console.log('Loaded completed gyms:', Array.from(completedGyms));
+                } catch (e) {
+                    console.error('Error loading completed tasks:', e);
+                }
+            } else {
+                // Browser fallback: use localStorage
+                const saved = localStorage.getItem('completedGyms');
+                if (saved) {
+                    try {
+                        const completed = JSON.parse(saved);
+                        completed.forEach(taskId => {
+                            completedGyms.add(taskId);
+                        });
+                    } catch (e) {
+                        console.error('Error parsing completed gyms:', e);
+                    }
+                }
+            }
+        }
+
+        // Generate random positions for gyms
+        function generateGymPositions(count) {
+            const positions = [];
+            const mapWidth = 100;
+            const mapHeight = 100;
+            const minDistance = 15; // Minimum distance between gyms
+            
+            for (let i = 0; i < count; i++) {
+                let attempts = 0;
+                let x, y;
+                let valid = false;
+                
+                while (!valid && attempts < 50) {
+                    x = 10 + Math.random() * (mapWidth - 20);
+                    y = 10 + Math.random() * (mapHeight - 20);
+                    
+                    valid = true;
+                    for (const pos of positions) {
+                        const dist = Math.sqrt(Math.pow(x - pos.x, 2) + Math.pow(y - pos.y, 2));
+                        if (dist < minDistance) {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    attempts++;
+                }
+                
+                positions.push({ x, y });
+            }
+            
+            return positions;
+        }
+
+        // Create connections between gyms (random network)
+        function createConnections(positions) {
+            const connections = [];
+            const maxConnections = Math.min(positions.length - 1, 3); // Each gym connects to 1-3 others
+            
+            for (let i = 0; i < positions.length; i++) {
+                const connected = new Set();
+                connected.add(i); // Don't connect to self
+                
+                // Connect to some random other gyms
+                const numConnections = Math.floor(Math.random() * maxConnections) + 1;
+                for (let j = 0; j < numConnections && connected.size < positions.length; j++) {
+                    let target = Math.floor(Math.random() * positions.length);
+                    let attempts = 0;
+                    while (connected.has(target) && attempts < 20) {
+                        target = Math.floor(Math.random() * positions.length);
+                        attempts++;
+                    }
+                    if (!connected.has(target)) {
+                        connected.add(target);
+                        // Add connection (avoid duplicates)
+                        const conn = [Math.min(i, target), Math.max(i, target)];
+                        const exists = connections.some(c => c[0] === conn[0] && c[1] === conn[1]);
+                        if (!exists) {
+                            connections.push(conn);
+                        }
+                    }
+                }
+            }
+            
+            return connections;
+        }
+
+        // Initialize map
+        function initMap() {
+            if (gyms.length === 0) {
+                document.getElementById('mapContainer').innerHTML = '<div class="error">No gyms available. Check your config.</div>';
+                return;
+            }
+
+            loadCompletedGyms();
+
+            const mapContainer = document.getElementById('mapContainer');
+            mapContainer.innerHTML = '';
+            
+            const mapWidth = mapContainer.offsetWidth - 40;
+            const mapHeight = mapContainer.offsetHeight - 40;
+            
+            // Generate positions
+            const positions = generateGymPositions(gyms.length);
+            const connections = createConnections(positions);
+            
+            // Draw connections (paths)
+            connections.forEach(([fromIdx, toIdx]) => {
+                const from = positions[fromIdx];
+                const to = positions[toIdx];
+                
+                const x1 = (from.x / 100) * mapWidth + 40;
+                const y1 = (from.y / 100) * mapHeight + 40;
+                const x2 = (to.x / 100) * mapWidth + 40;
+                const y2 = (to.y / 100) * mapHeight + 40;
+                
+                const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                
+                const path = document.createElement('div');
+                path.className = 'path';
+                path.style.width = length + 'px';
+                path.style.left = x1 + 'px';
+                path.style.top = y1 + 'px';
+                path.style.transform = `rotate(${angle}deg)`;
+                mapContainer.appendChild(path);
+            });
+            
+            // Draw gyms
+            gyms.forEach((gym, index) => {
+                const pos = positions[index];
+                const isCompleted = completedGyms.has(gym.launch);
+                
+                const gymElement = document.createElement('div');
+                gymElement.className = 'gym' + (isCompleted ? ' completed' : '');
+                gymElement.style.left = ((pos.x / 100) * mapWidth) + 'px';
+                gymElement.style.top = ((pos.y / 100) * mapHeight) + 'px';
+                gymElement.dataset.index = index;
+                gymElement.dataset.launch = gym.launch;
+                
+                gymElement.innerHTML = `
+                    <span>🏟️</span>
+                    <span class="gym-number">${gym.id}</span>
+                    <span class="gym-title">${gym.title}</span>
+                `;
+                
+                if (!isCompleted) {
+                    gymElement.onclick = () => launchGym(gym);
+                }
+                
+                mapContainer.appendChild(gymElement);
+            });
+        }
+
+        // Launch gym game
+        function launchGym(gym) {
+            if (completedGyms.has(gym.launch)) {
+                console.log('Gym already completed:', gym.title);
+                return;
+            }
+
+            console.log('Launching gym:', gym.title, gym.launch);
+            
+            if (isAndroidWebView() && typeof Android.launchGame === 'function') {
+                // Launch via Android interface
+                Android.launchGame(gym.launch);
+            } else {
+                // Browser fallback
+                alert(`Would launch: ${gym.title} (${gym.launch})`);
+            }
+        }
+
+        // Toggle map section
+        function toggleMap() {
+            const content = document.getElementById('mapContent');
+            const toggle = document.getElementById('mapToggle');
+            
+            content.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed');
+            
+            // Reinitialize map when expanded (in case container size changed)
+            if (!content.classList.contains('collapsed')) {
+                setTimeout(() => {
+                    initMap();
+                }, 300);
+            }
+        }
+
+        // Refresh gym map (called from Android after game completion)
+        function refreshGymMap() {
+            loadCompletedGyms();
+            initMap();
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (!document.getElementById('mapContent').classList.contains('collapsed')) {
+                setTimeout(() => {
+                    initMap();
+                }, 100);
+            }
+        });
+
+        // Initialize
+        function init() {
+            loadGymsFromConfig();
+        }
+
+        // Start when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+        // Listen for messages from Android (if needed)
+        if (isAndroidWebView() && typeof Android !== 'undefined') {
+            // Android can call refreshGymMap() after game completion
+            window.refreshGymMap = refreshGymMap;
+        }
+    </script>
+</body>
+</html>

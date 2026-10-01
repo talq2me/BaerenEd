@@ -1,0 +1,102 @@
+{
+  "id": "ufli-open-closed-pattern-words-chain-g1",
+  "concept": "open-closed-pattern-words",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "spell-1",
+      "steps": [
+        {
+          "word": "we",
+          "prompt": "Spell this open syllable word: we.",
+          "correctChoices": [
+            {
+              "text": "w"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "i"
+            },
+            {
+              "text": "t"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "steps": [
+        {
+          "from": "we",
+          "to": "hi",
+          "prompt": "Spell this open syllable word: hi."
+        },
+        {
+          "from": "hi",
+          "to": "go",
+          "prompt": "Spell this open syllable word: go."
+        },
+        {
+          "from": "go",
+          "to": "me",
+          "prompt": "Spell this open syllable word: me."
+        },
+        {
+          "from": "me",
+          "to": "re",
+          "prompt": "Spell this open syllable word: re."
+        },
+        {
+          "word": "wet",
+          "prompt": "Spell this closed syllable word: wet.",
+          "correctChoices": [
+            {
+              "text": "w"
+            },
+            {
+              "text": "e"
+            },
+            {
+              "text": "t"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "i"
+            },
+            {
+              "text": "p"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "wet",
+          "to": "him",
+          "prompt": "Spell this closed syllable word: him."
+        },
+        {
+          "from": "him",
+          "to": "got",
+          "prompt": "Spell this closed syllable word: got."
+        },
+        {
+          "from": "got",
+          "to": "met",
+          "prompt": "Spell this closed syllable word: met."
+        },
+        {
+          "from": "met",
+          "to": "red",
+          "prompt": "Spell this closed syllable word: red."
+        }
+      ]
+    }
+  ]
+}

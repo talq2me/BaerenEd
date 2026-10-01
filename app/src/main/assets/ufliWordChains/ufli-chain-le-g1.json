@@ -1,0 +1,231 @@
+{
+  "id": "ufli-chain-le-g1",
+  "concept": "le",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "jiggle",
+        "prompt": "Write the word jiggle.",
+        "correctChoices": [
+          {
+            "text": "j"
+          },
+          {
+            "text": "i"
+          },
+          {
+            "text": "g"
+          },
+          {
+            "text": "g"
+          },
+          {
+            "text": "l"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "w"
+          },
+          {
+            "text": "o"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "jiggle",
+          "to": "wiggle",
+          "prompt": "Say jiggle. Change j to w. Build wiggle."
+        },
+        {
+          "from": "wiggle",
+          "to": "giggle",
+          "prompt": "Say wiggle. Change w to g. Build giggle."
+        },
+        {
+          "from": "giggle",
+          "to": "goggle",
+          "prompt": "Say giggle. Change i to o. Build goggle."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "muzzle",
+        "prompt": "Write the word muzzle.",
+        "correctChoices": [
+          {
+            "text": "m"
+          },
+          {
+            "text": "u"
+          },
+          {
+            "text": "z"
+          },
+          {
+            "text": "z"
+          },
+          {
+            "text": "l"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "p"
+          },
+          {
+            "text": "n"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "muzzle",
+          "to": "puzzle",
+          "prompt": "Say muzzle. Change m to p. Build puzzle."
+        },
+        {
+          "from": "puzzle",
+          "to": "nuzzle",
+          "prompt": "Say puzzle. Change p to n. Build nuzzle."
+        },
+        {
+          "from": "nuzzle",
+          "to": "nozzle",
+          "prompt": "Say nuzzle. Change u to o. Build nozzle."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "nozzle",
+      "steps": [
+        {
+          "word": "table",
+          "prompt": "Build table.",
+          "correctChoices": [
+            {
+              "text": "t"
+            },
+            {
+              "text": "a"
+            },
+            {
+              "text": "b"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "n"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "word": "saddle",
+          "prompt": "Build saddle.",
+          "correctChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "a"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "t"
+            },
+            {
+              "text": "p"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "saddle",
+          "to": "settle",
+          "prompt": "Build settle."
+        },
+        {
+          "from": "settle",
+          "to": "meddle",
+          "prompt": "Build meddle."
+        },
+        {
+          "from": "meddle",
+          "to": "simple",
+          "prompt": "Build simple."
+        },
+        {
+          "word": "shuttle",
+          "prompt": "Build shuttle.",
+          "correctChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "h"
+            },
+            {
+              "text": "u"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "d"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    }
+  ]
+}

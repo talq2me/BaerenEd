@@ -1,0 +1,126 @@
+{
+  "id": "ufli-chain-soft-ce-g1",
+  "concept": "soft-ce",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "face",
+        "prompt": "Make the word face.",
+        "correctChoices": [
+          {
+            "text": "f"
+          },
+          {
+            "text": "a"
+          },
+          {
+            "text": "c"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "p"
+          },
+          {
+            "text": "l"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "face",
+          "to": "pace",
+          "prompt": "Say face. Change the f to p for pace. Build pace."
+        },
+        {
+          "from": "pace",
+          "to": "lace",
+          "prompt": "Say pace. Change pace to lace. Build lace."
+        },
+        {
+          "from": "lace",
+          "to": "race",
+          "prompt": "Say lace. Change l to r for race. Build race."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "ice",
+        "prompt": "Make the word ice.",
+        "correctChoices": [
+          {
+            "text": "i"
+          },
+          {
+            "text": "c"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "m"
+          },
+          {
+            "text": "l"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "ice",
+          "to": "mice",
+          "prompt": "Say ice. Spell mice."
+        },
+        {
+          "from": "mice",
+          "to": "nice",
+          "prompt": "Say mice. Spell nice."
+        },
+        {
+          "from": "nice",
+          "to": "lice",
+          "prompt": "Say nice. Spell lice."
+        },
+        {
+          "word": "space",
+          "prompt": "Build space.",
+          "correctChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "p"
+            },
+            {
+              "text": "a"
+            },
+            {
+              "text": "c"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "k"
+            },
+            {
+              "text": "n"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    }
+  ]
+}

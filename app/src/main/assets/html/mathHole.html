@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Math Hole</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .question-display {
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .score-display {
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            color: #666;
+            text-align: center;
+            margin-left: 10px;
+        }
+        
+        .game-area {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            background: linear-gradient(180deg, #87CEEB 0%, #98D8C8 50%, #F7DC6F 100%);
+            padding-bottom: 56px;
+        }
+        
+        .hole {
+            position: absolute;
+            width: clamp(80px, 22vmin, 120px);
+            height: clamp(80px, 22vmin, 120px);
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #2c2c2c 0%, #1a1a1a 50%, #000 100%);
+            border: 6px solid #1a1a1a;
+            box-shadow: 
+                inset 0 10px 30px rgba(0,0,0,0.8),
+                0 5px 15px rgba(0,0,0,0.5);
+            cursor: move;
+            z-index: 100;
+            transition: transform 0.1s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .hole::before {
+            content: '';
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(50,50,50,0.8) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        .hole::after {
+            content: '';
+            position: absolute;
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(100,100,100,0.3) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        .question-in-hole {
+            position: absolute;
+            font-size: clamp(0.7rem, 2.5vmin, 1.2em);
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 101;
+            pointer-events: none;
+            text-align: center;
+            line-height: 1.2;
+            padding: 4px;
+        }
+        
+        .score-above-hole {
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 102;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease;
+        }
+        
+        .score-above-hole.animate {
+            animation: scorePop 0.5s ease-out;
+        }
+        
+        @keyframes scorePop {
+            0% {
+                transform: translateX(-50%) scale(1);
+            }
+            50% {
+                transform: translateX(-50%) scale(1.3);
+            }
+            100% {
+                transform: translateX(-50%) scale(1);
+            }
+        }
+        
+        .number {
+            position: absolute;
+            width: clamp(48px, 14vmin, 80px);
+            height: clamp(48px, 14vmin, 80px);
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+            border: 3px solid #FF4757;
+            box-shadow: 
+                0 4px 10px rgba(0,0,0,0.3),
+                inset 0 2px 5px rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1rem, 4vmin, 2.5em);
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 50;
+            transition: transform 0.2s ease;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .number.ten-frame {
+            width: clamp(56px, 16vmin, 100px);
+            height: clamp(56px, 16vmin, 100px);
+            font-size: clamp(0.5rem, 2.5vmin, 0.9em);
+            padding: 3px;
+        }
+        
+        .number.math-expression {
+            font-size: clamp(0.6rem, 3vmin, 1.8em);
+        }
+        
+        .ten-frame-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 2px;
+            width: 100%;
+            height: 100%;
+            padding: 3px;
+        }
+        
+        .ten-frame-dot {
+            width: 6px;
+            height: 6px;
+            min-width: 4px;
+            min-height: 4px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .ten-frame-dot.filled {
+            background: #4CAF50;
+        }
+        
+        .number:nth-child(odd) {
+            animation-delay: 0s;
+        }
+        
+        .number:nth-child(even) {
+            animation-delay: 1.5s;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-10px) rotate(5deg);
+            }
+        }
+        
+        .number.swallowed {
+            animation: swallow 0.5s ease-in forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes swallow {
+            0% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(0.5) rotate(180deg);
+            }
+            100% {
+                transform: scale(0) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .number.barfed {
+            animation: barf 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes barf {
+            0% {
+                transform: scale(0.8) translate(0, 0) rotate(0deg);
+                opacity: 0.8;
+            }
+            30% {
+                transform: scale(1.2) translate(-30px, -40px) rotate(-180deg);
+                opacity: 1;
+            }
+            60% {
+                transform: scale(1) translate(-20px, -20px) rotate(-360deg);
+            }
+            100% {
+                transform: scale(1) translate(0, 0) rotate(0deg);
+                opacity: 1;
+            }
+        }
+        
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #FF6B6B;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 200;
+            animation: particlePop 0.6s ease-out forwards;
+        }
+        
+        @keyframes particlePop {
+            0% {
+                transform: scale(0) translate(0, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1) translate(var(--tx), var(--ty));
+                opacity: 0;
+            }
+        }
+        
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            font-weight: bold;
+            z-index: 2000;
+            pointer-events: none;
+            animation: feedbackPop 1s ease-out forwards;
+        }
+        
+        @keyframes feedbackPop {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0;
+            }
+        }
+        
+        .feedback.correct {
+            color: #4CAF50;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+        }
+        
+        .feedback.incorrect {
+            color: #F44336;
+            text-shadow: 0 0 20px rgba(244, 67, 54, 0.8);
+        }
+        
+        .next-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+            transition: all 0.3s;
+        }
+        
+        .next-button:hover {
+            background: #45a049;
+            transform: translateX(-50%) scale(1.05);
+        }
+        
+        .next-button:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+        
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 3000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            display: none;
+        }
+        
+        .game-over h2 {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .game-over p {
+            font-size: 1.5em;
+            color: #666;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="question-display" id="questionDisplay">3 + 5 = ?</div>
+            <div class="score-display">Score: <span id="score">0</span></div>
+        </div>
+        
+        <div class="game-area" id="gameArea">
+            <div class="hole" id="hole">
+                <div class="score-above-hole" id="scoreAboveHole">0</div>
+                <div class="question-in-hole" id="questionInHole">3 + 5 = ?</div>
+            </div>
+        </div>
+        
+        <button class="next-button" id="nextButton">Next Question →</button>
+        
+        <div class="game-over" id="gameOver">
+            <h2>🎉 Game Complete! 🎉</h2>
+            <p>Final Score: <span id="finalScore">0</span> / <span id="finalMax">10</span></p>
+        </div>
+    </div>
+
+    <script src="quizProgress.js"></script>
+    <script>
+        let currentProblem = null;
+        let currentAnswer = null;
+        let score = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let questionsCompleted = 0;
+        let maxQuestions = 10;
+
+        let quiz = null;
+        function initQuizProgress(defaultRequired) {
+            quiz = QuizProgress.create({ defaultRequired: defaultRequired });
+            syncQuizVars();
+        }
+        function syncQuizVars() {
+            if (!quiz) return;
+            correctCount = quiz.getCorrectCount();
+            incorrectCount = quiz.getIncorrectCount();
+            if (typeof maxQuestions !== 'undefined') maxQuestions = quiz.getRequiredCorrect();
+        }
+        function recordQuizAnswer(wasCorrect) {
+            const r = quiz.recordAnswer(wasCorrect);
+            syncQuizVars();
+            return r;
+        }
+        function quizIsComplete() { return quiz && quiz.isComplete(); }
+
+        /* LEGACY (pre-quizProgress) — revert by uncommenting this block and removing quiz usage below
+        const urlParams = new URLSearchParams(window.location.search);
+        const totalQuestionsParam = urlParams.get('totalQuestions');
+        let maxQuestions = 10;
+        if (totalQuestionsParam) {
+            const parsed = parseInt(totalQuestionsParam, 10);
+            if (!isNaN(parsed) && parsed > 0) {
+                maxQuestions = parsed;
+                console.log('Using totalQuestions from URL parameter:', maxQuestions);
+            }
+        }
+        */
+        const urlParams = new URLSearchParams(window.location.search);
+        const totalQuestionsParam = urlParams.get('totalQuestions');
+        
+        let numbers = [];
+        let placementPositions = [];
+        let placementIndex = 0;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let holeElement = null;
+        let gameArea = null;
+        let problems = [];
+        let currentProblemIndex = 0;
+        let canInteract = true;
+        let currentQuestionScore = 0;
+
+        function isAndroidWebView() {
+            return typeof window.Android !== 'undefined';
+        }
+
+        function loadConfig() {
+            try {
+                let configJson = '{}';
+                
+                if (isAndroidWebView() && typeof window.Android.getConfigJson === 'function') {
+                    configJson = window.Android.getConfigJson();
+                } else {
+                    const savedConfig = localStorage.getItem('mathHoleConfig');
+                    if (savedConfig) {
+                        configJson = savedConfig;
+                    }
+                }
+                
+                const config = JSON.parse(configJson);
+                const taskId = urlParams.get('taskId');
+                
+                // Only use config values if URL parameter was not provided
+                if (!totalQuestionsParam) {
+                    if (config.sections) {
+                        for (const section of config.sections) {
+                            if (section.tasks) {
+                                for (const task of section.tasks) {
+                                    if (task.questionsToComplete) {
+                                        maxQuestions = parseInt(task.questionsToComplete, 10) || maxQuestions;
+                                        break;
+                                    }
+                                    if (task.totalQuestions) {
+                                        maxQuestions = parseInt(task.totalQuestions, 10) || maxQuestions;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (config.questionsToComplete) {
+                        maxQuestions = parseInt(config.questionsToComplete, 10) || maxQuestions;
+                    }
+                }
+            } catch (e) {
+                console.log('Using default maxQuestions:', maxQuestions);
+            }
+        }
+
+        function getGameMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode') || 'easy';
+            return mode.toLowerCase();
+        }
+
+        function generateProblems() {
+            problems = [];
+            const mode = getGameMode();
+            
+            if (mode === 'hard') {
+                // Generate multiplication problems (up to 12x12)
+                for (let i = 0; i < 30; i++) {
+                    const num1 = Math.floor(Math.random() * 12) + 1; // 1-12
+                    const num2 = Math.floor(Math.random() * 12) + 1; // 1-12
+                    const product = num1 * num2;
+                    
+                    problems.push({
+                        question: `${num1} × ${num2} = ?`,
+                        answer: product
+                    });
+                }
+                
+                // Generate division problems (dividends up to 144)
+                for (let i = 0; i < 30; i++) {
+                    const num1 = Math.floor(Math.random() * 12) + 1; // 1-12
+                    const num2 = Math.floor(Math.random() * 12) + 1; // 1-12
+                    const dividend = num1 * num2; // Ensure clean division
+                    const quotient = num1;
+                    
+                    problems.push({
+                        question: `${dividend} ÷ ${num2} = ?`,
+                        answer: quotient
+                    });
+                }
+            } else {
+                // Easy mode: addition and subtraction (current behavior)
+                // Generate addition problems (sums within 20)
+                for (let i = 0; i < 30; i++) {
+                    const num1 = Math.floor(Math.random() * 11) + 1; // 1-11
+                    const num2 = Math.floor(Math.random() * (21 - num1)) + 1; // ensures sum <= 20
+                    const sum = num1 + num2;
+                    
+                    problems.push({
+                        question: `${num1} + ${num2} = ?`,
+                        answer: sum
+                    });
+                }
+                
+                // Generate subtraction problems (differences within 20)
+                for (let i = 0; i < 30; i++) {
+                    const num1 = Math.floor(Math.random() * 20) + 1; // 1-20
+                    const num2 = Math.floor(Math.random() * num1) + 1; // 1 to num1
+                    const difference = num1 - num2;
+                    
+                    problems.push({
+                        question: `${num1} - ${num2} = ?`,
+                        answer: difference
+                    });
+                }
+            }
+            
+            shuffleArray(problems);
+            maxQuestions = Math.min(problems.length, maxQuestions);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function getHoleSize() {
+            const rect = holeElement.getBoundingClientRect();
+            return Math.max(rect.width, rect.height) || 80;
+        }
+
+        function startGame() {
+            loadConfig();
+            generateProblems();
+            initQuizProgress(maxQuestions);
+            if (quiz) quiz.setRequiredCorrect(maxQuestions);
+            syncQuizVars();
+            holeElement = document.getElementById('hole');
+            gameArea = document.getElementById('gameArea');
+            
+            // Initialize score display
+            score = 0;
+            currentQuestionScore = 0;
+            updateScoreAboveHole();
+            
+            positionHoleCenter();
+            setupHoleDrag();
+            startCollisionLoop();
+            loadNextProblem();
+        }
+        
+        function positionHoleCenter() {
+            const w = gameArea.clientWidth;
+            const h = gameArea.clientHeight;
+            const holeSize = getHoleSize();
+            holeElement.style.left = Math.max(0, (w - holeSize) / 2) + 'px';
+            holeElement.style.top = Math.max(0, (h - holeSize) / 2) + 'px';
+        }
+        
+        function startCollisionLoop() {
+            function collisionLoop() {
+                if (canInteract && numbers.length > 0) {
+                    checkCollisions();
+                }
+                requestAnimationFrame(collisionLoop);
+            }
+            requestAnimationFrame(collisionLoop);
+        }
+
+        function setupHoleDrag() {
+            let startX, startY, initialX, initialY;
+            
+            function startDrag(e) {
+                if (!canInteract) return;
+                isDragging = true;
+                const rect = holeElement.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                dragOffset.x = clientX - rect.left - rect.width / 2;
+                dragOffset.y = clientY - rect.top - rect.height / 2;
+                
+                holeElement.style.transition = 'none';
+                e.preventDefault();
+            }
+            
+            function drag(e) {
+                if (!isDragging || !canInteract) return;
+                
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                const gameAreaRect = gameArea.getBoundingClientRect();
+                const holeSize = getHoleSize();
+                const maxX = gameAreaRect.width - holeSize;
+                const maxY = gameAreaRect.height - holeSize;
+                
+                let newX = clientX - gameAreaRect.left - dragOffset.x - holeSize / 2;
+                let newY = clientY - gameAreaRect.top - dragOffset.y - holeSize / 2;
+                
+                newX = Math.max(0, Math.min(maxX, newX));
+                newY = Math.max(0, Math.min(maxY, newY));
+                
+                holeElement.style.left = newX + 'px';
+                holeElement.style.top = newY + 'px';
+                
+                checkCollisions();
+                e.preventDefault();
+            }
+            
+            function endDrag() {
+                if (isDragging) {
+                    isDragging = false;
+                    holeElement.style.transition = 'transform 0.1s ease-out';
+                }
+            }
+            
+            // Mouse events
+            holeElement.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+            
+            // Touch events
+            holeElement.addEventListener('touchstart', startDrag, { passive: false });
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', endDrag);
+        }
+
+        function checkCollisions() {
+            if (!canInteract) return;
+            
+            const holeRect = holeElement.getBoundingClientRect();
+            const holeCenterX = holeRect.left + holeRect.width / 2;
+            const holeCenterY = holeRect.top + holeRect.height / 2;
+            const holeRadius = holeRect.width / 2;
+            
+            // Use a copy of the array to avoid issues when modifying during iteration
+            const numbersToCheck = [...numbers];
+            
+            numbersToCheck.forEach((numberObj, originalIndex) => {
+                const numElement = numberObj.element;
+                
+                // Skip if already swallowed or barfed (check this first)
+                if (numElement.classList.contains('swallowed') || 
+                    numElement.classList.contains('barfed')) {
+                    return;
+                }
+                
+                // Verify element is still in the numbers array
+                const currentIndex = numbers.findIndex(n => n.element === numElement);
+                if (currentIndex === -1) {
+                    return; // Element was removed
+                }
+                
+                const numRect = numElement.getBoundingClientRect();
+                const numCenterX = numRect.left + numRect.width / 2;
+                const numCenterY = numRect.top + numRect.height / 2;
+                const numRadius = numRect.width / 2;
+                
+                const distance = Math.sqrt(
+                    Math.pow(holeCenterX - numCenterX, 2) + 
+                    Math.pow(holeCenterY - numCenterY, 2)
+                );
+                
+                // Use a slightly larger threshold to make collision detection more forgiving
+                const collisionThreshold = holeRadius + numRadius - 5;
+                
+                if (distance < collisionThreshold) {
+                    handleNumberCollision(numberObj, currentIndex);
+                }
+            });
+        }
+
+        function handleNumberCollision(numberObj, index) {
+            if (!canInteract) return;
+            
+            const numElement = numberObj.element;
+            
+            // Double-check element is still valid and not already processed
+            if (!numElement || !numElement.parentNode) {
+                return;
+            }
+            
+            // Critical: Check if already processed FIRST to prevent duplicate handling
+            if (numElement.classList.contains('swallowed') || 
+                numElement.classList.contains('barfed')) {
+                return;
+            }
+            
+            // Immediately mark as processing to prevent duplicate calls
+            // Use a data attribute as a lightweight flag
+            if (numElement.dataset.processing === 'true') {
+                return;
+            }
+            numElement.dataset.processing = 'true';
+            
+            const numberValue = Number(numberObj.value); // Ensure it's a number
+            const answerValue = Number(currentAnswer); // Ensure it's a number
+            
+            if (numberValue === answerValue) {
+                // Correct! Swallow it
+                numElement.classList.add('swallowed');
+                createParticles(numElement, '#4CAF50');
+                showFeedback('✓', 'correct');
+                
+                // Update score above hole
+                currentQuestionScore++;
+                score++; // Increment total score
+                updateScoreAboveHole();
+                
+                setTimeout(() => {
+                    // Remove by element — never use the captured `index` here. When several
+                    // correct bubbles are swallowed in quick succession, each handler's stale
+                    // index shifts after earlier splices and can remove the wrong row or leave
+                    // a correct bubble "stuck" so the round never finishes.
+                    const idxNow = numbers.findIndex(n => n.element === numElement);
+                    if (idxNow !== -1) {
+                        numbers.splice(idxNow, 1);
+                    }
+                    numElement.remove();
+                    delete numElement.dataset.processing;
+                    
+                    // Check if all correct numbers are swallowed
+                    const remainingCorrect = numbers.filter(n => Number(n.value) === Number(currentAnswer));
+                    if (remainingCorrect.length === 0) {
+                        // All correct numbers swallowed, move to next question
+                        canInteract = false;
+                        /* LEGACY (pre-quizProgress)
+                        correctCount++;
+                        questionsCompleted++;
+                        */
+                        recordQuizAnswer(true);
+                        updateScore();
+                        
+                        if (quizIsComplete()) {
+                            setTimeout(() => endGame(), 1000);
+                        } else {
+                            document.getElementById('nextButton').style.display = 'block';
+                        }
+                    }
+                }, 500);
+            } else {
+                // Wrong! Barf it back and lose a point
+                numElement.classList.add('barfed');
+                createParticles(numElement, '#F44336');
+                showFeedback('✗', 'incorrect');
+                /* LEGACY (pre-quizProgress) incorrectCount++; */
+                
+                // Lose 1 point from score (but don't go below 0)
+                if (score > 0) {
+                    score--;
+                    updateScoreAboveHole();
+                }
+                
+                setTimeout(() => {
+                    numElement.classList.remove('barfed');
+                    delete numElement.dataset.processing;
+                }, 800);
+            }
+        }
+        
+        function updateScoreAboveHole() {
+            const scoreElement = document.getElementById('scoreAboveHole');
+            // Show total accumulated score, not just current question score
+            scoreElement.textContent = score;
+            scoreElement.classList.add('animate');
+            setTimeout(() => {
+                scoreElement.classList.remove('animate');
+            }, 500);
+        }
+
+        function createParticles(element, color) {
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.background = color;
+                particle.style.left = centerX + 'px';
+                particle.style.top = centerY + 'px';
+                
+                const angle = (Math.PI * 2 * i) / 8;
+                const distance = 30 + Math.random() * 20;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                particle.style.setProperty('--tx', tx + 'px');
+                particle.style.setProperty('--ty', ty + 'px');
+                
+                document.body.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 600);
+            }
+        }
+
+        function showFeedback(text, type) {
+            const feedback = document.createElement('div');
+            feedback.className = `feedback ${type}`;
+            feedback.textContent = text;
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => feedback.remove(), 1000);
+        }
+
+        function loadNextProblem() {
+            if (quizIsComplete()) {
+                endGame();
+                return;
+            }
+            
+            if (currentProblemIndex >= problems.length) {
+                currentProblemIndex = 0;
+                shuffleArray(problems);
+            }
+            
+            currentProblem = problems[currentProblemIndex++];
+            currentAnswer = currentProblem.answer;
+            
+            document.getElementById('questionDisplay').textContent = currentProblem.question;
+            document.getElementById('questionInHole').textContent = currentProblem.question;
+            document.getElementById('nextButton').style.display = 'none';
+            canInteract = true;
+            
+            // Clear previous numbers
+            numbers.forEach(num => num.element.remove());
+            numbers = [];
+            
+            // Reset current question score (but keep total score)
+            currentQuestionScore = 0;
+            // Don't reset the score display - it should persist
+            
+            // Create numbers on screen
+            createNumbers();
+        }
+
+        function createNumbers() {
+            const areaW = gameArea.clientWidth;
+            const areaH = gameArea.clientHeight;
+            const gameAreaRect = { width: areaW, height: areaH };
+            const numCount = 15;
+            const correctCount = 5;
+            const wrongCount = numCount - correctCount;
+            
+            currentQuestionScore = 0;
+
+            // Evenly spread all answer bubbles on a fixed grid.
+            // This prevents answers from overlapping (especially when math-expression
+            // renders slightly differently than plain numbers).
+            placementPositions = buildEvenlySpacedPositions(gameAreaRect, numCount);
+            placementIndex = 0;
+            
+            for (let i = 0; i < correctCount; i++) {
+                const format = getRandomFormat(currentAnswer);
+                const num = createNumberElement(currentAnswer, format);
+                placeNumberRandomly(num, gameAreaRect);
+                numbers.push({ element: num, value: currentAnswer, format: format });
+            }
+
+            const wrongAnswers = generateWrongAnswers(wrongCount);
+            wrongAnswers.forEach(value => {
+                const format = getRandomFormat(value);
+                const num = createNumberElement(value, format);
+                placeNumberRandomly(num, gameAreaRect);
+                numbers.push({ element: num, value: value, format: format });
+            });
+        }
+        
+function getRandomFormat(value) {
+    // Ten frames have been disabled for Math Hole because they can cause a stuck
+    // round state (correct answers remain but the round never finishes).
+    // Use only plain numbers and math-expression formats.
+    if (value > 10) {
+        console.log('getRandomFormat called with value > 10:', value, '- returning number or math-expression');
+        const rand = Math.random();
+        return rand < 0.5 ? 'number' : 'math-expression';
+    }
+
+    // For values 0-10, randomly choose between number or math-expression
+    const rand = Math.random();
+    return rand < 0.5 ? 'number' : 'math-expression';
+}
+
+        function generateWrongAnswers(count) {
+            const wrongAnswers = [];
+            const usedValues = new Set([currentAnswer]);
+            const mode = getGameMode();
+            const maxValue = mode === 'hard' ? 144 : 20; // Hard mode can go up to 12x12=144
+            
+            while (wrongAnswers.length < count) {
+                let wrongAnswer;
+                if (Math.random() > 0.5) {
+                    // Generate nearby numbers
+                    const range = mode === 'hard' ? 10 : 5;
+                    wrongAnswer = currentAnswer + Math.floor(Math.random() * range) - Math.floor(range / 2);
+                } else {
+                    // Generate random numbers in range
+                    wrongAnswer = Math.floor(Math.random() * maxValue) + 1;
+                }
+                
+                // Ensure it's positive, different, and not already used
+                if (wrongAnswer > 0 && wrongAnswer <= maxValue && !usedValues.has(wrongAnswer)) {
+                    wrongAnswers.push(wrongAnswer);
+                    usedValues.add(wrongAnswer);
+                }
+            }
+            
+            return wrongAnswers;
+        }
+
+        function createNumberElement(value, format = 'number') {
+            const num = document.createElement('div');
+            num.className = 'number';
+
+            if (format === 'ten-frame') {
+                // Ten frames disabled: render as a plain value instead.
+                num.textContent = value;
+                return num;
+            } else if (format === 'math-expression' && value === currentAnswer) {
+                num.classList.add('math-expression');
+                // Create a simple math expression representation
+                const expressions = [
+                    `${value} = ${value}`,
+                    `${Math.floor(value/2)} + ${Math.ceil(value/2)}`,
+                    `${value} × 1`,
+                    `${value} ÷ 1`
+                ];
+                const randomExpr = expressions[Math.floor(Math.random() * expressions.length)];
+                num.textContent = randomExpr;
+            } else if (format === 'math-expression') {
+                num.classList.add('math-expression');
+                const mode = getGameMode();
+                
+                if (mode === 'hard') {
+                    // For hard mode, try multiplication or division
+                    // Try multiplication first
+                    const factors = [];
+                    for (let i = 1; i <= Math.min(12, Math.floor(Math.sqrt(value)) + 1); i++) {
+                        if (value % i === 0) {
+                            const j = value / i;
+                            if (j <= 12) {
+                                factors.push([i, j]);
+                                if (i !== j) {
+                                    factors.push([j, i]);
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (factors.length > 0) {
+                        const [num1, num2] = factors[Math.floor(Math.random() * factors.length)];
+                        num.textContent = `${num1} × ${num2}`;
+                    } else {
+                        // Try division
+                        const divisor = Math.floor(Math.random() * Math.min(12, value - 1)) + 1;
+                        const dividend = value * divisor;
+                        if (dividend <= 144) {
+                            num.textContent = `${dividend} ÷ ${divisor}`;
+                        } else {
+                            num.textContent = value;
+                        }
+                    }
+                } else {
+                    // Easy mode: addition and subtraction
+                    if (value > 1 && value <= 20) {
+                        const num1 = Math.floor(Math.random() * Math.min(value - 1, 10)) + 1;
+                        const num2 = value - num1;
+                        if (num2 > 0 && num2 <= 10) {
+                            num.textContent = `${num1} + ${num2}`;
+                        } else {
+                            // Try subtraction
+                            const larger = value + Math.floor(Math.random() * Math.min(10, 20 - value)) + 1;
+                            const smaller = larger - value;
+                            if (larger <= 20 && smaller > 0 && smaller <= 10) {
+                                num.textContent = `${larger} - ${smaller}`;
+                            } else {
+                                num.textContent = value;
+                            }
+                        }
+                    } else {
+                        num.textContent = value;
+                    }
+                }
+            } else {
+                // Default: show as plain number
+                num.textContent = value;
+            }
+
+            // Final fallback: ensure text content is set
+            if (!num.textContent && !num.hasChildNodes()) {
+                num.textContent = value;
+            }
+
+            return num;
+        }
+        
+        function generateMathExpressions(targetValue) {
+            const expressions = [];
+            
+            // Add the original problem format if it's an addition
+            if (currentProblem && currentProblem.question.includes('+')) {
+                const parts = currentProblem.question.match(/(\d+)\s*\+\s*(\d+)/);
+                if (parts) {
+                    expressions.push(`${parts[1]} + ${parts[2]}`);
+                    expressions.push(`${parts[2]} + ${parts[1]}`);
+                }
+            }
+            
+            // Generate other addition expressions that equal the target
+            for (let i = 1; i <= Math.min(targetValue - 1, 10); i++) {
+                const j = targetValue - i;
+                if (j > 0 && j <= 10) {
+                    expressions.push(`${i} + ${j}`);
+                    if (i !== j) {
+                        expressions.push(`${j} + ${i}`);
+                    }
+                }
+            }
+            
+            // Generate subtraction expressions
+            for (let i = targetValue + 1; i <= Math.min(targetValue + 10, 20); i++) {
+                const j = i - targetValue;
+                if (j > 0 && j <= 10) {
+                    expressions.push(`${i} - ${j}`);
+                }
+            }
+            
+            // Remove duplicates
+            return [...new Set(expressions)];
+        }
+
+        function getPlacementCellSize() {
+            const w = gameArea.clientWidth;
+            const h = gameArea.clientHeight;
+            const cols = 5;
+            const rows = 3;
+            const pad = Math.min(12, w * 0.02, h * 0.02);
+            const cellW = (w - pad * 2) / cols;
+            const cellH = (h - pad * 2) / rows;
+            return { size: Math.min(cellW, cellH) * 0.85, pad, cols, rows };
+        }
+
+        function buildEvenlySpacedPositions(gameAreaRect, numCount) {
+            const { size: numSize, pad: padding, cols, rows } = getPlacementCellSize();
+            const holeSize = getHoleSize();
+
+            const w = gameAreaRect.width;
+            const h = gameAreaRect.height;
+            const maxX = Math.max(0, w - numSize - padding);
+            const maxY = Math.max(0, h - numSize - padding);
+
+            const cellW = (cols <= 1) ? 0 : (maxX - padding) / (cols - 1);
+            const cellH = (rows <= 1) ? 0 : (maxY - padding) / (rows - 1);
+
+            const holeX = parseFloat(holeElement.style.left) || 0;
+            const holeY = parseFloat(holeElement.style.top) || 0;
+            const holeCenterX = holeX + holeSize / 2;
+            const holeCenterY = holeY + holeSize / 2;
+
+            const positions = [];
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const x = Math.min(maxX, padding + col * cellW);
+                    const y = Math.min(maxY, padding + row * cellH);
+                    const cx = x + numSize / 2;
+                    const cy = y + numSize / 2;
+                    const distToHole = Math.sqrt(Math.pow(cx - holeCenterX, 2) + Math.pow(cy - holeCenterY, 2));
+                    positions.push({ x, y, distToHole });
+                }
+            }
+
+            // Prefer cells farther away from the hole so we don't auto-swallow
+            // everything immediately.
+            positions.sort((a, b) => b.distToHole - a.distToHole);
+
+            // Try to keep any cells that are "too close" to the hole out of the main set.
+            // If we still need more positions, fall back to the remaining cells.
+            const safePositions = positions.filter(p => !isTooCloseToHole(p.x, p.y, numSize, holeSize));
+            const chosen = (safePositions.length >= numCount)
+                ? safePositions.slice(0, numCount)
+                : safePositions.concat(positions.filter(p => !safePositions.includes(p))).slice(0, numCount);
+
+            return chosen;
+        }
+
+        function placeNumberRandomly(element, gameAreaRect) {
+            const w = gameAreaRect.width;
+            const h = gameAreaRect.height;
+            const { size: numSize, pad: padding } = getPlacementCellSize();
+            const holeSize = getHoleSize();
+            const minDistance = numSize * 0.9;
+            const maxX = Math.max(0, w - numSize - padding);
+            const maxY = Math.max(0, h - numSize - padding);
+
+            // If we precomputed evenly-spaced positions for this round, use them.
+            if (placementPositions && placementPositions.length > 0) {
+                const pos = placementPositions[Math.min(placementIndex, placementPositions.length - 1)];
+                placementIndex++;
+                element.style.left = pos.x + 'px';
+                element.style.top = pos.y + 'px';
+                gameArea.appendChild(element);
+                return;
+            }
+            
+            let x, y;
+            let attempts = 0;
+            const maxAttempts = 150;
+            
+            do {
+                x = padding + Math.random() * (maxX - padding);
+                y = padding + Math.random() * (maxY - padding);
+                x = Math.max(padding, Math.min(maxX, x));
+                y = Math.max(padding, Math.min(maxY, y));
+                attempts++;
+            } while (attempts < maxAttempts && (
+                isTooCloseToHole(x, y, numSize, holeSize) || 
+                isOverlappingWithNumbers(x, y, numSize)
+            ));
+            
+            if (attempts >= maxAttempts) {
+                const { cols, rows } = getPlacementCellSize();
+                const idx = numbers.length;
+                const col = idx % cols;
+                const row = Math.floor(idx / cols);
+                const cellW = (w - padding * 2 - numSize) / Math.max(1, cols - 1);
+                const cellH = (h - padding * 2 - numSize) / Math.max(1, rows - 1);
+                x = Math.min(maxX, padding + col * cellW);
+                y = Math.min(maxY, padding + row * cellH);
+            }
+            
+            element.style.left = x + 'px';
+            element.style.top = y + 'px';
+            gameArea.appendChild(element);
+        }
+        
+        function isOverlappingWithNumbers(x, y, numSize) {
+            const numCenterX = x + numSize / 2;
+            const numCenterY = y + numSize / 2;
+            const minDistance = numSize * 1.05;
+            
+            for (const numberObj of numbers) {
+                const existingElement = numberObj.element;
+                const existingX = parseFloat(existingElement.style.left) || 0;
+                const existingY = parseFloat(existingElement.style.top) || 0;
+                const existingSize = numSize;
+                const existingCenterX = existingX + existingSize / 2;
+                const existingCenterY = existingY + existingSize / 2;
+                
+                const distance = Math.sqrt(
+                    Math.pow(numCenterX - existingCenterX, 2) + 
+                    Math.pow(numCenterY - existingCenterY, 2)
+                );
+                
+                if (distance < minDistance) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function isTooCloseToHole(x, y, numSize, holeSize) {
+            const holeRect = holeElement.getBoundingClientRect();
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            const holeX = parseFloat(holeElement.style.left) || 0;
+            const holeY = parseFloat(holeElement.style.top) || 0;
+            
+            const numCenterX = x + numSize / 2;
+            const numCenterY = y + numSize / 2;
+            const holeCenterX = holeX + holeSize / 2;
+            const holeCenterY = holeY + holeSize / 2;
+            
+            const distance = Math.sqrt(
+                Math.pow(numCenterX - holeCenterX, 2) + 
+                Math.pow(numCenterY - holeCenterY, 2)
+            );
+            
+            return distance < (holeSize + numSize) / 2 + 50;
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+
+        function endGame() {
+            canInteract = false;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalMax').textContent = maxQuestions;
+            
+            /* LEGACY (pre-quizProgress)
+            if (window.Android && typeof window.Android.gameCompleted === 'function') {
+                window.Android.gameCompleted(correctCount, incorrectCount);
+            } else if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'gameCompleted', correct: correctCount, incorrect: incorrectCount }, '*');
+            }
+            */
+            if (quiz) quiz.notifyAndroidComplete();
+            
+            setTimeout(() => {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'closeModal' }, '*');
+                } else {
+                    history.back();
+                }
+            }, 3000);
+        }
+
+        document.getElementById('nextButton').addEventListener('click', () => {
+            loadNextProblem();
+        });
+
+        // Start game when page loads
+        window.addEventListener('load', startGame);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (holeElement && gameArea) {
+                const holeSize = getHoleSize();
+                const currentLeft = parseFloat(holeElement.style.left) || 0;
+                const currentTop = parseFloat(holeElement.style.top) || 0;
+                
+                const maxX = Math.max(0, gameArea.clientWidth - holeSize);
+                const maxY = Math.max(0, gameArea.clientHeight - holeSize);
+                
+                holeElement.style.left = Math.max(0, Math.min(maxX, currentLeft)) + 'px';
+                holeElement.style.top = Math.max(0, Math.min(maxY, currentTop)) + 'px';
+            }
+        });
+    </script>
+</body>
+</html>
+

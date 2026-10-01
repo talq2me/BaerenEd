@@ -1,0 +1,194 @@
+{
+  "id": "ufli-chain-o-e-g1",
+  "concept": "o-e",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "rope",
+        "prompt": "Make the word rope.",
+        "correctChoices": [
+          {
+            "text": "r"
+          },
+          {
+            "text": "o"
+          },
+          {
+            "text": "p"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "m"
+          },
+          {
+            "text": "h"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "rope",
+          "to": "mope",
+          "prompt": "Say rope. Change r to m for mope. Build mope."
+        },
+        {
+          "from": "mope",
+          "to": "cope",
+          "prompt": "Say mope. Change m to c for cope. Build cope."
+        },
+        {
+          "from": "cope",
+          "to": "hope",
+          "prompt": "Say cope. Change c to h for hope. Build hope."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "woke",
+        "prompt": "Make the word woke.",
+        "correctChoices": [
+          {
+            "text": "w"
+          },
+          {
+            "text": "o"
+          },
+          {
+            "text": "k"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "j"
+          },
+          {
+            "text": "p"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "woke",
+          "to": "joke",
+          "prompt": "Say woke. Change w to j for joke. Build joke."
+        },
+        {
+          "from": "joke",
+          "to": "poke",
+          "prompt": "Say joke. Change j to p for poke. Build poke."
+        },
+        {
+          "from": "poke",
+          "to": "spoke",
+          "prompt": "Say poke. Add s at the start for spoke. Build spoke."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "spoke",
+      "steps": [
+        {
+          "word": "vote",
+          "prompt": "Build vote.",
+          "correctChoices": [
+            {
+              "text": "v"
+            },
+            {
+              "text": "o"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "i"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "vote",
+          "to": "nine",
+          "prompt": "Build nine."
+        },
+        {
+          "word": "drove",
+          "prompt": "Build drove.",
+          "correctChoices": [
+            {
+              "text": "d"
+            },
+            {
+              "text": "r"
+            },
+            {
+              "text": "o"
+            },
+            {
+              "text": "v"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "i"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "word": "note",
+          "prompt": "Build note.",
+          "correctChoices": [
+            {
+              "text": "n"
+            },
+            {
+              "text": "o"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "i"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    }
+  ]
+}

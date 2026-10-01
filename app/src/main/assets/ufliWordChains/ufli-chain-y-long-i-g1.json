@@ -1,0 +1,109 @@
+{
+  "id": "ufli-chain-y-long-i-g1",
+  "concept": "y-long-i",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "cry",
+        "prompt": "Make the word cry.",
+        "correctChoices": [
+          {
+            "text": "c"
+          },
+          {
+            "text": "r"
+          },
+          {
+            "text": "y"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "t"
+          },
+          {
+            "text": "d"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "cry",
+          "to": "try",
+          "prompt": "Say cry. Change c to t. Build try."
+        },
+        {
+          "from": "try",
+          "to": "dry",
+          "prompt": "Say try. Change t to d. Build dry."
+        },
+        {
+          "from": "dry",
+          "to": "pry",
+          "prompt": "Say dry. Change d to p. Build pry."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "fry",
+        "prompt": "Make the word fry.",
+        "correctChoices": [
+          {
+            "text": "f"
+          },
+          {
+            "text": "r"
+          },
+          {
+            "text": "y"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "l"
+          },
+          {
+            "text": "s"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "fry",
+          "to": "fly",
+          "prompt": "Say fry. Change r to l. Build fly."
+        },
+        {
+          "from": "fly",
+          "to": "sly",
+          "prompt": "Say fly. Change f to s. Build sly."
+        },
+        {
+          "from": "sly",
+          "to": "sky",
+          "prompt": "Say sly. Change l to k. Build sky."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "sky",
+      "steps": [
+        {
+          "from": "sky",
+          "to": "spy",
+          "prompt": "Build spy."
+        },
+        {
+          "from": "spy",
+          "to": "why",
+          "prompt": "Build why."
+        }
+      ]
+    }
+  ]
+}

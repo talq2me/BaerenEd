@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Sequence</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .game-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #starCount {
+            text-align: center;
+            font-size: 24px;
+            color: #ffcc00;
+            margin-bottom: 20px;
+        }
+        .story-display {
+            background: #f0f8ff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 1em;
+            line-height: 1.6;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+            display: inline-block;
+            width: 100%;
+        }
+        .sequence-layout {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+        .sequence-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .sequence-right {
+            flex: 1;
+            min-width: 0;
+        }
+        .instructions {
+            text-align: center;
+            color: #764ba2;
+            font-size: 1.2em;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .sentence-bank {
+            background: #fff3cd;
+            border: 2px dashed #ffc107;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .sentence-item {
+            background: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 8px;
+            cursor: grab;
+            user-select: none;
+            font-size: 1em;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .sentence-item:hover {
+            background: #45a049;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        .sentence-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg) scale(1.1);
+        }
+        .sentence-item.used {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: #ccc;
+        }
+        .sequence-slots {
+            background: #e8f5e9;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .slot {
+            background: white;
+            border: 2px dashed #9e9e9e;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin: 5px 0;
+            min-height: 35px;
+            display: flex;
+            align-items: center;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .slot::before {
+            content: attr(data-number);
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .slot.filled {
+            border: 3px solid #4CAF50;
+            background: #c8e6c9;
+        }
+        .slot.drag-over {
+            border: 3px solid #ff9800;
+            background: #ffe0b2;
+            transform: scale(1.02);
+        }
+        .slot-content {
+            margin-left: 50px;
+            flex: 1;
+        }
+        .button {
+            font-family: inherit;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: white;
+            background: #667eea;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #ff8c00;
+            transform: scale(1.05);
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .feedback {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: popIn 0.5s ease;
+        }
+        .feedback.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .feedback.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .popup-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px 50px;
+            font-size: 1.8em;
+            font-weight: bold;
+            z-index: 2000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-radius: 15px;
+            animation: popupIn 0.3s ease, popupOut 0.3s ease 1.7s forwards;
+            pointer-events: none;
+        }
+        .popup-message.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 3px solid #c3e6cb;
+        }
+        .popup-message.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 3px solid #f5c6cb;
+        }
+        @keyframes popupIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes popupOut {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>📚 Story Sequence 📚</h1>
+        <div id="starCount">⭐ 0 / 5</div>
+        
+        <div class="story-display" id="storyDisplay">
+            <p>Loading story...</p>
+        </div>
+        
+        <div class="instructions" id="instructions">
+            Drag the sentences below into the correct order!
+        </div>
+        
+        <div class="sequence-layout">
+            <div class="sequence-left">
+                <div class="sequence-slots" id="sequenceSlots"></div>
+            </div>
+            <div class="sequence-right">
+                <div class="sentence-bank" id="sentenceBank"></div>
+            </div>
+        </div>
+        
+        <div id="feedbackContainer"></div>
+        
+        <div class="button-container">
+            <button class="button" id="deleteButton" onclick="deleteLastSentence()">⌫ Delete Last</button>
+            <button class="button" id="checkButton" onclick="checkSequence()">✓ Check Order</button>
+            <button class="button hidden" id="nextButton" onclick="nextStory()">Next Story →</button>
+        </div>
+    </div>
+
+    <script src="quizProgress.js"></script>
+    <script src="gameJsonLoader.js"></script>
+    <script>
+        function readText(text, lang, rate = 0.8, onEndCallback = null) {
+            if (window.Android && typeof window.Android.readText === 'function') {
+                window.Android.readText(text, lang);
+                setTimeout(() => {
+                    if (onEndCallback) onEndCallback();
+                }, 1000);
+            } else if ('speechSynthesis' in window) {
+                if (window.currentTTSUtterance) window.speechSynthesis.cancel();
+                window.currentTTSUtterance = new SpeechSynthesisUtterance(text);
+                window.currentTTSUtterance.lang = lang;
+                window.currentTTSUtterance.rate = rate;
+                window.currentTTSUtterance.onend = () => {
+                    if (onEndCallback) onEndCallback();
+                    window.currentTTSUtterance = null;
+                };
+                window.speechSynthesis.speak(window.currentTTSUtterance);
+            } else {
+                if (onEndCallback) onEndCallback();
+            }
+        }
+
+        let stories = [];
+        let currentStoryIndex = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let maxQuestions = 5;
+        let currentStory = null;
+
+        let quiz = null;
+        function initQuizProgress(defaultRequired) {
+            quiz = QuizProgress.create({ defaultRequired: defaultRequired });
+            syncQuizVars();
+        }
+        function syncQuizVars() {
+            if (!quiz) return;
+            correctCount = quiz.getCorrectCount();
+            incorrectCount = quiz.getIncorrectCount();
+            if (typeof maxQuestions !== 'undefined') maxQuestions = quiz.getRequiredCorrect();
+        }
+        function recordQuizAnswer(wasCorrect) {
+            const r = quiz.recordAnswer(wasCorrect);
+            syncQuizVars();
+            return r;
+        }
+        function quizIsComplete() { return quiz && quiz.isComplete(); }
+
+        /* LEGACY (pre-quizProgress) — revert by uncommenting this block and removing quiz usage below */
+        let draggedElement = null;
+
+        // Sample stories for grade 1 level
+        function getGameConfig() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const file = urlParams.get('file');
+            return file || 'storySequence.json';
+        }
+
+        async function loadStories() {
+            const fileName = getGameConfig();
+            try {
+                const data = await GameJsonLoader.loadDataJson(fileName);
+                if (!Array.isArray(data) || !data.length) {
+                    throw new Error('Empty data');
+                }
+                stories = data;
+                maxQuestions = Math.min(stories.length, maxQuestions);
+                startGame();
+            } catch (error) {
+                console.error('Failed to load game data:', error);
+                GameJsonLoader.failGameLoad('Failed to load game data.');
+            }
+        }
+
+        function startGame() {
+            currentStoryIndex = 0;
+            initQuizProgress(maxQuestions);
+            if (quiz) quiz.setRequiredCorrect(maxQuestions);
+            syncQuizVars();
+            updateStarCount();
+            loadStory();
+        }
+
+        function loadStory() {
+            if (quizIsComplete()) {
+                endGame();
+                return;
+            }
+
+            currentStory = stories[quiz.wrapIndex(stories.length)];
+            document.getElementById('storyDisplay').innerHTML = `<p><strong>Read this story:</strong></p><p>${currentStory.story}</p>`;
+            document.getElementById('feedbackContainer').innerHTML = '';
+            document.getElementById('checkButton').disabled = false;
+            document.getElementById('nextButton').classList.add('hidden');
+
+            // Shuffle sentences
+            const shuffled = [...currentStory.sentences].sort(() => Math.random() - 0.5);
+            
+            // Create slots
+            const slotsContainer = document.getElementById('sequenceSlots');
+            slotsContainer.innerHTML = '';
+            shuffled.forEach((sentence, index) => {
+                const slot = document.createElement('div');
+                slot.className = 'slot';
+                slot.dataset.number = index + 1;
+                slot.dataset.expected = currentStory.sentences.indexOf(sentence);
+                slot.dataset.actual = -1;
+                slot.innerHTML = '<div class="slot-content"></div>';
+                
+                slot.addEventListener('dragover', handleDragOver);
+                slot.addEventListener('drop', handleDrop);
+                slot.addEventListener('dragleave', handleDragLeave);
+                
+                // Also allow drops on any child elements
+                slot.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDragOver(e);
+                }, true);
+                slot.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDrop(e);
+                }, true);
+                
+                slotsContainer.appendChild(slot);
+            });
+
+            // Create sentence bank
+            const bankContainer = document.getElementById('sentenceBank');
+            bankContainer.innerHTML = '';
+            shuffled.forEach((sentence, index) => {
+                const item = document.createElement('div');
+                item.className = 'sentence-item';
+                item.textContent = sentence;
+                item.draggable = true;
+                item.dataset.sentence = sentence;
+                item.dataset.index = index;
+                
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+                
+                // Add touch handlers for Android
+                item.addEventListener('touchstart', handleTouchStart, { passive: false });
+                item.addEventListener('touchmove', handleTouchMove, { passive: false });
+                item.addEventListener('touchend', handleTouchEnd, { passive: false });
+                
+                bankContainer.appendChild(item);
+            });
+
+            // Read the story
+            setTimeout(() => {
+                readText(currentStory.story, 'en-US', 0.7);
+            }, 500);
+        }
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            window.draggedSentenceElement = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'move';
+            }
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Try to get dragged element from various sources
+            let dragged = draggedElement || window.draggedSentenceElement;
+            if (!dragged) {
+                const data = e.dataTransfer?.getData('text/plain');
+                if (data) {
+                    // Find the sentence item by text
+                    const sentenceItems = document.querySelectorAll('.sentence-item');
+                    for (let item of sentenceItems) {
+                        if (item.textContent.trim() === data && !item.classList.contains('used')) {
+                            dragged = item;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!dragged) return;
+            
+            // Get the slot (might be a child element)
+            let slot = e.currentTarget;
+            if (slot.classList.contains('slot-content')) {
+                slot = slot.parentElement;
+            } else if (!slot.classList.contains('slot')) {
+                slot = slot.closest('.slot');
+            }
+            
+            if (!slot || !slot.classList.contains('slot')) return;
+            
+            slot.classList.remove('drag-over');
+            const sentence = dragged.dataset.sentence;
+            
+            // Remove from previous slot if any
+            const previousSlot = document.querySelector(`.slot[data-actual="${dragged.dataset.index}"]`);
+            if (previousSlot && previousSlot !== slot) {
+                previousSlot.querySelector('.slot-content').textContent = '';
+                previousSlot.classList.remove('filled');
+                previousSlot.dataset.actual = -1;
+            }
+            
+            // Add to new slot
+            slot.querySelector('.slot-content').textContent = sentence;
+            slot.classList.add('filled');
+            slot.dataset.actual = dragged.dataset.index;
+            
+            // Mark sentence as used
+            dragged.classList.add('used');
+            dragged.draggable = false;
+            draggedElement = null;
+            window.draggedSentenceElement = null;
+        }
+
+        // Touch handlers for Android
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchElement = null;
+
+        function handleTouchStart(e) {
+            touchElement = e.target;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchElement.classList.add('dragging');
+            draggedElement = touchElement;
+            window.draggedSentenceElement = touchElement;
+        }
+
+        function handleTouchMove(e) {
+            if (!touchElement) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (elementBelow) {
+                const slot = elementBelow.closest('.slot') || 
+                            (elementBelow.classList.contains('slot') ? elementBelow : null);
+                if (slot) {
+                    slot.classList.add('drag-over');
+                }
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (!touchElement) return;
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (elementBelow) {
+                let slot = elementBelow.closest('.slot') || 
+                          (elementBelow.classList.contains('slot') ? elementBelow : null);
+                if (slot && slot.classList.contains('slot-content')) {
+                    slot = slot.parentElement;
+                }
+                
+                if (slot && slot.classList.contains('slot') && draggedElement) {
+                    const sentence = draggedElement.dataset.sentence;
+                    const previousSlot = document.querySelector(`.slot[data-actual="${draggedElement.dataset.index}"]`);
+                    if (previousSlot && previousSlot !== slot) {
+                        previousSlot.querySelector('.slot-content').textContent = '';
+                        previousSlot.classList.remove('filled');
+                        previousSlot.dataset.actual = -1;
+                    }
+                    slot.querySelector('.slot-content').textContent = sentence;
+                    slot.classList.add('filled');
+                    slot.dataset.actual = draggedElement.dataset.index;
+                    draggedElement.classList.add('used');
+                    draggedElement.draggable = false;
+                }
+            }
+            
+            document.querySelectorAll('.slot').forEach(s => s.classList.remove('drag-over'));
+            touchElement.classList.remove('dragging');
+            touchElement = null;
+            draggedElement = null;
+            window.draggedSentenceElement = null;
+        }
+
+        function deleteLastSentence() {
+            const slots = Array.from(document.querySelectorAll('.slot'));
+            // Find the last filled slot
+            for (let i = slots.length - 1; i >= 0; i--) {
+                const slot = slots[i];
+                if (slot.classList.contains('filled')) {
+                    const sentenceText = slot.querySelector('.slot-content').textContent;
+                    slot.querySelector('.slot-content').textContent = '';
+                    slot.classList.remove('filled');
+                    slot.dataset.actual = -1;
+                    
+                    // Return sentence to bank
+                    const sentenceItems = document.querySelectorAll('.sentence-item');
+                    for (let item of sentenceItems) {
+                        if (item.dataset.sentence === sentenceText && item.classList.contains('used')) {
+                            item.classList.remove('used');
+                            item.draggable = true;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        function checkSequence() {
+            const slots = Array.from(document.querySelectorAll('.slot'));
+            let isCorrect = true;
+            
+            slots.forEach((slot, slotIndex) => {
+                const sentence = slot.querySelector('.slot-content').textContent.trim();
+                const expectedSentence = currentStory.sentences[slotIndex];
+                
+                // Check if the sentence text matches the expected sentence for this position
+                if (!sentence || sentence !== expectedSentence.trim()) {
+                    isCorrect = false;
+                }
+            });
+
+            /* LEGACY (pre-quizProgress)
+            if (isCorrect) { correctCount++; } else { incorrectCount++; }
+            */
+            recordQuizAnswer(isCorrect);
+            updateStarCount();
+            document.getElementById('checkButton').disabled = true;
+            if (isCorrect) {
+                showPopupMessage('✓ Correct! Great job! 🎉', 'correct');
+                slots.forEach(slot => {
+                    slot.style.border = '3px solid #4CAF50';
+                    slot.style.background = '#c8e6c9';
+                });
+                setTimeout(() => {
+                    if (quizIsComplete()) endGame();
+                    else loadStory();
+                }, 2000);
+            } else {
+                showPopupMessage('✗ Not quite right.', 'incorrect');
+                setTimeout(() => {
+                    if (quizIsComplete()) endGame();
+                    else loadStory();
+                }, 2000);
+            }
+        }
+
+        function nextStory() {
+            currentStoryIndex++;
+            loadStory();
+        }
+
+        function showPopupMessage(message, type) {
+            const popup = document.createElement('div');
+            popup.className = `popup-message ${type}`;
+            popup.textContent = message;
+            document.body.appendChild(popup);
+            
+            setTimeout(() => {
+                popup.remove();
+            }, 2000);
+        }
+
+        function updateStarCount() {
+            document.getElementById("starCount").innerText = quiz ? `⭐ ${quiz.progressLabel()}` : `⭐ ${correctCount} / ${maxQuestions}`;
+        }
+
+        function endGame() {
+            document.getElementById('storyDisplay').innerHTML = 
+                `<h2>🎉 Game Complete! 🎉</h2><p>Final Score: ${correctCount}/${maxQuestions}⭐</p>`;
+            document.getElementById('sequenceSlots').innerHTML = '';
+            document.getElementById('sentenceBank').innerHTML = '';
+            document.getElementById('instructions').innerHTML = 'Great job sequencing stories!';
+            document.querySelector('.button-container').innerHTML = '';
+            
+            /* LEGACY (pre-quizProgress)
+            if (window.Android && typeof window.Android.gameCompleted === 'function') {
+                window.Android.gameCompleted(correctCount, incorrectCount);
+            } else if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'gameCompleted', correct: correctCount, incorrect: incorrectCount }, '*');
+            }
+            */
+            if (quiz) quiz.notifyAndroidComplete();
+            setTimeout(() => {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'closeModal' }, '*');
+                } else {
+                    history.back();
+                }
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadStories);
+    </script>
+</body>
+</html>
+

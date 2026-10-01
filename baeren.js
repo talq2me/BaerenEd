@@ -1,6 +1,6 @@
 /* Browser stand-in for the Android app: parent config, speech, and Supabase RPCs. */
 (function (global) {
-  const ASSETS = "https://talq2me.github.io/BaerenEd-Android-App/app/src/main/assets";
+  const ASSETS = "https://talq2me.github.io/BaerenEd/app/src/main/assets";
   const DEFAULT_RATE = 0.85;
 
   function readProfile() {

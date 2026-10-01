@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Garden</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #2e7d32;
+            margin-bottom: 8px;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #starCount {
+            text-align: center;
+            font-size: 24px;
+            color: #ffcc00;
+            margin-bottom: 20px;
+        }
+        .word-display {
+            text-align: center;
+            font-size: 1.5em;
+            color: #2e7d32;
+            margin: 20px 0;
+            font-weight: bold;
+            min-height: 104px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+        .revealed-spelling {
+            font-size: 1.4em;
+            margin-bottom: 12px;
+            color: #721c24;
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+        .garden-container {
+            background: #e8f5e9;
+            border: 3px solid #4CAF50;
+            border-radius: 15px;
+            padding: 20px 30px 10px 30px;
+            margin: 20px 0;
+            min-height: 200px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            justify-items: center;
+        }
+        .garden-plot {
+            width: 100px;
+            height: 100px;
+            background: #8d6e63;
+            border-radius: 10px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            padding-bottom: 5px;
+        }
+        .garden-plot.filled {
+            background: #5d4037;
+        }
+        .garden-plot.drag-over {
+            background: #a1887f;
+            border: 3px solid #ff9800;
+            transform: scale(1.05);
+        }
+        .garden-plot:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .letter-seed {
+            position: absolute;
+            top: 10px;
+            width: 50px;
+            height: 50px;
+            background: #ffc107;
+            border: 3px solid #ff8f00;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 2;
+        }
+        .letter-seed:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        .letter-seed.planted {
+            cursor: default;
+            opacity: 0.7;
+        }
+        .flower {
+            position: absolute;
+            bottom: -15px;
+            font-size: 3.5em;
+            animation: growFlower 0.8s ease-out;
+            z-index: 1;
+        }
+        .flower-stem {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 30px;
+            background: #2e7d32;
+            z-index: 0;
+        }
+        @keyframes growFlower {
+            0% {
+                transform: scale(0) rotate(0deg) translateY(20px);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2) rotate(180deg) translateY(-5px);
+            }
+            100% {
+                transform: scale(1) rotate(360deg) translateY(0);
+                opacity: 1;
+            }
+        }
+        .shovel-animation {
+            position: absolute;
+            font-size: 2em;
+            z-index: 5;
+            pointer-events: none;
+            animation: digHole 1.2s ease-out;
+        }
+        @keyframes digHole {
+            0% {
+                transform: translateY(-30px) rotate(-20deg);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            40% {
+                transform: translateY(0px) rotate(20deg);
+            }
+            60% {
+                transform: translateY(10px) rotate(-10deg);
+            }
+            80% {
+                transform: translateY(5px) rotate(10deg);
+            }
+            100% {
+                transform: translateY(0px) rotate(0deg);
+                opacity: 0;
+            }
+        }
+        .dirt-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+        }
+        .dirt-particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #5d4037;
+            border-radius: 50%;
+            animation: flyDirt 0.8s ease-out forwards;
+        }
+        @keyframes flyDirt {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--dx), var(--dy)) scale(0);
+                opacity: 0;
+            }
+        }
+        .letter-bank {
+            background: #fff3cd;
+            border: 2px dashed #ffc107;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            min-height: 100px;
+        }
+        .letter-item {
+            width: 60px;
+            height: 60px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            font-weight: bold;
+            cursor: grab;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 10;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .letter-item.dragging {
+            opacity: 0.5;
+            transform: scale(1.1);
+            cursor: grabbing;
+        }
+        .letter-item:hover {
+            background: #45a049;
+            transform: translateY(-3px) scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        .letter-item.used {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: #ccc;
+        }
+        .button {
+            font-family: inherit;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: white;
+            background: #4CAF50;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #ff8c00;
+            transform: scale(1.05);
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .feedback {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: popIn 0.5s ease;
+        }
+        .feedback.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .feedback.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .popup-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px 50px;
+            font-size: 1.8em;
+            font-weight: bold;
+            z-index: 2000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-radius: 15px;
+            animation: popupIn 0.3s ease, popupOut 0.3s ease 1.7s forwards;
+            pointer-events: none;
+        }
+        .popup-message.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 3px solid #c3e6cb;
+        }
+        .popup-message.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 3px solid #f5c6cb;
+        }
+        @keyframes popupIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes popupOut {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .hidden {
+            display: none;
+        }
+        .water-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(33, 150, 243, 0.3);
+            border-radius: 10px;
+            animation: water 0.5s ease;
+            pointer-events: none;
+        }
+        @keyframes water {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🌻 Word Garden 🌻</h1>
+        <div id="starCount">⭐ 0 / 10</div>
+        
+        <div class="word-display" id="wordDisplay">
+            <button class="button" id="playButton" onclick="playInstruction()">🔊 Play Word</button>
+        </div>
+        
+        <div id="feedbackContainer"></div>
+        
+        <div class="garden-container" id="gardenContainer"></div>
+        
+        <div class="letter-bank" id="letterBank"></div>
+        
+        <div class="button-container">
+            <button class="button" id="deleteButton" onclick="deleteLastLetter()">⌫ Delete Last</button>
+            <button class="button" id="checkButton" onclick="checkWord()">🌱 Check Word</button>
+            <button class="button hidden" id="nextButton" onclick="nextWord()">Next Word →</button>
+        </div>
+    </div>
+
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingPool.js"></script>
+    <script>
+        function readText(text, lang, rate = 0.8, onEndCallback = null) {
+            if (window.Android && typeof window.Android.readText === 'function') {
+                window.Android.readText(text, lang);
+                setTimeout(() => {
+                    if (onEndCallback) onEndCallback();
+                }, 1000);
+            } else if ('speechSynthesis' in window) {
+                if (window.currentTTSUtterance) window.speechSynthesis.cancel();
+                window.currentTTSUtterance = new SpeechSynthesisUtterance(text);
+                window.currentTTSUtterance.lang = lang;
+                window.currentTTSUtterance.rate = rate;
+                window.currentTTSUtterance.onend = () => {
+                    if (onEndCallback) onEndCallback();
+                    window.currentTTSUtterance = null;
+                };
+                window.speechSynthesis.speak(window.currentTTSUtterance);
+            } else {
+                if (onEndCallback) onEndCallback();
+            }
+        }
+
+        let words = [];
+        let correctCount = 0;
+        let incorrectCount = 0;
+        // Use the full loaded word list by default.
+        let maxQuestions = 0;
+        let currentWordIndex = 0;
+        let currentWord = {};
+        let plantedLetters = [];
+        /** Per-plot DOM node from the letter bank used for planting (fixes duplicate-letter words + precise undo). */
+        let plantedBankItems = [];
+        /** Pending setTimeout ids for shovel→seed animation, so we can cancel if user taps plot or deletes. */
+        let plotPlantTimeouts = {};
+        let ttsLanguage = 'en-US'; // Default to English, will be set based on filename
+        let isFirstAttempt = true;
+        let poolActive = false;
+
+        function showPlayWordButton() {
+            document.getElementById('wordDisplay').innerHTML =
+                `<button class="button" id="playButton" onclick="playInstruction()">🔊 Play Word</button>`;
+        }
+
+        function showRevealedCorrectWord() {
+            const w = (currentWord.word || '').toUpperCase();
+            const label = ttsLanguage === 'fr-FR' ? 'Bonne orthographe :' : 'Correct spelling:';
+            document.getElementById('wordDisplay').innerHTML =
+                `<div class="revealed-spelling">${label} <strong>${w}</strong></div>` +
+                `<button class="button" id="playButton" onclick="playInstruction()">🔊 Play Word</button>`;
+        }
+
+        function tryAgainFeedback() {
+            if (ttsLanguage === 'fr-FR') {
+                return '<div class="feedback incorrect">✗ Pas tout à fait. Essaie encore!</div>';
+            }
+            return '<div class="feedback incorrect">✗ Not quite right. Try again!</div>';
+        }
+
+        async function loadWords() {
+            try {
+                const prep = await SpellingPool.prepareSession();
+                ttsLanguage = prep.ttsLanguage;
+                poolActive = prep.cfg.poolActive;
+                if (poolActive) {
+                    words = prep.sessionWords.map(SpellingPool.toPlayWord);
+                    maxQuestions = words.length;
+                } else {
+                    words = prep.allWords.map(SpellingPool.toPlayWord);
+                    maxQuestions = words.length;
+                }
+                startGame();
+            } catch (error) {
+                console.error('Error loading words file:', error);
+                words = [];
+                maxQuestions = 0;
+                poolActive = false;
+                startGame();
+            }
+        }
+
+        function startGame() {
+            currentWordIndex = 0;
+            if (!poolActive && window.Android && typeof window.Android.loadProgress === 'function') {
+                try {
+                    const saved = window.Android.loadProgress();
+                    if (Number.isFinite(saved) && saved >= 0 && saved < maxQuestions) {
+                        currentWordIndex = saved;
+                    }
+                    console.log('Loaded saved progress: currentWordIndex =', currentWordIndex);
+                } catch (error) {
+                    console.log('No saved progress found, starting from 0');
+                }
+            }
+
+            correctCount = 0;
+            incorrectCount = 0;
+            updateStarCount();
+            loadWord();
+        }
+
+        function loadWord() {
+            if (currentWordIndex >= maxQuestions) {
+                endGame();
+                return;
+            }
+            
+            currentWord = words[currentWordIndex];
+            isFirstAttempt = true;
+            showPlayWordButton();
+            document.getElementById('feedbackContainer').innerHTML = '';
+            document.getElementById('checkButton').disabled = false;
+            document.getElementById('nextButton').classList.add('hidden');
+            
+            createGarden();
+            createLetterBank();
+            
+            setTimeout(playInstruction, 500);
+        }
+
+        function playInstruction() {
+            const { word, sentence } = currentWord;
+            let textToRead;
+            if (ttsLanguage === 'fr-FR') {
+                // French instructions
+                textToRead = sentence ? `Épelez le mot: ${word}. ${sentence}` : `Épelez le mot: ${word}`;
+            } else {
+                // English instructions
+                textToRead = sentence ? `Spell the word: ${word}. ${sentence}` : `Spell the word: ${word}`;
+            }
+            readText(textToRead, ttsLanguage, 0.8);
+        }
+
+        function cancelPlotPlantAnimation(plotIndex) {
+            const tid = plotPlantTimeouts[plotIndex];
+            if (tid != null) {
+                clearTimeout(tid);
+                delete plotPlantTimeouts[plotIndex];
+            }
+            const plot = document.querySelector(`.garden-plot[data-index="${plotIndex}"]`);
+            if (plot) {
+                plot.querySelectorAll('.shovel-animation, .dirt-particles').forEach((el) => el.remove());
+            }
+            const item = plantedBankItems[plotIndex];
+            if (item) {
+                item.classList.remove('used');
+                item.style.opacity = '1';
+                item.style.cursor = 'grab';
+                item.draggable = true;
+                item.classList.remove('dragging');
+            }
+            plantedLetters[plotIndex] = null;
+            plantedBankItems[plotIndex] = null;
+        }
+
+        function createGarden() {
+            const gardenContainer = document.getElementById('gardenContainer');
+            gardenContainer.innerHTML = '';
+            
+            const wordLength = currentWord.word.length;
+            plantedLetters = new Array(wordLength).fill(null);
+            plantedBankItems = new Array(wordLength).fill(null);
+            plotPlantTimeouts = {};
+            
+            for (let i = 0; i < wordLength; i++) {
+                const plot = document.createElement('div');
+                plot.className = 'garden-plot';
+                plot.dataset.index = i;
+                plot.dataset.expectedLetter = currentWord.word[i].toLowerCase();
+                
+                // Drag and drop handlers
+                plot.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.dataTransfer) {
+                        e.dataTransfer.dropEffect = 'move';
+                    }
+                    plot.classList.add('drag-over');
+                });
+                
+                plot.addEventListener('dragleave', () => {
+                    plot.classList.remove('drag-over');
+                });
+                
+                plot.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    plot.classList.remove('drag-over');
+                    
+                    // Don't allow more than one letter per plot (prevents stuck state)
+                    if (plantedLetters[i] || plot.querySelector('.letter-seed')) {
+                        window.draggedLetterItem = null;
+                        return false;
+                    }
+                    
+                    // Try to get data from dataTransfer
+                    let letter = e.dataTransfer.getData('text/plain');
+                    
+                    // If no data, try to get from the dragged element
+                    if (!letter && window.draggedLetterItem) {
+                        letter = window.draggedLetterItem.dataset.letter;
+                    }
+                    
+                    if (letter) {
+                        // Find an unused letter item with this letter (handles duplicates)
+                        const letterItems = document.querySelectorAll(`.letter-item[data-letter="${letter}"]`);
+                        let letterItem = null;
+                        for (let item of letterItems) {
+                            if (!item.classList.contains('used')) {
+                                letterItem = item;
+                                break;
+                            }
+                        }
+                        if (letterItem) {
+                            const success = plantLetterOnPlot(letterItem, letter, i);
+                            if (success) {
+                                // Prevent dragend from interfering
+                                e.dataTransfer.dropEffect = 'move';
+                            }
+                        }
+                    }
+                    window.draggedLetterItem = null;
+                    return false;
+                });
+                
+                // Click to remove (or cancel digging animation mid-flight — same symptom as “stuck pot”)
+                plot.addEventListener('click', () => {
+                    if (!plantedLetters[i]) return;
+                    const seed = plot.querySelector('.letter-seed');
+                    if (!seed) {
+                        cancelPlotPlantAnimation(i);
+                        plot.classList.remove('filled');
+                        plot.style.background = '';
+                        window.draggedLetterItem = null;
+                        return;
+                    }
+                    const letterCh = seed.textContent.toLowerCase();
+                    const bankItem = plantedBankItems[i];
+                    seed.remove();
+                    plantedLetters[i] = null;
+                    plantedBankItems[i] = null;
+                    plot.classList.remove('filled');
+                    plot.style.background = '';
+                    if (bankItem) {
+                        bankItem.classList.remove('used');
+                        bankItem.style.opacity = '1';
+                        bankItem.style.cursor = 'grab';
+                        bankItem.draggable = true;
+                        bankItem.classList.remove('dragging');
+                    } else {
+                        returnLetterToBank(letterCh);
+                    }
+                });
+                
+                gardenContainer.appendChild(plot);
+            }
+        }
+
+        function createLetterBank() {
+            const letterBank = document.getElementById('letterBank');
+            letterBank.innerHTML = '';
+            
+            // Prevent letter bank from accepting drops
+            letterBank.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            letterBank.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            const letters = currentWord.word.split('');
+            // Add some extra letters for difficulty
+            const extra = 'abcdefghijklmnopqrstuvwxyz'.split('')
+                .sort(() => 0.5 - Math.random())
+                .slice(0, 3);
+            const letterPool = [...letters, ...extra].sort(() => Math.random() - 0.5);
+            
+            letterPool.forEach(letter => {
+                const letterItem = document.createElement('div');
+                letterItem.className = 'letter-item';
+                letterItem.textContent = letter.toUpperCase();
+                letterItem.dataset.letter = letter.toLowerCase();
+                letterItem.draggable = true;
+                
+                // Drag handlers
+                letterItem.addEventListener('dragstart', (e) => {
+                    if (e.dataTransfer) {
+                        e.dataTransfer.setData('text/plain', letter.toLowerCase());
+                        e.dataTransfer.effectAllowed = 'move';
+                    }
+                    letterItem.classList.add('dragging');
+                    window.draggedLetterItem = letterItem; // Store reference
+                });
+                
+                letterItem.addEventListener('dragend', (e) => {
+                    letterItem.classList.remove('dragging');
+                });
+                
+                // Add touch handlers for Android
+                let touchStartX = 0;
+                let touchStartY = 0;
+                letterItem.addEventListener('touchstart', (e) => {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    letterItem.classList.add('dragging');
+                    window.draggedLetterItem = letterItem;
+                }, { passive: false });
+                
+                letterItem.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                letterItem.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    const touch = e.changedTouches[0];
+                    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (elementBelow) {
+                        const plot = elementBelow.closest('.garden-plot') || 
+                                    (elementBelow.classList.contains('garden-plot') ? elementBelow : null);
+                        if (plot) {
+                            const plotIndex = parseInt(plot.dataset.index);
+                            if (!plantedLetters[plotIndex] && !plot.querySelector('.letter-seed')) {
+                                plantLetterOnPlot(letterItem, letter.toLowerCase(), plotIndex);
+                            }
+                        }
+                    }
+                    letterItem.classList.remove('dragging');
+                }, { passive: false });
+                
+                letterBank.appendChild(letterItem);
+            });
+        }
+
+        function plantLetterOnPlot(letterItem, letter, plotIndex) {
+            if (letterItem.classList.contains('used')) {
+                return false;
+            }
+            
+            // Check if plot is already filled
+            if (plantedLetters[plotIndex]) {
+                return false;
+            }
+            
+            const plot = document.querySelector(`.garden-plot[data-index="${plotIndex}"]`);
+            if (!plot) {
+                return false;
+            }
+            
+            const existingTid = plotPlantTimeouts[plotIndex];
+            if (existingTid != null) {
+                clearTimeout(existingTid);
+                delete plotPlantTimeouts[plotIndex];
+                plot.querySelectorAll('.shovel-animation, .dirt-particles').forEach((el) => el.remove());
+            }
+
+            // Reserve plot + bank tile immediately (before shovel animation completes) so one tile cannot
+            // be dragged to two pots, and duplicate drops on one pot stay blocked.
+            plantedLetters[plotIndex] = letter;
+            plantedBankItems[plotIndex] = letterItem;
+            letterItem.classList.add('used');
+            letterItem.style.opacity = '0.3';
+            letterItem.style.cursor = 'not-allowed';
+            letterItem.draggable = false;
+            letterItem.classList.remove('dragging');
+            
+            // Get plot center position
+            const plotRect = plot.getBoundingClientRect();
+            
+            // Create shovel animation
+            const shovel = document.createElement('div');
+            shovel.className = 'shovel-animation';
+            shovel.textContent = '🪣';
+            shovel.style.left = (plotRect.width / 2 - 20) + 'px';
+            shovel.style.top = '-30px';
+            plot.appendChild(shovel);
+            
+            // Create dirt particles
+            const dirtContainer = document.createElement('div');
+            dirtContainer.className = 'dirt-particles';
+            plot.appendChild(dirtContainer);
+            
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'dirt-particle';
+                const angle = (i / 8) * Math.PI * 2;
+                const distance = 30 + Math.random() * 20;
+                particle.style.left = '50%';
+                particle.style.top = '80%';
+                particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+                particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
+                dirtContainer.appendChild(particle);
+            }
+            
+            // After digging animation, plant the seed
+            const finishTid = setTimeout(() => {
+                delete plotPlantTimeouts[plotIndex];
+                if (!plantedLetters[plotIndex] || plantedBankItems[plotIndex] !== letterItem) {
+                    shovel.remove();
+                    dirtContainer.remove();
+                    return;
+                }
+                shovel.remove();
+                dirtContainer.remove();
+
+                const seed = document.createElement('div');
+                seed.className = 'letter-seed planted';
+                seed.textContent = letter.toUpperCase();
+                plot.appendChild(seed);
+
+                const water = document.createElement('div');
+                water.className = 'water-animation';
+                plot.appendChild(water);
+                setTimeout(() => water.remove(), 500);
+
+                plot.classList.add('filled');
+                plot.style.background = '#5d4037';
+            }, 1200);
+            plotPlantTimeouts[plotIndex] = finishTid;
+
+            return true;
+        }
+
+        function deleteLastLetter() {
+            for (let i = plantedLetters.length - 1; i >= 0; i--) {
+                if (!plantedLetters[i]) continue;
+                const plot = document.querySelector(`.garden-plot[data-index="${i}"]`);
+                if (!plot) continue;
+                const seed = plot.querySelector('.letter-seed');
+                if (!seed) {
+                    cancelPlotPlantAnimation(i);
+                    plot.classList.remove('filled');
+                    plot.style.background = '';
+                    break;
+                }
+                const letterCh = seed.textContent.toLowerCase();
+                const bankItem = plantedBankItems[i];
+                seed.remove();
+                plantedLetters[i] = null;
+                plantedBankItems[i] = null;
+                plot.classList.remove('filled');
+                plot.style.background = '';
+                if (bankItem) {
+                    bankItem.classList.remove('used');
+                    bankItem.style.opacity = '1';
+                    bankItem.style.cursor = 'grab';
+                    bankItem.draggable = true;
+                    bankItem.classList.remove('dragging');
+                } else {
+                    returnLetterToBank(letterCh);
+                }
+                break;
+            }
+        }
+
+        function returnLetterToBank(letter) {
+            const letterItems = document.querySelectorAll(`.letter-item[data-letter="${letter}"]`);
+            for (let item of letterItems) {
+                if (item.classList.contains('used')) {
+                    item.classList.remove('used');
+                    item.style.opacity = '1';
+                    item.style.cursor = 'grab';
+                    item.draggable = true;
+                    item.classList.remove('dragging');
+                    break;
+                }
+            }
+        }
+
+        function checkWord() {
+            const spelledWord = plantedLetters.join('');
+            const isCorrect = spelledWord.toLowerCase() === currentWord.word.toLowerCase();
+            
+            if (isCorrect) {
+                // Grow flowers!
+                const plots = document.querySelectorAll('.garden-plot');
+                plots.forEach((plot, index) => {
+                    setTimeout(() => {
+                        // Add stem
+                        const stem = document.createElement('div');
+                        stem.className = 'flower-stem';
+                        plot.appendChild(stem);
+                        
+                        // Add flower
+                        const flower = document.createElement('div');
+                        flower.className = 'flower';
+                        const flowers = ['🌻', '🌷', '🌺', '🌸', '🌼', '🌹', '💐'];
+                        flower.textContent = flowers[index % flowers.length];
+                        plot.appendChild(flower);
+                    }, index * 200);
+                });
+                
+                showPopupMessage('✓ Beautiful! Your word garden is blooming! 🌸', 'correct');
+                
+                if (isFirstAttempt) {
+                    correctCount++;
+                    updateStarCount();
+                }
+                
+                document.getElementById('checkButton').disabled = true;
+                setTimeout(() => {
+                    document.getElementById('nextButton').classList.remove('hidden');
+                }, 2000);
+            } else {
+                if (isFirstAttempt) {
+                    incorrectCount++;
+                    isFirstAttempt = false;
+                }
+                showRevealedCorrectWord();
+                document.getElementById('feedbackContainer').innerHTML = tryAgainFeedback();
+
+                // Clear and reset
+                setTimeout(() => {
+                    document.getElementById('feedbackContainer').innerHTML = '';
+                    // Clear all planted letters
+                    plantedLetters.forEach((letter, index) => {
+                        if (!letter) return;
+                        const plot = document.querySelector(`.garden-plot[data-index="${index}"]`);
+                        if (!plot) return;
+                        const seed = plot.querySelector('.letter-seed');
+                        if (!seed) {
+                            cancelPlotPlantAnimation(index);
+                            plot.classList.remove('filled');
+                            plot.style.background = '';
+                            return;
+                        }
+                        const bankItem = plantedBankItems[index];
+                        seed.remove();
+                        plantedLetters[index] = null;
+                        plantedBankItems[index] = null;
+                        plot.classList.remove('filled');
+                        plot.style.background = '';
+                        if (bankItem) {
+                            bankItem.classList.remove('used');
+                            bankItem.style.opacity = '1';
+                            bankItem.style.cursor = 'grab';
+                            bankItem.draggable = true;
+                            bankItem.classList.remove('dragging');
+                        } else {
+                            returnLetterToBank(letter);
+                        }
+                    });
+                }, 2000);
+            }
+        }
+
+        function nextWord() {
+            currentWordIndex++;
+
+            if (!poolActive && window.Android && typeof window.Android.saveProgress === 'function') {
+                try {
+                    window.Android.saveProgress(currentWordIndex);
+                    console.log('Saved progress: currentWordIndex =', currentWordIndex);
+                } catch (error) {
+                    console.error('Error saving progress:', error);
+                }
+            }
+
+            loadWord();
+        }
+
+        function showPopupMessage(message, type) {
+            const popup = document.createElement('div');
+            popup.className = `popup-message ${type}`;
+            popup.textContent = message;
+            document.body.appendChild(popup);
+            
+            setTimeout(() => {
+                popup.remove();
+            }, 2000);
+        }
+
+        function updateStarCount() {
+            document.getElementById("starCount").innerText = `⭐ ${correctCount} / ${maxQuestions}`;
+        }
+
+        function endGame() {
+            document.getElementById('wordDisplay').innerHTML = 
+                `<h2>🎉 Garden Complete! 🎉</h2><p>Final Score: ${correctCount}/${maxQuestions}⭐</p>`;
+            document.getElementById('gardenContainer').innerHTML = '';
+            document.getElementById('letterBank').innerHTML = '';
+            document.querySelector('.button-container').innerHTML = '';
+            
+            if (window.Android && typeof window.Android.gameCompleted === 'function') {
+                window.Android.gameCompleted(correctCount, incorrectCount);
+            } else if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'gameCompleted', correct: correctCount, incorrect: incorrectCount }, '*');
+            }
+            setTimeout(() => {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'closeModal' }, '*');
+                } else {
+                    history.back();
+                }
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWords();
+        });
+    </script>
+</body>
+</html>
+

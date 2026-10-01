@@ -1,0 +1,192 @@
+{
+  "id": "ufli-chain-tch-g1",
+  "concept": "tch",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "latch",
+        "prompt": "Make the word latch.",
+        "correctChoices": [
+          {
+            "text": "l"
+          },
+          {
+            "text": "a"
+          },
+          {
+            "text": "t"
+          },
+          {
+            "text": "c"
+          },
+          {
+            "text": "h"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "b"
+          },
+          {
+            "text": "p"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "latch",
+          "to": "batch",
+          "prompt": "Say latch. Change l to b. Build batch."
+        },
+        {
+          "from": "batch",
+          "to": "hatch",
+          "prompt": "Say batch. Change b to h. Build hatch."
+        },
+        {
+          "from": "hatch",
+          "to": "patch",
+          "prompt": "Say hatch. Change the first h to p. Build patch."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "itch",
+        "prompt": "Make the word itch.",
+        "correctChoices": [
+          {
+            "text": "i"
+          },
+          {
+            "text": "t"
+          },
+          {
+            "text": "c"
+          },
+          {
+            "text": "h"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "p"
+          },
+          {
+            "text": "w"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "itch",
+          "to": "pitch",
+          "prompt": "Say itch. Add p at the beginning. Build pitch."
+        },
+        {
+          "from": "pitch",
+          "to": "ditch",
+          "prompt": "Say pitch. Change p to d. Build ditch."
+        },
+        {
+          "from": "ditch",
+          "to": "witch",
+          "prompt": "Say ditch. Change d to w. Build witch."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "witch",
+      "steps": [
+        {
+          "from": "witch",
+          "to": "match",
+          "prompt": "Build match."
+        },
+        {
+          "from": "match",
+          "to": "catch",
+          "prompt": "Build catch."
+        },
+        {
+          "word": "switch",
+          "prompt": "Build switch.",
+          "correctChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "w"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "c"
+            },
+            {
+              "text": "h"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "d"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "switch",
+          "to": "sketch",
+          "prompt": "Build sketch."
+        },
+        {
+          "word": "stretch",
+          "prompt": "Build stretch.",
+          "correctChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "r"
+            },
+            {
+              "text": "e"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "c"
+            },
+            {
+              "text": "h"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "m"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    }
+  ]
+}

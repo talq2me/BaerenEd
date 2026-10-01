@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Builder</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard', 'Arial Rounded MT Bold', sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .game-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .recipe-layout {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+        .recipe-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .recipe-right {
+            flex: 1;
+            min-width: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #f5576c;
+            margin-bottom: 8px;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #starCount {
+            text-align: center;
+            font-size: 24px;
+            color: #ffcc00;
+            margin-bottom: 20px;
+        }
+        .recipe-title {
+            text-align: center;
+            font-size: 1.4em;
+            color: #f5576c;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .steps-bank {
+            background: #fff3cd;
+            border: 2px dashed #ffc107;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .step-item {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            margin: 10px;
+            border-radius: 10px;
+            cursor: grab;
+            user-select: none;
+            font-size: 1.1em;
+            display: inline-block;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .step-item:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .step-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+        .step-item.used {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: #ccc;
+        }
+        .recipe-slots {
+            background: #e8f5e9;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .recipe-slot {
+            background: white;
+            border: 2px dashed #9e9e9e;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 6px 0;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .recipe-slot::before {
+            content: attr(data-number);
+            position: absolute;
+            left: 15px;
+            background: #f5576c;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .recipe-slot.filled {
+            border: 3px solid #4CAF50;
+            background: #c8e6c9;
+        }
+        .recipe-slot.show-hint {
+            border: 2px dashed #9e9e9e;
+            background: #f5f5f5;
+        }
+        .recipe-slot.show-hint .slot-content {
+            color: #999;
+            opacity: 0.5;
+            font-style: italic;
+        }
+        .recipe-slot.drag-over {
+            border: 3px solid #ff9800;
+            background: #ffe0b2;
+            transform: scale(1.02);
+        }
+        .slot-content {
+            margin-left: 50px;
+            flex: 1;
+        }
+        .button {
+            font-family: inherit;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: white;
+            background: #f5576c;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #ff8c00;
+            transform: scale(1.05);
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .feedback {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: popIn 0.5s ease;
+        }
+        .feedback.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .feedback.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .popup-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px 50px;
+            font-size: 1.8em;
+            font-weight: bold;
+            z-index: 2000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-radius: 15px;
+            animation: popupIn 0.3s ease, popupOut 0.3s ease 1.7s forwards;
+            pointer-events: none;
+        }
+        .popup-message.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 3px solid #c3e6cb;
+        }
+        .popup-message.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 3px solid #f5c6cb;
+        }
+        @keyframes popupIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes popupOut {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🍳 Recipe Builder 🍳</h1>
+        <div id="starCount">⭐ 0 / 5</div>
+        
+        <div class="recipe-title" id="recipeTitle">Loading recipe...</div>
+        
+        <div class="instructions" style="text-align: center; color: #f5576c; font-size: 1.2em; margin: 15px 0; font-weight: bold;">
+            Drag the steps into the correct order!
+        </div>
+        
+        <div class="recipe-layout">
+            <div class="recipe-left">
+                <div class="steps-bank" id="stepsBank"></div>
+            </div>
+            <div class="recipe-right">
+                <div class="recipe-slots" id="recipeSlots"></div>
+            </div>
+        </div>
+        
+        <div id="feedbackContainer"></div>
+        
+        <div class="button-container">
+            <button class="button" id="deleteButton" onclick="deleteLastStep()">⌫ Delete Last</button>
+            <button class="button" id="checkButton" onclick="checkRecipe()">✓ Check Recipe</button>
+            <button class="button hidden" id="nextButton" onclick="nextRecipe()">Next Recipe →</button>
+        </div>
+    </div>
+
+    <script src="quizProgress.js"></script>
+    <script src="gameJsonLoader.js"></script>
+    <script>
+        function readText(text, lang, rate = 0.8, onEndCallback = null) {
+            if (window.Android && typeof window.Android.readText === 'function') {
+                window.Android.readText(text, lang);
+                setTimeout(() => {
+                    if (onEndCallback) onEndCallback();
+                }, 1000);
+            } else if ('speechSynthesis' in window) {
+                if (window.currentTTSUtterance) window.speechSynthesis.cancel();
+                window.currentTTSUtterance = new SpeechSynthesisUtterance(text);
+                window.currentTTSUtterance.lang = lang;
+                window.currentTTSUtterance.rate = rate;
+                window.currentTTSUtterance.onend = () => {
+                    if (onEndCallback) onEndCallback();
+                    window.currentTTSUtterance = null;
+                };
+                window.speechSynthesis.speak(window.currentTTSUtterance);
+            } else {
+                if (onEndCallback) onEndCallback();
+            }
+        }
+
+        let recipes = [];
+        let currentRecipeIndex = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let maxQuestions = 5;
+        let currentRecipe = null;
+
+        let quiz = null;
+        function initQuizProgress(defaultRequired) {
+            quiz = QuizProgress.create({ defaultRequired: defaultRequired });
+            syncQuizVars();
+        }
+        function syncQuizVars() {
+            if (!quiz) return;
+            correctCount = quiz.getCorrectCount();
+            incorrectCount = quiz.getIncorrectCount();
+            if (typeof maxQuestions !== 'undefined') maxQuestions = quiz.getRequiredCorrect();
+        }
+        function recordQuizAnswer(wasCorrect) {
+            const r = quiz.recordAnswer(wasCorrect);
+            syncQuizVars();
+            return r;
+        }
+        function quizIsComplete() { return quiz && quiz.isComplete(); }
+
+        /* LEGACY (pre-quizProgress) — revert by uncommenting this block and removing quiz usage below */
+        let draggedElement = null;
+        function getGameConfig() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const file = urlParams.get('file');
+            return file || 'recipeBuilder.json';
+        }
+
+        async function loadRecipes() {
+            const fileName = getGameConfig();
+            try {
+                const data = await GameJsonLoader.loadDataJson(fileName);
+                if (!Array.isArray(data) || !data.length) {
+                    throw new Error('Empty data');
+                }
+                recipes = data;
+                maxQuestions = Math.min(recipes.length, maxQuestions);
+                startGame();
+            } catch (error) {
+                console.error('Failed to load game data:', error);
+                GameJsonLoader.failGameLoad('Failed to load game data.');
+            }
+        }
+
+        function startGame() {
+            currentRecipeIndex = 0;
+            initQuizProgress(maxQuestions);
+            if (quiz) quiz.setRequiredCorrect(maxQuestions);
+            syncQuizVars();
+            updateStarCount();
+            loadRecipe();
+        }
+
+        function loadRecipe() {
+            if (quizIsComplete()) {
+                endGame();
+                return;
+            }
+
+            currentRecipe = recipes[quiz.wrapIndex(recipes.length)];
+            document.getElementById('recipeTitle').textContent = `Recipe: ${currentRecipe.title}`;
+            document.getElementById('feedbackContainer').innerHTML = '';
+            document.getElementById('checkButton').disabled = false;
+            document.getElementById('nextButton').classList.add('hidden');
+
+            // Shuffle steps
+            const shuffled = [...currentRecipe.steps].sort(() => Math.random() - 0.5);
+            
+            // Create slots
+            const slotsContainer = document.getElementById('recipeSlots');
+            slotsContainer.innerHTML = '';
+            shuffled.forEach((step, index) => {
+                const slot = document.createElement('div');
+                slot.className = 'recipe-slot';
+                slot.dataset.number = index + 1;
+                slot.dataset.expected = currentRecipe.steps.indexOf(step);
+                slot.innerHTML = '<div class="slot-content"></div>';
+                
+                slot.addEventListener('dragover', handleDragOver);
+                slot.addEventListener('drop', handleDrop);
+                slot.addEventListener('dragleave', handleDragLeave);
+                
+                // Also allow drops on the slot-content div
+                const slotContent = slot.querySelector('.slot-content');
+                slotContent.addEventListener('dragover', handleDragOver);
+                slotContent.addEventListener('drop', handleDrop);
+                slotContent.addEventListener('dragleave', handleDragLeave);
+                
+                slotsContainer.appendChild(slot);
+            });
+
+            // Create step bank
+            const bankContainer = document.getElementById('stepsBank');
+            bankContainer.innerHTML = '';
+            shuffled.forEach((step, index) => {
+                const item = document.createElement('div');
+                item.className = 'step-item';
+                item.textContent = step;
+                item.draggable = true;
+                item.dataset.step = step;
+                item.dataset.index = index;
+                
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+                
+                // Add touch handlers for Android
+                item.addEventListener('touchstart', handleTouchStart, { passive: false });
+                item.addEventListener('touchmove', handleTouchMove, { passive: false });
+                item.addEventListener('touchend', handleTouchEnd, { passive: false });
+                
+                bankContainer.appendChild(item);
+            });
+
+            setTimeout(() => {
+                readText(`Build this recipe step by step: ${currentRecipe.title}`, 'en-US', 0.7);
+            }, 500);
+        }
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.dataset.step || '');
+            // Store reference globally for better compatibility
+            window.draggedRecipeElement = e.target;
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            window.draggedRecipeElement = null;
+        }
+
+        // Touch handlers for Android
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchElement = null;
+
+        function handleTouchStart(e) {
+            touchElement = e.target;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchElement.classList.add('dragging');
+            draggedElement = touchElement;
+            window.draggedRecipeElement = touchElement;
+        }
+
+        function handleTouchMove(e) {
+            if (!touchElement) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (elementBelow) {
+                const slot = elementBelow.closest('.recipe-slot') || 
+                            (elementBelow.classList.contains('recipe-slot') ? elementBelow : null);
+                if (slot) {
+                    slot.classList.add('drag-over');
+                }
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (!touchElement) return;
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (elementBelow) {
+                let slot = elementBelow.closest('.recipe-slot') || 
+                          (elementBelow.classList.contains('recipe-slot') ? elementBelow : null);
+                if (slot && slot.classList.contains('slot-content')) {
+                    slot = slot.parentElement;
+                }
+                
+                if (slot && slot.classList.contains('recipe-slot') && draggedElement) {
+                    const step = draggedElement.dataset.step;
+                    const previousSlot = document.querySelector(`.recipe-slot[data-actual="${draggedElement.dataset.index}"]`);
+                    if (previousSlot && previousSlot !== slot) {
+                        previousSlot.querySelector('.slot-content').textContent = '';
+                        previousSlot.classList.remove('filled');
+                        previousSlot.dataset.actual = -1;
+                    }
+                    slot.querySelector('.slot-content').textContent = step;
+                    slot.classList.add('filled');
+                    slot.dataset.actual = draggedElement.dataset.index;
+                    draggedElement.classList.add('used');
+                    draggedElement.draggable = false;
+                }
+            }
+            
+            document.querySelectorAll('.recipe-slot').forEach(s => s.classList.remove('drag-over'));
+            touchElement.classList.remove('dragging');
+            touchElement = null;
+            draggedElement = null;
+            window.draggedRecipeElement = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'move';
+            }
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Try to get dragged element from various sources
+            let dragged = draggedElement || window.draggedRecipeElement;
+            if (!dragged) {
+                const data = e.dataTransfer?.getData('text/plain');
+                if (data) {
+                    // Find the step item by text
+                    const stepItems = document.querySelectorAll('.step-item');
+                    for (let item of stepItems) {
+                        if (item.textContent.trim() === data && !item.classList.contains('used')) {
+                            dragged = item;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!dragged) return;
+            
+            // Get the slot (might be slot-content or the slot itself)
+            let slot = e.currentTarget;
+            if (slot.classList.contains('slot-content')) {
+                slot = slot.parentElement;
+            }
+            if (!slot || !slot.classList.contains('recipe-slot')) return;
+            
+            slot.classList.remove('drag-over');
+            const step = dragged.dataset.step;
+            
+            // Remove from previous slot if any
+            const previousSlot = document.querySelector(`.recipe-slot[data-actual="${dragged.dataset.index}"]`);
+            if (previousSlot && previousSlot !== slot) {
+                previousSlot.querySelector('.slot-content').textContent = '';
+                previousSlot.classList.remove('filled');
+                previousSlot.dataset.actual = -1;
+            }
+            
+            // Clear hint if this slot had one - remove ALL hint-related styling
+            // Force remove class and reset styles completely
+            slot.classList.remove('show-hint');
+            slot.removeAttribute('data-is-hint');
+            slot.removeAttribute('data-ishint');
+            
+            // Add to new slot
+            const slotContent = slot.querySelector('.slot-content');
+            slotContent.textContent = step;
+            
+            // Force reset ALL styles that might be applied by CSS
+            // Use !important via setProperty to override CSS
+            slotContent.style.setProperty('color', '', 'important');
+            slotContent.style.setProperty('opacity', '', 'important');
+            slotContent.style.setProperty('font-style', '', 'important');
+            slotContent.style.setProperty('font-weight', '', 'important');
+            
+            // Also reset the slot's background and border to normal filled state
+            slot.style.setProperty('border', '', 'important');
+            slot.style.setProperty('background', '', 'important');
+            
+            slot.classList.add('filled');
+            slot.dataset.actual = dragged.dataset.index;
+            
+            // Mark step as used
+            dragged.classList.add('used');
+            dragged.draggable = false;
+            draggedElement = null;
+            window.draggedRecipeElement = null;
+        }
+
+        function deleteLastStep() {
+            const slots = Array.from(document.querySelectorAll('.recipe-slot'));
+            // Find the last filled slot
+            for (let i = slots.length - 1; i >= 0; i--) {
+                const slot = slots[i];
+                if (slot.classList.contains('filled')) {
+                    const stepText = slot.querySelector('.slot-content').textContent;
+                    slot.querySelector('.slot-content').textContent = '';
+                    slot.classList.remove('filled');
+                    slot.dataset.actual = -1;
+                    
+                    // Return step to bank
+                    const stepItems = document.querySelectorAll('.step-item');
+                    for (let item of stepItems) {
+                        if (item.textContent.includes(stepText) && item.classList.contains('used')) {
+                            item.classList.remove('used');
+                            item.draggable = true;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        function checkRecipe() {
+            const slots = Array.from(document.querySelectorAll('.recipe-slot'));
+            let isCorrect = true;
+            
+            slots.forEach((slot, index) => {
+                const slotPosition = parseInt(slot.dataset.number) - 1; // Convert to 0-based index (0, 1, 2, 3, 4)
+                const actualIndex = parseInt(slot.dataset.actual);
+                
+                // Check if the actual index matches the expected index for this slot position
+                // Slot 1 (position 0) should have step at index 0, slot 2 (position 1) should have step at index 1, etc.
+                if (actualIndex !== slotPosition) {
+                    isCorrect = false;
+                }
+            });
+
+            document.getElementById('checkButton').disabled = true;
+            if (isCorrect) {
+                /* LEGACY (pre-quizProgress) correctCount++; */
+                recordQuizAnswer(true);
+                showPopupMessage('✓ Perfect recipe! Great job! 🎉', 'correct');
+                updateStarCount();
+                slots.forEach(slot => {
+                    slot.style.border = '3px solid #4CAF50';
+                    slot.style.background = '#c8e6c9';
+                });
+                setTimeout(() => {
+                    if (quizIsComplete()) endGame();
+                    else loadRecipe();
+                }, 2000);
+            } else {
+                /* LEGACY (pre-quizProgress) incorrectCount++; */
+                recordQuizAnswer(false);
+                showPopupMessage('✗ Not quite right.', 'incorrect');
+                updateStarCount();
+                setTimeout(() => {
+                    if (quizIsComplete()) endGame();
+                    else loadRecipe();
+                }, 2000);
+                /* LEGACY (pre-quizProgress) — retry loop below
+                slots.forEach((slot, index) => {
+                    const slotContent = slot.querySelector('.slot-content');
+                    const stepText = slotContent ? slotContent.textContent : '';
+                    const actualIndex = slot.dataset.actual;
+                    const isHint = slot.dataset.isHint === 'true' || 
+                                  slot.dataset.ishint === 'true' || 
+                                  slot.classList.contains('show-hint') ||
+                                  (stepText && !actualIndex); // If there's text but no actualIndex, it's a hint
+                    
+                    // Clear ALL slots (both real blocks and hints)
+                    if (stepText && stepText.trim() !== '') {
+                        // If it's a real block (not a hint), return it to bank
+                        // Check if actualIndex exists and is valid (not -1, not empty, not undefined)
+                        const hasValidIndex = actualIndex !== undefined && 
+                                            actualIndex !== null && 
+                                            actualIndex !== '' && 
+                                            actualIndex !== '-1' &&
+                                            actualIndex !== 'undefined';
+                        
+                        if (!isHint && hasValidIndex) {
+                            // Try to find by index first (most reliable)
+                            const stepItems = document.querySelectorAll('.step-item');
+                            let found = false;
+                            
+                            // First try: match by dataset.index (compare as strings)
+                            for (let item of stepItems) {
+                                if (String(item.dataset.index) === String(actualIndex) && item.classList.contains('used')) {
+                                    item.classList.remove('used');
+                                    item.draggable = true;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            
+                            // Fallback: match by text content if index didn't work
+                            if (!found) {
+                                for (let item of stepItems) {
+                                    if (item.textContent.trim() === stepText.trim() && item.classList.contains('used')) {
+                                        item.classList.remove('used');
+                                        item.draggable = true;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Clear the slot (whether hint or real block)
+                        slotContent.textContent = '';
+                        slotContent.style.setProperty('color', '', 'important');
+                        slotContent.style.setProperty('opacity', '', 'important');
+                        slotContent.style.setProperty('font-style', '', 'important');
+                        slotContent.style.setProperty('font-weight', '', 'important');
+                        slot.style.setProperty('border', '', 'important');
+                        slot.style.setProperty('background', '', 'important');
+                        slot.classList.remove('filled');
+                        slot.classList.remove('show-hint');
+                        slot.dataset.actual = '-1';
+                        slot.removeAttribute('data-is-hint');
+                        slot.removeAttribute('data-ishint');
+                    }
+                });
+                
+                // Show correct answer faintly in each slot
+                // Sort slots by their position number to ensure correct order (1, 2, 3...)
+                const sortedSlots = Array.from(slots).sort((a, b) => {
+                    return parseInt(a.dataset.number) - parseInt(b.dataset.number);
+                });
+                
+                setTimeout(() => {
+                    sortedSlots.forEach((slot) => {
+                        const slotPosition = parseInt(slot.dataset.number) - 1; // Convert to 0-based index (0, 1, 2, 3, 4)
+                        const correctStep = currentRecipe.steps[slotPosition];
+                        const slotContent = slot.querySelector('.slot-content');
+                        
+                        // Show hint for all slots
+                        slot.classList.add('show-hint');
+                        slotContent.textContent = correctStep;
+                        // Mark that this is a hint, not a real answer
+                        slot.dataset.isHint = 'true';
+                    });
+                }, 500);
+                */
+            }
+        }
+
+        function nextRecipe() {
+            currentRecipeIndex++;
+            loadRecipe();
+        }
+
+        function showPopupMessage(message, type) {
+            const popup = document.createElement('div');
+            popup.className = `popup-message ${type}`;
+            popup.textContent = message;
+            document.body.appendChild(popup);
+            
+            setTimeout(() => {
+                popup.remove();
+            }, 2000);
+        }
+
+        function updateStarCount() {
+            document.getElementById("starCount").innerText = quiz ? `⭐ ${quiz.progressLabel()}` : `⭐ ${correctCount} / ${maxQuestions}`;
+        }
+
+        function endGame() {
+            document.getElementById('recipeTitle').innerHTML = 
+                `<h2>🎉 Game Complete! 🎉</h2><p>Final Score: ${correctCount}/${maxQuestions}⭐</p>`;
+            document.getElementById('recipeSlots').innerHTML = '';
+            document.getElementById('stepsBank').innerHTML = '';
+            document.querySelector('.button-container').innerHTML = '';
+            
+            /* LEGACY (pre-quizProgress)
+            if (window.Android && typeof window.Android.gameCompleted === 'function') {
+                window.Android.gameCompleted(correctCount, incorrectCount);
+            } else if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'gameCompleted', correct: correctCount, incorrect: incorrectCount }, '*');
+            }
+            */
+            if (quiz) quiz.notifyAndroidComplete();
+            setTimeout(() => {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'closeModal' }, '*');
+                } else {
+                    history.back();
+                }
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadRecipes);
+    </script>
+</body>
+</html>
+

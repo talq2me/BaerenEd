@@ -1,0 +1,68 @@
+{
+  "id": "ufli-silent-e-exception-chain-g1",
+  "concept": "silent-e-exception",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "give",
+        "prompt": "Make the word give. Build give letter by letter.",
+        "correctChoices": [
+          {
+            "text": "g"
+          },
+          {
+            "text": "i"
+          },
+          {
+            "text": "v"
+          },
+          {
+            "text": "e"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "l"
+          },
+          {
+            "text": "t"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "give",
+          "to": "live",
+          "prompt": "Say give. Change the g at the beginning to l. Build live."
+        },
+        {
+          "from": "live",
+          "to": "love",
+          "prompt": "Say live. Change spelling to love. Spell love."
+        },
+        {
+          "from": "love",
+          "to": "some",
+          "prompt": "Build the review word: some."
+        },
+        {
+          "from": "some",
+          "to": "dove",
+          "prompt": "Build dove."
+        },
+        {
+          "from": "dove",
+          "to": "none",
+          "prompt": "Build none."
+        },
+        {
+          "from": "none",
+          "to": "done",
+          "prompt": "Build done."
+        }
+      ]
+    }
+  ]
+}

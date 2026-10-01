@@ -1,0 +1,2571 @@
+[
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 5 + x = 12?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 4, what is the value of 2x?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 3x = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x - 7 = 13?"
+    },
+    "correctChoices": [
+      {
+        "text": "20"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x + 3 = 15?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 5x = 25?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 9 = 17?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 3, what is the value of 4x + 2?"
+    },
+    "correctChoices": [
+      {
+        "text": "14"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "12"
+      },
+      {
+        "text": "13"
+      },
+      {
+        "text": "15"
+      },
+      {
+        "text": "16"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x ÷ 3 = 6?"
+    },
+    "correctChoices": [
+      {
+        "text": "18"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "15"
+      },
+      {
+        "text": "16"
+      },
+      {
+        "text": "17"
+      },
+      {
+        "text": "19"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 3x + 4 = 16?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 8x = 64?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x - 5 = 10?"
+    },
+    "correctChoices": [
+      {
+        "text": "15"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "13"
+      },
+      {
+        "text": "14"
+      },
+      {
+        "text": "16"
+      },
+      {
+        "text": "17"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 7, what is the value of 3x + 1?"
+    },
+    "correctChoices": [
+      {
+        "text": "22"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "20"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "23"
+      },
+      {
+        "text": "24"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 4x - 6 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 6x = 36?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 2x + 7 = 19?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 4 = 10?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 2, what is the value of 6x + 3?"
+    },
+    "correctChoices": [
+      {
+        "text": "15"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "12"
+      },
+      {
+        "text": "13"
+      },
+      {
+        "text": "14"
+      },
+      {
+        "text": "16"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x - 4 = 8?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x + 12 = 24?"
+    },
+    "correctChoices": [
+      {
+        "text": "12"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "13"
+      },
+      {
+        "text": "14"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 7x = 49?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x ÷ 4 = 5?"
+    },
+    "correctChoices": [
+      {
+        "text": "20"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 3x = 21?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 5, what is the value of 5x - 2?"
+    },
+    "correctChoices": [
+      {
+        "text": "23"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "24"
+      },
+      {
+        "text": "25"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x ÷ 2 = 6?"
+    },
+    "correctChoices": [
+      {
+        "text": "12"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "13"
+      },
+      {
+        "text": "14"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 4x = 24?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 3, what is the value of 5x + 6?"
+    },
+    "correctChoices": [
+      {
+        "text": "21"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "19"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "23"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 5x - 4 = 16?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 2x + 8 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 3x + 9 = 21?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x + 15 = 25?"
+    },
+    "correctChoices": [
+      {
+        "text": "10"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "12"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x - 3 = 7?"
+    },
+    "correctChoices": [
+      {
+        "text": "10"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "12"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 4, what is the value of 7x - 2?"
+    },
+    "correctChoices": [
+      {
+        "text": "26"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "24"
+      },
+      {
+        "text": "25"
+      },
+      {
+        "text": "27"
+      },
+      {
+        "text": "28"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x ÷ 5 = 4?"
+    },
+    "correctChoices": [
+      {
+        "text": "20"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 6x = 36?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 5x + 5 = 30?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x + 6 = 16?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 6, what is the value of 4x - 3?"
+    },
+    "correctChoices": [
+      {
+        "text": "21"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "19"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "23"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 7 = 14?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 3x - 2 = 16?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x + 10 = 22?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 7x - 4 = 24?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 8x + 6 = 54?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 3x + 12 = 24?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 5x = 40?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x + 20 = 40?"
+    },
+    "correctChoices": [
+      {
+        "text": "20"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 6x - 3 = 21?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 8, what is the value of 3x + 2?"
+    },
+    "correctChoices": [
+      {
+        "text": "26"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "24"
+      },
+      {
+        "text": "25"
+      },
+      {
+        "text": "27"
+      },
+      {
+        "text": "28"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x - 12 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "30"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "28"
+      },
+      {
+        "text": "29"
+      },
+      {
+        "text": "31"
+      },
+      {
+        "text": "32"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 4x + 8 = 32?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x + 4 = 16?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x ÷ 2 = 10?"
+    },
+    "correctChoices": [
+      {
+        "text": "20"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 3x = 15?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 9, what is the value of 2x + 3?"
+    },
+    "correctChoices": [
+      {
+        "text": "21"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "19"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "23"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 4x - 5 = 11?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x + 6 = 14?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 5x + 10 = 30?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 3x - 2 = 16?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 4 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "14"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "12"
+      },
+      {
+        "text": "13"
+      },
+      {
+        "text": "15"
+      },
+      {
+        "text": "16"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 5, what is the value of 3x + 2?"
+    },
+    "correctChoices": [
+      {
+        "text": "17"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "15"
+      },
+      {
+        "text": "16"
+      },
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x ÷ 3 = 6?"
+    },
+    "correctChoices": [
+      {
+        "text": "18"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "16"
+      },
+      {
+        "text": "17"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "20"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 7x = 56?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 2x + 8 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 10 = 20?"
+    },
+    "correctChoices": [
+      {
+        "text": "10"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "9"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "12"
+      },
+      {
+        "text": "13"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 2, what is the value of 5x - 3?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 6x - 4 = 32?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x + 6 = 14?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x + 9 = 19?"
+    },
+    "correctChoices": [
+      {
+        "text": "10"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "12"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 5x - 3 = 22?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 6, what is the value of 2x + 7?"
+    },
+    "correctChoices": [
+      {
+        "text": "19"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "17"
+      },
+      {
+        "text": "18"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "21"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 8x = 64?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 3x + 4 = 19?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x - 6 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "12"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "13"
+      },
+      {
+        "text": "14"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x ÷ 4 = 6?"
+    },
+    "correctChoices": [
+      {
+        "text": "24"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "22"
+      },
+      {
+        "text": "23"
+      },
+      {
+        "text": "25"
+      },
+      {
+        "text": "26"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x - 7 = 15?"
+    },
+    "correctChoices": [
+      {
+        "text": "22"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "20"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "23"
+      },
+      {
+        "text": "24"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 3, what is the value of 4x + 5?"
+    },
+    "correctChoices": [
+      {
+        "text": "17"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "15"
+      },
+      {
+        "text": "16"
+      },
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 9x = 72?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x + 7 = 23?"
+    },
+    "correctChoices": [
+      {
+        "text": "16"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "14"
+      },
+      {
+        "text": "15"
+      },
+      {
+        "text": "17"
+      },
+      {
+        "text": "18"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 5x = 40?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 4, what is the value of 6x - 1?"
+    },
+    "correctChoices": [
+      {
+        "text": "23"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "24"
+      },
+      {
+        "text": "25"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 3x + 9 = 30?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 15 = 30?"
+    },
+    "correctChoices": [
+      {
+        "text": "15"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "13"
+      },
+      {
+        "text": "14"
+      },
+      {
+        "text": "16"
+      },
+      {
+        "text": "17"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 2x + 5 = 17?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 4x = 28?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 3, what is the value of 5x + 4?"
+    },
+    "correctChoices": [
+      {
+        "text": "19"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "17"
+      },
+      {
+        "text": "18"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "21"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x - 7 = 14?"
+    },
+    "correctChoices": [
+      {
+        "text": "21"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "19"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "23"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 6x - 3 = 21?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 8, what is the value of 2x + 6?"
+    },
+    "correctChoices": [
+      {
+        "text": "22"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "20"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "23"
+      },
+      {
+        "text": "24"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 9 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "9"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "8"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      },
+      {
+        "text": "12"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 5x - 10 = 30?"
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "11"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x - 5 = 15?"
+    },
+    "correctChoices": [
+      {
+        "text": "20"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 6, what is the value of 4x + 8?"
+    },
+    "correctChoices": [
+      {
+        "text": "32"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "30"
+      },
+      {
+        "text": "31"
+      },
+      {
+        "text": "33"
+      },
+      {
+        "text": "34"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 2x + 7 = 17?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 3x + 3 = 21?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 6 = 13?"
+    },
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 2, what is the value of 3x + 5?"
+    },
+    "correctChoices": [
+      {
+        "text": "11"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "12"
+      },
+      {
+        "text": "13"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 8x = 48?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 6x - 2 = 16?"
+    },
+    "correctChoices": [
+      {
+        "text": "3"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "2"
+      },
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 4x - 5 = 15?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 7, what is the value of 3x + 10?"
+    },
+    "correctChoices": [
+      {
+        "text": "31"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "29"
+      },
+      {
+        "text": "30"
+      },
+      {
+        "text": "32"
+      },
+      {
+        "text": "33"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 8 = 22?"
+    },
+    "correctChoices": [
+      {
+        "text": "14"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "12"
+      },
+      {
+        "text": "13"
+      },
+      {
+        "text": "15"
+      },
+      {
+        "text": "16"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: 5x - 7 = 23?"
+    },
+    "correctChoices": [
+      {
+        "text": "6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 3x + 5 = 20?"
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "If x = 5, what is the value of 2x + 3?"
+    },
+    "correctChoices": [
+      {
+        "text": "13"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "12"
+      },
+      {
+        "text": "14"
+      },
+      {
+        "text": "15"
+      },
+      {
+        "text": "16"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation x + 10 = 25?"
+    },
+    "correctChoices": [
+      {
+        "text": "15"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "14"
+      },
+      {
+        "text": "16"
+      },
+      {
+        "text": "17"
+      },
+      {
+        "text": "18"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Solve for x: x - 6 = 14?"
+    },
+    "correctChoices": [
+      {
+        "text": "20"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "18"
+      },
+      {
+        "text": "19"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "What is the value of x in the equation 4x + 2 = 18?"
+    },
+    "correctChoices": [
+      {
+        "text": "4"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      }
+    ]
+  }
+]
+

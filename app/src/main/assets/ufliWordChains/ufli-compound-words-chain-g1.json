@@ -1,0 +1,268 @@
+{
+  "id": "ufli-compound-words-chain-g1",
+  "concept": "compound-words",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "spell-1",
+      "steps": [
+        {
+          "word": "sunset",
+          "prompt": "Say sunset. Build this compound word. First part sounds like sun, second part sounds like set.",
+          "correctChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "u"
+            },
+            {
+              "text": "n"
+            },
+            {
+              "text": "s"
+            },
+            {
+              "text": "e"
+            },
+            {
+              "text": "t"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "y"
+            },
+            {
+              "text": "p"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    },
+    {
+      "id": "spell-2",
+      "steps": [
+        {
+          "word": "hotdog",
+          "prompt": "Say hotdog. Build this compound word. Hot plus dog smashed together.",
+          "correctChoices": [
+            {
+              "text": "h"
+            },
+            {
+              "text": "o"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "o"
+            },
+            {
+              "text": "g"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "b"
+            },
+            {
+              "text": "r"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    },
+    {
+      "id": "spell-3",
+      "steps": [
+        {
+          "word": "kickball",
+          "prompt": "Say kickball. Build this compound word. Kick plus ball.",
+          "correctChoices": [
+            {
+              "text": "k"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "c"
+            },
+            {
+              "text": "k"
+            },
+            {
+              "text": "b"
+            },
+            {
+              "text": "a"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "l"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "n"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    },
+    {
+      "id": "spell-4",
+      "steps": [
+        {
+          "word": "uphill",
+          "prompt": "Build uphill.",
+          "correctChoices": [
+            {
+              "text": "u"
+            },
+            {
+              "text": "p"
+            },
+            {
+              "text": "h"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "l"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "o"
+            },
+            {
+              "text": "w"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    },
+    {
+      "id": "spell-5",
+      "steps": [
+        {
+          "word": "himself",
+          "prompt": "Build himself.",
+          "correctChoices": [
+            {
+              "text": "h"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "m"
+            },
+            {
+              "text": "s"
+            },
+            {
+              "text": "e"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "f"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "d"
+            },
+            {
+              "text": "r"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    },
+    {
+      "id": "chain-6",
+      "steps": [
+        {
+          "from": "himself",
+          "to": "bathtub",
+          "prompt": "Build bathtub."
+        },
+        {
+          "from": "bathtub",
+          "to": "stepdad",
+          "prompt": "Build stepdad."
+        },
+        {
+          "from": "stepdad",
+          "to": "sandbox",
+          "prompt": "Build sandbox."
+        },
+        {
+          "word": "something",
+          "prompt": "Build something.",
+          "correctChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "o"
+            },
+            {
+              "text": "m"
+            },
+            {
+              "text": "e"
+            },
+            {
+              "text": "t"
+            },
+            {
+              "text": "h"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "n"
+            },
+            {
+              "text": "g"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "r"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    }
+  ]
+}

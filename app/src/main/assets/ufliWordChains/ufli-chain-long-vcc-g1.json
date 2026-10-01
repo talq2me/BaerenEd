@@ -1,0 +1,130 @@
+{
+  "id": "ufli-chain-long-vcc-g1",
+  "concept": "long-vcc",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "cold",
+        "prompt": "Make the word cold.",
+        "correctChoices": [
+          {
+            "text": "c"
+          },
+          {
+            "text": "o"
+          },
+          {
+            "text": "l"
+          },
+          {
+            "text": "d"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "b"
+          },
+          {
+            "text": "g"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "cold",
+          "to": "bold",
+          "prompt": "Say cold. Change c to b. Build bold."
+        },
+        {
+          "from": "bold",
+          "to": "mold",
+          "prompt": "Say bold. Change b to m. Build mold."
+        },
+        {
+          "from": "mold",
+          "to": "gold",
+          "prompt": "Say mold. Change m to g. Build gold."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "find",
+        "prompt": "Make the word find.",
+        "correctChoices": [
+          {
+            "text": "f"
+          },
+          {
+            "text": "i"
+          },
+          {
+            "text": "n"
+          },
+          {
+            "text": "d"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "b"
+          },
+          {
+            "text": "r"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "find",
+          "to": "bind",
+          "prompt": "Say find. Change f to b. Build bind."
+        },
+        {
+          "from": "bind",
+          "to": "kind",
+          "prompt": "Say bind. Change b to k. Build kind."
+        },
+        {
+          "from": "kind",
+          "to": "rind",
+          "prompt": "Say kind. Change k to r. Build rind."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "rind",
+      "steps": [
+        {
+          "from": "rind",
+          "to": "mild",
+          "prompt": "Build mild."
+        },
+        {
+          "from": "mild",
+          "to": "hold",
+          "prompt": "Build hold."
+        },
+        {
+          "from": "hold",
+          "to": "host",
+          "prompt": "Build host."
+        },
+        {
+          "from": "host",
+          "to": "bolt",
+          "prompt": "Build bolt."
+        },
+        {
+          "from": "bolt",
+          "to": "sold",
+          "prompt": "Build sold."
+        }
+      ]
+    }
+  ]
+}

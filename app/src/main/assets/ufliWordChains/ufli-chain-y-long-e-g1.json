@@ -1,0 +1,183 @@
+{
+  "id": "ufli-chain-y-long-e-g1",
+  "concept": "y-long-e",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "sunny",
+        "prompt": "Write the word sunny.",
+        "correctChoices": [
+          {
+            "text": "s"
+          },
+          {
+            "text": "u"
+          },
+          {
+            "text": "n"
+          },
+          {
+            "text": "n"
+          },
+          {
+            "text": "y"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "f"
+          },
+          {
+            "text": "b"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "sunny",
+          "to": "funny",
+          "prompt": "Say sunny. Change s to f. Build funny."
+        },
+        {
+          "from": "funny",
+          "to": "bunny",
+          "prompt": "Say funny. Change f to b. Build bunny."
+        },
+        {
+          "from": "bunny",
+          "to": "buddy",
+          "prompt": "Say bunny. Change nn to dd. Build buddy."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "happy",
+        "prompt": "Write the word happy.",
+        "correctChoices": [
+          {
+            "text": "h"
+          },
+          {
+            "text": "a"
+          },
+          {
+            "text": "p"
+          },
+          {
+            "text": "p"
+          },
+          {
+            "text": "y"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "o"
+          },
+          {
+            "text": "u"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "happy",
+          "to": "hoppy",
+          "prompt": "Say happy. Change a to o. Build hoppy."
+        },
+        {
+          "from": "hoppy",
+          "to": "poppy",
+          "prompt": "Say hoppy. Change h to p. Build poppy."
+        },
+        {
+          "from": "poppy",
+          "to": "puppy",
+          "prompt": "Say poppy. Change o to u. Build puppy."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "puppy",
+      "steps": [
+        {
+          "from": "puppy",
+          "to": "muddy",
+          "prompt": "Build muddy."
+        },
+        {
+          "from": "muddy",
+          "to": "penny",
+          "prompt": "Build penny."
+        },
+        {
+          "word": "lady",
+          "prompt": "Build lady.",
+          "correctChoices": [
+            {
+              "text": "l"
+            },
+            {
+              "text": "a"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "y"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "t"
+            },
+            {
+              "text": "n"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "lady",
+          "to": "tiny",
+          "prompt": "Build tiny."
+        },
+        {
+          "word": "teddy",
+          "prompt": "Build teddy.",
+          "correctChoices": [
+            {
+              "text": "t"
+            },
+            {
+              "text": "e"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "y"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "n"
+            },
+            {
+              "text": "p"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    }
+  ]
+}

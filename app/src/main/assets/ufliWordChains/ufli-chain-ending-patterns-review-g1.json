@@ -1,0 +1,313 @@
+{
+  "id": "ufli-chain-ending-patterns-review-g1",
+  "concept": "ending-patterns-review",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "child",
+        "prompt": "Make the word child.",
+        "correctChoices": [
+          {
+            "text": "c"
+          },
+          {
+            "text": "h"
+          },
+          {
+            "text": "i"
+          },
+          {
+            "text": "l"
+          },
+          {
+            "text": "d"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "w"
+          },
+          {
+            "text": "n"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "word": "wild",
+          "prompt": "Say child. Change ch to w. Build wild.",
+          "correctChoices": [
+            {
+              "text": "w"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "d"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "c"
+            },
+            {
+              "text": "n"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "wild",
+          "to": "mild",
+          "prompt": "Say wild. Change w to m. Build mild."
+        },
+        {
+          "from": "mild",
+          "to": "mind",
+          "prompt": "Say mild. Change l to n. Build mind."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "try",
+        "prompt": "Make the word try.",
+        "correctChoices": [
+          {
+            "text": "t"
+          },
+          {
+            "text": "r"
+          },
+          {
+            "text": "y"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "c"
+          },
+          {
+            "text": "f"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "try",
+          "to": "cry",
+          "prompt": "Say try. Change t to c. Build cry."
+        },
+        {
+          "from": "cry",
+          "to": "pry",
+          "prompt": "Say cry. Change c to p. Build pry."
+        },
+        {
+          "from": "pry",
+          "to": "fry",
+          "prompt": "Say pry. Change p to f. Build fry."
+        }
+      ]
+    },
+    {
+      "id": "vocab",
+      "continuesFrom": "fry",
+      "steps": [
+        {
+          "word": "most",
+          "prompt": "Build most.",
+          "correctChoices": [
+            {
+              "text": "m"
+            },
+            {
+              "text": "o"
+            },
+            {
+              "text": "s"
+            },
+            {
+              "text": "t"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "d"
+            },
+            {
+              "text": "l"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "most",
+          "to": "told",
+          "prompt": "Build told."
+        },
+        {
+          "word": "why",
+          "prompt": "Build why.",
+          "correctChoices": [
+            {
+              "text": "w"
+            },
+            {
+              "text": "h"
+            },
+            {
+              "text": "y"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "s"
+            },
+            {
+              "text": "t"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "why",
+          "to": "sky",
+          "prompt": "Build sky."
+        },
+        {
+          "word": "baby",
+          "prompt": "Build baby.",
+          "correctChoices": [
+            {
+              "text": "b"
+            },
+            {
+              "text": "a"
+            },
+            {
+              "text": "b"
+            },
+            {
+              "text": "y"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "l"
+            },
+            {
+              "text": "p"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "word": "lucky",
+          "prompt": "Build lucky.",
+          "correctChoices": [
+            {
+              "text": "l"
+            },
+            {
+              "text": "u"
+            },
+            {
+              "text": "c"
+            },
+            {
+              "text": "k"
+            },
+            {
+              "text": "y"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "b"
+            },
+            {
+              "text": "t"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "word": "middle",
+          "prompt": "Build middle.",
+          "correctChoices": [
+            {
+              "text": "m"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "d"
+            },
+            {
+              "text": "l"
+            },
+            {
+              "text": "e"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "t"
+            },
+            {
+              "text": "g"
+            }
+          ],
+          "type": "seed"
+        },
+        {
+          "from": "middle",
+          "to": "jungle",
+          "prompt": "Build jungle."
+        },
+        {
+          "word": "puppy",
+          "prompt": "Build puppy.",
+          "correctChoices": [
+            {
+              "text": "p"
+            },
+            {
+              "text": "u"
+            },
+            {
+              "text": "p"
+            },
+            {
+              "text": "p"
+            },
+            {
+              "text": "y"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "o"
+            },
+            {
+              "text": "h"
+            }
+          ],
+          "type": "seed"
+        }
+      ]
+    }
+  ]
+}
