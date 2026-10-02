@@ -457,7 +457,7 @@ INSERT INTO reward_spinner (name, percent) VALUES
     ('Extra 10 minutes screen time', 20),
     ('Quick card/board game with parent', 15),
     ('Pokemon Card', 20),
-    ('Trip to the park', 5),
+    ('Extra Minecraft time', 5),
     ('Choose tomorrow night''s dinner', 20)
 ON CONFLICT DO NOTHING;
 
