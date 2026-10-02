@@ -351,6 +351,17 @@
             updateTimerDisplay();
         }
 
+        function openWebMicrophone() {
+            const friendly = {
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+                video: false
+            };
+            return navigator.mediaDevices.getUserMedia(friendly).catch(function (err) {
+                if (err && err.name === 'NotAllowedError') throw err;
+                return navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            });
+        }
+
         function useNativeAudio() {
             return !!(window.Android && typeof window.Android.startAudioRecording === 'function'
                 && typeof window.Android.stopAudioRecording === 'function');
@@ -397,7 +408,7 @@
             }
 
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                mediaStream = await openWebMicrophone();
             } catch (e) {
                 const detail = (e && (e.name || e.message)) ? (e.name + ': ' + e.message) : String(e);
                 showMessage('Could not access microphone (' + detail + ').', 'error');

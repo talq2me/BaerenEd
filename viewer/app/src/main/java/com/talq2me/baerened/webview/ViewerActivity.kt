@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
@@ -30,6 +31,7 @@ class ViewerActivity : Activity() {
     private var ttsReady = false
     private var pendingWebPermission: PermissionRequest? = null
     private var pendingFileCallback: ValueCallback<Array<Uri>>? = null
+    private var awaitingOsMediaPermission = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,6 +113,7 @@ class ViewerActivity : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != REQUEST_MEDIA) return
+        awaitingOsMediaPermission = false
         val request = pendingWebPermission
         pendingWebPermission = null
         if (request == null) return
@@ -131,6 +134,7 @@ class ViewerActivity : Activity() {
         pendingWebPermission = null
         pendingFileCallback?.onReceiveValue(null)
         pendingFileCallback = null
+        awaitingOsMediaPermission = false
         tts?.stop()
         tts?.shutdown()
         tts = null
@@ -180,12 +184,22 @@ class ViewerActivity : Activity() {
                 Log.i(TAG, "Denying media for ${request.origin}")
                 request.deny()
             } else {
+                if (allowed.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) prepareWebMicrophone()
                 Log.i(TAG, "Granting ${allowed.joinToString()} for ${request.origin}")
                 request.grant(allowed.toTypedArray())
             }
         } catch (e: IllegalStateException) {
             Log.w(TAG, "Media request already finished", e)
         }
+    }
+
+    private fun prepareWebMicrophone() {
+        val manager = getSystemService(AUDIO_SERVICE) as? AudioManager ?: return
+        // WebView opens the mic through the voice path. Without this, the page's
+        // getUserMedia call is granted and then fails to start the microphone.
+        manager.mode = AudioManager.MODE_IN_COMMUNICATION
+        @Suppress("DEPRECATION")
+        manager.isSpeakerphoneOn = true
     }
 
     private fun notifyPage() {
@@ -237,12 +251,17 @@ class ViewerActivity : Activity() {
                     }
                 }
                 pendingWebPermission = request
+                awaitingOsMediaPermission = true
                 requestPermissions(missing.toTypedArray(), REQUEST_MEDIA)
             }
         }
 
         override fun onPermissionRequestCanceled(request: PermissionRequest?) {
             runOnUiThread {
+                if (awaitingOsMediaPermission && pendingWebPermission == request) {
+                    Log.i(TAG, "Keeping the media request while the Android permission dialog is open")
+                    return@runOnUiThread
+                }
                 if (pendingWebPermission == request) pendingWebPermission = null
             }
         }
