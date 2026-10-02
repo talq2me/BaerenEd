@@ -29,20 +29,125 @@
     document.getElementById("title").textContent = practice ? "Practice" : "Required";
     document.title = practice ? "Practice" : "Required";
 
-    async function loadMap() {
-      const lists = document.getElementById("lists");
-      if (!Baeren.hasDb()) {
-        lists.textContent = "Save the Supabase URL and key in Parent setup to load the games.";
-        return;
+    let mapLoading = false;
+    let pollTimer = null;
+
+    function torontoYmd() {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Toronto",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).format(new Date());
+    }
+
+    function copyLang(task) {
+      const raw = String(task.url || "");
+      const match = /lang=(eng|fr)/i.exec(raw);
+      if (match) return match[1].toLowerCase();
+      if (/french/i.test(raw) || /french/i.test(task.title || "")) return "fr";
+      return "eng";
+    }
+
+    async function settleCopyTasks(profile, tasks, done) {
+      const copyState = {};
+      let needsPoll = false;
+      const copies = (tasks || []).filter(function (task) {
+        return task.launch === "spellingOCRXtra" && done[task.title] !== true;
+      });
+      for (let i = 0; i < copies.length; i++) {
+        const task = copies[i];
+        const lang = copyLang(task);
+        const label = lang === "fr" ? "French" : "English";
+        try {
+          let status = await Baeren.rpc("af_get_spelling_xtra_status", {
+            p_profile: profile,
+            p_language: lang,
+            p_date: torontoYmd()
+          });
+          if (status && status.phase === "pending_submit" && status.expectedCount > 0) {
+            await Baeren.rpc("af_enqueue_spelling_xtra_review", {
+              p_profile: profile,
+              p_language: lang,
+              p_date: torontoYmd(),
+              p_expected_count: status.expectedCount
+            });
+            status = await Baeren.rpc("af_get_spelling_xtra_status", {
+              p_profile: profile,
+              p_language: lang,
+              p_date: torontoYmd()
+            });
+          }
+          if (status && status.phase === "perfect") {
+            await Baeren.rpc("af_mark_spelling_xtra_complete", {
+              p_profile: profile,
+              p_language: lang,
+              p_date: torontoYmd()
+            });
+            await Baeren.completeTask({
+              title: task.title,
+              section: "required",
+              stars: task.stars == null ? 1 : task.stars,
+              correct: 0,
+              incorrect: 0,
+              questionsAnswered: 0
+            });
+            done[task.title] = true;
+            continue;
+          }
+          copyState[task.title] = status || { phase: "need_ocr", label: label, message: "Complete " + label + " Spelling OCR first." };
+          if (!status || status.phase === "waiting" || status.phase === "pending_submit") needsPoll = true;
+        } catch (err) {
+          console.warn(err);
+          copyState[task.title] = {
+            phase: "waiting",
+            label: label,
+            message: "Your spelling is still being checked. Try again in a minute."
+          };
+          needsPoll = true;
+        }
       }
-      await Baeren.ensureDailyReset();
-      const profile = Baeren.cfg().profile;
-      const rows = await Baeren.rpc("af_web_list_tasks", { p_profile: profile });
-      const rpcName = practice ? "af_get_tasks_practice" : "af_get_tasks_required";
-      const completion = await Baeren.rpc(rpcName, { p_profile: profile });
-      const done = Tasks.completionMap(completion, !practice);
-      const tasks = (rows || []).filter(function (task) { return task.section === section; });
-      Tasks.renderSection(lists, tasks, done);
+      return { copyState: copyState, needsPoll: needsPoll };
+    }
+
+    async function loadMap() {
+      if (mapLoading) return;
+      mapLoading = true;
+      const lists = document.getElementById("lists");
+      try {
+        if (pollTimer) {
+          clearTimeout(pollTimer);
+          pollTimer = null;
+        }
+        if (!Baeren.hasDb()) {
+          lists.textContent = "Save the Supabase URL and key in Parent setup to load the games.";
+          return;
+        }
+        await Baeren.ensureDailyReset();
+        const profile = Baeren.cfg().profile;
+        const rows = await Baeren.rpc("af_web_list_tasks", { p_profile: profile });
+        const rpcName = practice ? "af_get_tasks_practice" : "af_get_tasks_required";
+        const completion = await Baeren.rpc(rpcName, { p_profile: profile });
+        const done = Tasks.completionMap(completion, !practice);
+        const tasks = (rows || []).filter(function (task) { return task.section === section; });
+        let copyState = null;
+        let needsPoll = false;
+        if (!practice) {
+          const settled = await settleCopyTasks(profile, tasks, done);
+          copyState = settled.copyState;
+          needsPoll = settled.needsPoll;
+        }
+        Tasks.renderSection(lists, tasks, done, copyState);
+        if (needsPoll) {
+          pollTimer = setTimeout(function () {
+            loadMap().catch(function (err) {
+              document.getElementById("lists").textContent = err.message || String(err);
+            });
+          }, 20000);
+        }
+      } finally {
+        mapLoading = false;
+      }
     }
 
     document.getElementById("refreshBtn").addEventListener("click", function () {

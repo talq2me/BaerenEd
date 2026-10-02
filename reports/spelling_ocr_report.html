@@ -143,20 +143,26 @@
         </div>
     </div>
     <script>
-        function isCorrectStatus(status) {
-            return status === '✓' || status === 'checkmark' || String(status || '').toLowerCase() === 'correct';
+        function photoKind(status) {
+            const value = String(status || '');
+            if (value === '✓' || value === 'checkmark' || value.toLowerCase() === 'correct') return 'correct';
+            if (value.toLowerCase() === 'unverified') return 'unverified';
+            return 'incorrect';
         }
 
         function countTasks(tasks) {
             let correct = 0;
             let incorrect = 0;
+            let unverified = 0;
             (tasks || []).forEach((row) => {
                 const parts = String(row.task || '').trim().split('-');
                 if (parts.length < 4) return;
-                if (isCorrectStatus(parts[parts.length - 1])) correct += 1;
+                const kind = photoKind(parts[parts.length - 1]);
+                if (kind === 'correct') correct += 1;
+                else if (kind === 'unverified') unverified += 1;
                 else incorrect += 1;
             });
-            return { correct, incorrect };
+            return { correct, incorrect, unverified };
         }
 
         async function loadGameCounts() {
@@ -174,17 +180,23 @@
             await Promise.all([...slots].map(async (el) => {
                 const profile = el.dataset.profile;
                 const game = el.dataset.game;
-                const pattern = encodeURIComponent(`${game}-`) + '%25';
+                    const prefixes = [game];
+                    if (game.endsWith('SpellingOCR')) prefixes.push(game.replace(/OCR$/, 'OCRXtra'));
                 try {
-                    const response = await fetch(
-                        `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&task=ilike.${pattern}&select=task`,
-                        { headers }
-                    );
-                    if (!response.ok) throw new Error(await response.text());
-                    const counts = countTasks(await response.json());
-                    const total = counts.correct + counts.incorrect;
+                    const batches = await Promise.all(prefixes.map(async (prefix) => {
+                        const pattern = encodeURIComponent(`${prefix}-`) + '%25';
+                        const response = await fetch(
+                            `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&task=ilike.${pattern}&select=task`,
+                            { headers }
+                        );
+                        if (!response.ok) throw new Error(await response.text());
+                        return response.json();
+                    }));
+                    const counts = countTasks(batches.flat());
+                    const total = counts.correct + counts.incorrect + counts.unverified;
+                    const unverifiedNote = counts.unverified ? `, ${counts.unverified} unverified` : '';
                     el.textContent = total
-                        ? `${counts.correct} correct, ${counts.incorrect} incorrect`
+                        ? `${counts.correct} correct, ${counts.incorrect} incorrect${unverifiedNote}`
                         : 'No submissions';
                 } catch (error) {
                     console.error('OCR count failed', profile, game, error);

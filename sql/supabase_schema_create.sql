@@ -387,17 +387,32 @@ CREATE POLICY "Allow all operations on image_uploads" ON image_uploads
     USING (true)
     WITH CHECK (true);
 
--- Same-day spelling copy task. Wrong words stay on image_uploads.task (suffix X).
--- webhook_sent stops a second Grok POST after the language list is uploaded.
--- status becomes complete when the child finishes the copy task.
+-- Same-day spelling extra task.
+-- image_uploads.task ends in unverified (not scored), X (incorrect), or ✓ (correct).
+-- words is the extra-practice list Grok writes. Null means Grok did not write one.
+-- xtra_round is the round the child should write. xtra_sent_round is the last round sent to Grok.
+-- status becomes complete when the extra task is finished.
 CREATE TABLE IF NOT EXISTS spelling_dictation_reviews (
     profile TEXT NOT NULL,
     review_date DATE NOT NULL,
     language TEXT NOT NULL CHECK (language IN ('eng', 'fr')),
     status TEXT NOT NULL DEFAULT 'incomplete',
     webhook_sent BOOLEAN NOT NULL DEFAULT false,
+    copy_scoring BOOLEAN NOT NULL DEFAULT false,
+    words JSONB,
+    xtra_round INT,
+    xtra_sent_round INT NOT NULL DEFAULT 0,
     PRIMARY KEY (profile, review_date, language)
 );
+
+ALTER TABLE spelling_dictation_reviews
+    ADD COLUMN IF NOT EXISTS copy_scoring BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE spelling_dictation_reviews
+    ADD COLUMN IF NOT EXISTS words JSONB;
+ALTER TABLE spelling_dictation_reviews
+    ADD COLUMN IF NOT EXISTS xtra_round INT;
+ALTER TABLE spelling_dictation_reviews
+    ADD COLUMN IF NOT EXISTS xtra_sent_round INT NOT NULL DEFAULT 0;
 
 ALTER TABLE spelling_dictation_reviews ENABLE ROW LEVEL SECURITY;
 

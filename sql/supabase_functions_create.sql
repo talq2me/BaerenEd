@@ -11,11 +11,13 @@
 
 
 -- Drop existing function signatures first
+DROP FUNCTION IF EXISTS af_catalog_as_config(text);
 DROP FUNCTION IF EXISTS af_daily_reset(text);
 DROP FUNCTION IF EXISTS af_delete_behavior_log(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_upload_by_id(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_uploads_ilike(text, text);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_ocr_review(text, text, date, int);
+DROP FUNCTION IF EXISTS af_enqueue_spelling_xtra_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_get_battle_hub_counts(text);
 DROP FUNCTION IF EXISTS af_get_behavior_log(text, timestamp, timestamp);
 DROP FUNCTION IF EXISTS af_get_current_required_tasks(text);
@@ -26,6 +28,7 @@ DROP FUNCTION IF EXISTS af_get_required_progress_today(text);
 DROP FUNCTION IF EXISTS af_get_reward_time_state(text);
 DROP FUNCTION IF EXISTS af_get_settings_last_updated();
 DROP FUNCTION IF EXISTS af_get_settings_row();
+DROP FUNCTION IF EXISTS af_get_spelling_xtra_status(text, text, date);
 DROP FUNCTION IF EXISTS af_get_stars_to_minutes(int);
 DROP FUNCTION IF EXISTS af_get_tasks_bonus(text);
 DROP FUNCTION IF EXISTS af_get_tasks_photo_chores(text);
@@ -36,7 +39,10 @@ DROP FUNCTION IF EXISTS af_get_user_last_reset(text);
 DROP FUNCTION IF EXISTS af_get_user_last_updated(text);
 DROP FUNCTION IF EXISTS af_grant_chore_reward(text, text, numeric);
 DROP FUNCTION IF EXISTS af_insert_user_data_profile(text);
+DROP FUNCTION IF EXISTS af_list_reward_spinner();
+DROP FUNCTION IF EXISTS af_list_unverified_spelling(text, text, date, text);
 DROP FUNCTION IF EXISTS af_log_behavior(text, text, text);
+DROP FUNCTION IF EXISTS af_mark_spelling_xtra_complete(text, text, date);
 DROP FUNCTION IF EXISTS af_maybe_advance_spelling_pools(text);
 DROP FUNCTION IF EXISTS af_maybe_record_collector_card_day(text);
 DROP FUNCTION IF EXISTS af_payout_collector_cards(text, int);
@@ -46,6 +52,8 @@ DROP FUNCTION IF EXISTS af_reward_time_add(TEXT, INTEGER);
 DROP FUNCTION IF EXISTS af_reward_time_expire(TEXT, BOOLEAN);
 DROP FUNCTION IF EXISTS af_reward_time_pause(TEXT);
 DROP FUNCTION IF EXISTS af_reward_time_use(TEXT);
+DROP FUNCTION IF EXISTS af_score_spelling_photos(jsonb);
+DROP FUNCTION IF EXISTS af_set_spelling_xtra_words(text, text, date, text[]);
 DROP FUNCTION IF EXISTS af_story_read_assigned_today(text, date, int);
 DROP FUNCTION IF EXISTS af_update_behavior_log_time(bigint, timestamp);
 DROP FUNCTION IF EXISTS af_update_berries_banked(text, int, int);
@@ -56,9 +64,6 @@ DROP FUNCTION IF EXISTS af_update_tasks_bonus(text, text, int, int, int, int, in
 DROP FUNCTION IF EXISTS af_update_tasks_checklist_items(text, text, boolean);
 DROP FUNCTION IF EXISTS af_update_tasks_chores(text, int, boolean);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_bonus(text, jsonb);
-DROP FUNCTION IF EXISTS af_update_tasks_from_config_checklist_items(text, jsonb);
-DROP FUNCTION IF EXISTS af_update_tasks_from_config_chores(text, jsonb);
-DROP FUNCTION IF EXISTS af_update_tasks_from_config_photo_chores(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_practice(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_required(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_photo_chores(text, text);
@@ -73,6 +78,7 @@ DROP FUNCTION IF EXISTS af_web_finish_battle(text, int);
 DROP FUNCTION IF EXISTS af_web_list_tasks(text);
 DROP FUNCTION IF EXISTS af_web_report_assignments(text);
 DROP FUNCTION IF EXISTS af_web_save_schedule(text, jsonb, boolean);
+DROP FUNCTION IF EXISTS spelling_photo_kind(text);
 
 -- -----------------------------------------------------------------------------
 -- FILE: af_get_stars_to_minutes.sql
@@ -105,190 +111,63 @@ GRANT EXECUTE ON FUNCTION af_get_stars_to_minutes(int) TO anon, authenticated, s
 
 
 -- -----------------------------------------------------------------------------
--- FILE: af_update_tasks_from_config_checklist_items.sql
+-- FILE: af_catalog_as_config.sql
 -- -----------------------------------------------------------------------------
--- Call sites (BaerenEd Android, this repo):
---   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateChecklistItemsFromConfig (RPC af_update_tasks_from_config_checklist_items).
---   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+-- Builds the profile config shape from web_assignments.
+-- Daily reset uses this instead of the GitHub AM/BM/TE config JSON files.
+-- Checklist is unused in this version, so it is not included.
 
-CREATE OR REPLACE FUNCTION af_update_tasks_from_config_checklist_items(p_profile text, p_config_json jsonb DEFAULT NULL)
-RETURNS void
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION af_catalog_as_config(p_profile text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
 SECURITY DEFINER
-SET search_path = public, extensions
+SET search_path = public
 AS $$
-DECLARE
-  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
-  config_json jsonb;
-  http_status int;
-  existing_checklist jsonb;
-  merged_checklist jsonb;
-BEGIN
-  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
-    config_json := p_config_json;
-  ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
-    IF http_status != 200 OR config_json IS NULL THEN
-      RAISE WARNING 'af_update_tasks_from_config_checklist_items: failed to fetch config for %', p_profile;
-      RETURN;
-    END IF;
-  END IF;
-
-  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO existing_checklist FROM user_data WHERE profile = p_profile;
-
-  SELECT COALESCE(
-    (
-      SELECT jsonb_object_agg(
-        it->>'label',
-        jsonb_build_object(
-          'done', COALESCE((existing_checklist->(it->>'label'))->>'done', 'false')::boolean,
-          'stars', COALESCE((it->>'stars')::int, 0),
-          'id', it->'id',
-          'showdays', it->'showdays',
-          'hidedays', it->'hidedays',
-          'displayDays', it->'displayDays',
-          'launch', to_jsonb('checklist_' || COALESCE(it->>'id', it->>'label'))
-        )
-      )
-      FROM jsonb_array_elements(config_json->'sections') AS sec
-      CROSS JOIN LATERAL jsonb_array_elements(COALESCE(sec->'items', '[]'::jsonb)) AS it
-      WHERE sec->'items' IS NOT NULL AND jsonb_array_length(COALESCE(sec->'items', '[]'::jsonb)) > 0
-    ),
-    '{}'::jsonb
-  ) INTO merged_checklist;
-
-  UPDATE user_data SET checklist_items = merged_checklist, last_updated = (NOW() AT TIME ZONE 'America/Toronto') WHERE profile = p_profile;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_checklist_items(text, jsonb) TO anon, authenticated, service_role;
-
-
--- -----------------------------------------------------------------------------
--- FILE: af_update_tasks_from_config_chores.sql
--- -----------------------------------------------------------------------------
--- Call sites (BaerenEd Android, this repo):
---   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateChoresFromGitHub.
---   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
-
-CREATE OR REPLACE FUNCTION af_update_tasks_from_config_chores(p_profile text, p_chores_json jsonb DEFAULT NULL)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, extensions
-AS $$
-DECLARE
-  chores_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/chores.json';
-  chores_json jsonb;
-  http_status int;
-  existing_chores jsonb;
-  merged_chores jsonb;
-BEGIN
-  IF p_chores_json IS NOT NULL AND p_chores_json != 'null'::jsonb AND jsonb_typeof(p_chores_json) = 'array' THEN
-    chores_json := p_chores_json;
-  ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, chores_json FROM http_get(chores_url) r LIMIT 1;
-    IF http_status != 200 OR chores_json IS NULL OR jsonb_typeof(chores_json) != 'array' THEN
-      RAISE WARNING 'af_update_tasks_from_config_chores: failed to fetch chores (status %)', COALESCE(http_status, -1);
-      RETURN;
-    END IF;
-  END IF;
-
-  SELECT COALESCE(chores, '[]'::jsonb) INTO existing_chores FROM user_data WHERE profile = p_profile;
-
-  SELECT jsonb_agg(
-    jsonb_build_object(
-      'chore_id', c->'id',
-      'description', c->'description',
-      'coins_reward', c->'coins',
-      'done', COALESCE(
-        (SELECT (e->>'done')::boolean FROM jsonb_array_elements(existing_chores) e WHERE (e->>'chore_id')::int = (c->>'id')::int LIMIT 1),
-        false
-      )
+  WITH tasks AS (
+    SELECT
+      CASE a.section WHEN 'optional' THEN 'optional' WHEN 'bonus' THEN 'bonus' ELSE 'required' END AS section_id,
+      a.sort_order,
+      jsonb_build_object(
+        'title', a.title,
+        'launch', a.launch,
+        'stars', a.stars,
+        'url', a.url,
+        'webGame', a.web_game,
+        'chromePage', a.chrome_page,
+        'videoSequence', a.video_sequence,
+        'video', a.video,
+        'totalQuestions', a.total_questions,
+        'easy', a.easy,
+        'easydays', a.easy_days,
+        'harddays', a.hard_days,
+        'extremedays', a.extreme_days,
+        'displayDays', a.display_days,
+        'blockOutlines', a.block_outlines,
+        'description', a.description
+      ) AS task
+    FROM web_assignments a
+    WHERE a.profile = upper(trim(p_profile))
+      AND a.enabled
+      AND a.section IN ('required', 'optional', 'bonus')
+  )
+  SELECT jsonb_build_object(
+    'sections', jsonb_build_array(
+      jsonb_build_object('id', 'required', 'tasks', COALESCE((
+        SELECT jsonb_agg(task ORDER BY sort_order) FROM tasks WHERE section_id = 'required'
+      ), '[]'::jsonb)),
+      jsonb_build_object('id', 'optional', 'tasks', COALESCE((
+        SELECT jsonb_agg(task ORDER BY sort_order) FROM tasks WHERE section_id = 'optional'
+      ), '[]'::jsonb)),
+      jsonb_build_object('id', 'bonus', 'tasks', COALESCE((
+        SELECT jsonb_agg(task ORDER BY sort_order) FROM tasks WHERE section_id = 'bonus'
+      ), '[]'::jsonb)),
+      jsonb_build_object('id', 'checklist', 'items', '[]'::jsonb)
     )
-    ORDER BY (c->>'id')::int
-  ) INTO merged_chores
-  FROM jsonb_array_elements(chores_json) c;
-
-  UPDATE user_data SET chores = COALESCE(merged_chores, '[]'::jsonb), last_updated = (NOW() AT TIME ZONE 'America/Toronto') WHERE profile = p_profile;
-END;
+  );
 $$;
 
-GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_chores(text, jsonb) TO anon, authenticated, service_role;
-
-
--- -----------------------------------------------------------------------------
--- FILE: af_update_tasks_from_config_photo_chores.sql
--- -----------------------------------------------------------------------------
--- Call sites (BaerenEd Android, this repo):
---   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdatePhotoChoresFromConfig.
---   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
--- Invoked from (PostgreSQL, this repo sql/):
---   af_daily_reset.sql
-
--- BaerenEd: Merge GitHub Pages profile config section id "chores" into user_data.photo_chores.
--- Keyed by chore id. Preserves today's status on merge. Does not grant cash, berries, or minutes.
--- POST /rest/v1/rpc/af_update_tasks_from_config_photo_chores {"p_profile":"AM","p_config_json":{...}}
-
-CREATE OR REPLACE FUNCTION af_update_tasks_from_config_photo_chores(p_profile text, p_config_json jsonb DEFAULT NULL)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, extensions
-AS $$
-DECLARE
-  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
-  config_json jsonb;
-  http_status int;
-  existing_chores jsonb;
-  merged_chores jsonb;
-BEGIN
-  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
-    config_json := p_config_json;
-  ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
-    IF http_status != 200 OR config_json IS NULL THEN
-      RAISE WARNING 'af_update_tasks_from_config_photo_chores: failed to fetch config for %', p_profile;
-      RETURN;
-    END IF;
-  END IF;
-
-  SELECT COALESCE(photo_chores, '{}'::jsonb) INTO existing_chores FROM user_data WHERE profile = p_profile;
-
-  SELECT COALESCE(
-    (
-      SELECT jsonb_object_agg(
-        t->>'id',
-        jsonb_build_object(
-          'status', COALESCE(existing_chores->(t->>'id')->>'status', 'incomplete'),
-          'title', t->>'title',
-          'description', t->>'description',
-          'rewardCash', t->'rewardCash',
-          'launch', COALESCE(NULLIF(TRIM(t->>'launch'), ''), 'chorePhoto'),
-          'url', t->>'url',
-          'webGame', t->'webGame',
-          'showdays', t->>'showdays',
-          'hidedays', t->>'hidedays',
-          'displayDays', t->>'displayDays',
-          'disable', t->>'disable'
-        )
-      )
-      FROM jsonb_array_elements(config_json->'sections') AS sec,
-           jsonb_array_elements(COALESCE(sec->'tasks', '[]'::jsonb)) AS t
-      WHERE sec->>'id' = 'chores'
-        AND NULLIF(TRIM(COALESCE(t->>'id', '')), '') IS NOT NULL
-    ),
-    '{}'::jsonb
-  ) INTO merged_chores;
-
-  UPDATE user_data SET
-    photo_chores = merged_chores,
-    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
-  WHERE profile = p_profile;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_photo_chores(text, jsonb) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION af_catalog_as_config(text) TO anon, authenticated, service_role;
 
 
 -- -----------------------------------------------------------------------------
@@ -310,18 +189,16 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 DECLARE
-  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
   config_json jsonb;
-  http_status int;
   existing_practice jsonb;
   merged_practice jsonb;
 BEGIN
   IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
     config_json := p_config_json;
   ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
-    IF http_status != 200 OR config_json IS NULL THEN
-      RAISE WARNING 'af_update_tasks_from_config_practice: failed to fetch config for %', p_profile;
+    config_json := af_catalog_as_config(p_profile);
+    IF config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_practice: no catalog rows for %', p_profile;
       RETURN;
     END IF;
   END IF;
@@ -450,18 +327,16 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 DECLARE
-  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
   config_json jsonb;
-  http_status int;
   existing_bonus jsonb;
   merged_bonus jsonb;
 BEGIN
   IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
     config_json := p_config_json;
   ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
-    IF http_status != 200 OR config_json IS NULL THEN
-      RAISE WARNING 'af_update_tasks_from_config_bonus: failed to fetch config for %', p_profile;
+    config_json := af_catalog_as_config(p_profile);
+    IF config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_bonus: no catalog rows for %', p_profile;
       RETURN;
     END IF;
   END IF;
@@ -635,27 +510,20 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 DECLARE
-  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
   config_json jsonb;
-  http_status int;
   existing_required jsonb;
   merged_required jsonb;
-  merged_checklist jsonb;
   v_today_short text := lower(to_char((NOW() AT TIME ZONE 'America/Toronto'), 'Dy'));
   v_today_date date := (NOW() AT TIME ZONE 'America/Toronto')::date;
-  v_required_possible_stars int := 0;
-  v_checklist_possible_stars int := 0;
   v_possible_stars int := 0;
   v_game_indices jsonb;
 BEGIN
   IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
     config_json := p_config_json;
   ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, config_json
-    FROM http_get(github_url) r
-    LIMIT 1;
-    IF http_status != 200 OR config_json IS NULL THEN
-      RAISE WARNING 'af_update_tasks_from_config_required: failed to fetch config for % (status %, content null)', p_profile, COALESCE(http_status, -1);
+    config_json := af_catalog_as_config(p_profile);
+    IF config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_required: no catalog rows for %', p_profile;
       RETURN;
     END IF;
   END IF;
@@ -702,14 +570,8 @@ BEGIN
     '{}'::jsonb
   ) INTO merged_required;
 
-  PERFORM af_update_tasks_from_config_checklist_items(p_profile, config_json);
-
-  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO merged_checklist
-  FROM user_data
-  WHERE profile = p_profile;
-
   SELECT COALESCE(SUM(COALESCE((e.value->>'stars')::int, 0)), 0)
-  INTO v_required_possible_stars
+  INTO v_possible_stars
   FROM jsonb_each(COALESCE(merged_required, '{}'::jsonb)) AS e(key, value)
   WHERE
     NOT (
@@ -752,19 +614,6 @@ BEGIN
          )
     );
 
-  SELECT COALESCE(SUM(COALESCE((e.value->>'stars')::int, 0)), 0)
-  INTO v_checklist_possible_stars
-  FROM jsonb_each(COALESCE(merged_checklist, '{}'::jsonb)) AS e(key, value)
-  WHERE
-    NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
-    OR EXISTS (
-      SELECT 1
-      FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
-      WHERE d.day_token = v_today_short
-    );
-
-  v_possible_stars := v_required_possible_stars + v_checklist_possible_stars;
-
   UPDATE user_data
   SET
     required_tasks = merged_required,
@@ -788,7 +637,7 @@ GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_required(text, jsonb) TO a
 -- Call this before reading user_data so the row for the given profile with last_reset date not equal to today (Toronto time)
 -- gets reset: blank required_tasks, checklist_items, practice_tasks, berries_earned, banked_mins, chores, photo_chores;
 -- set last_reset and last_updated to now() in America/Toronto. Does not change coins_earned, pokemon_unlocked, game_indices.
--- When a reset row was updated (FOUND), repopulates task/chore columns from GitHub via af_update_*
+-- When a reset row was updated (FOUND), repopulates task columns from web_assignments via af_update_*
 -- (full implementations are in the per-function af_update_* files in sql/).
 -- Run in Supabase SQL Editor once to create the function; then call via PostgREST: POST /rest/v1/rpc/af_daily_reset with body {"p_profile": "AM"}
 
@@ -824,8 +673,6 @@ BEGIN
     PERFORM af_update_tasks_from_config_required(p_profile);
     PERFORM af_update_tasks_from_config_practice(p_profile);
     PERFORM af_update_tasks_from_config_bonus(p_profile);
-    PERFORM af_update_tasks_from_config_chores(p_profile);
-    PERFORM af_update_tasks_from_config_photo_chores(p_profile);
   END IF;
 END;
 $$;
@@ -2797,6 +2644,7 @@ GRANT EXECUTE ON FUNCTION af_maybe_advance_spelling_pools(text) TO anon, authent
 -- -----------------------------------------------------------------------------
 -- Call site: web/spell.html after the last spelling drawing is stored.
 -- Fires once per profile, language, and day after that many OCR images are stored.
+-- New photos end in -unverified until Grok scores them. See af_list_unverified_spelling.sql.
 -- Vault secret spelling_ocr_webhook_bearer is the crsr_ token only (no "Bearer " prefix).
 
 CREATE OR REPLACE FUNCTION af_enqueue_spelling_ocr_review(
@@ -2918,6 +2766,670 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_enqueue_spelling_ocr_review(text, text, date, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_get_spelling_xtra_status.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/map.html and web/xtra.html.
+-- The extra task completes itself when every OCR photo is scored correct and Grok
+-- never wrote a review list. It also completes when the current extra round is all correct.
+-- A review list appears only when Grok calls af_set_spelling_xtra_words.
+
+DROP FUNCTION IF EXISTS af_get_spelling_copy_status(text, text, date);
+DROP FUNCTION IF EXISTS af_enqueue_spelling_copy_review(text, text, date, int);
+DROP FUNCTION IF EXISTS af_mark_spelling_copy_complete(text, text, date);
+
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS words JSONB;
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS xtra_round INT;
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS xtra_sent_round INT NOT NULL DEFAULT 0;
+
+CREATE OR REPLACE FUNCTION spelling_photo_kind(p_status text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN p_status IS NULL THEN 'unknown'
+    WHEN p_status IN ('✓', 'checkmark') OR lower(p_status) IN ('correct', 'checkmark') THEN 'correct'
+    WHEN lower(p_status) = 'unverified' THEN 'unverified'
+    WHEN lower(p_status) IN ('x', 'incorrect') THEN 'incorrect'
+    ELSE 'unknown'
+  END;
+$$;
+
+CREATE OR REPLACE FUNCTION af_get_spelling_xtra_status(
+  p_profile text,
+  p_language text,
+  p_date date
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_day text;
+  v_ocr_prefix text;
+  v_xtra_prefix text;
+  v_title text;
+  v_label text;
+  v_ocr_re text;
+  v_xtra_re text;
+  v_ocr_complete boolean := false;
+  v_ocr_unverified boolean := false;
+  v_ocr_incorrect boolean := false;
+  v_raw_ocr int := 0;
+  v_parsed_ocr int := 0;
+  v_words jsonb;
+  v_round int;
+  v_sent int := 0;
+  v_photos jsonb := '[]'::jsonb;
+  v_practice jsonb := '[]'::jsonb;
+  v_round_unverified boolean := false;
+  v_all_correct boolean := true;
+  v_any_missing boolean := false;
+  v_item jsonb;
+  v_i int;
+  v_word text;
+  v_n int;
+  v_filled int;
+  v_kinds text[];
+  v_message_wait text := 'Your spelling is still being checked. Try again in a minute.';
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language = 'eng' THEN
+    v_ocr_prefix := 'EngSpellingOCR';
+    v_xtra_prefix := 'EngSpellingOCRXtra';
+    v_title := 'Eng Spelling OCR';
+    v_label := 'English';
+  ELSIF v_language = 'fr' THEN
+    v_ocr_prefix := 'FrSpellingOCR';
+    v_xtra_prefix := 'FrSpellingOCRXtra';
+    v_title := 'FR Spelling OCR';
+    v_label := 'French';
+  ELSE
+    RAISE EXCEPTION 'Invalid language: %', p_language;
+  END IF;
+
+  IF p_date IS NULL THEN
+    p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+  v_day := to_char(p_date, 'YYYY-MM-DD');
+  v_ocr_re := '^(?:Eng|Fr)SpellingOCR-' || v_day || '-([0-9]+)-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
+
+  SELECT lower(COALESCE(required_tasks -> v_title ->> 'status', '')) IN ('complete', 'done')
+    INTO v_ocr_complete
+  FROM user_data
+  WHERE profile = v_profile;
+  v_ocr_complete := COALESCE(v_ocr_complete, false);
+
+  IF NOT v_ocr_complete THEN
+    RETURN jsonb_build_object(
+      'phase', 'need_ocr',
+      'language', v_language,
+      'label', v_label,
+      'message', 'Complete ' || v_label || ' Spelling OCR first.',
+      'round', NULL,
+      'expectedCount', NULL,
+      'words', '[]'::jsonb
+    );
+  END IF;
+
+  SELECT count(*) INTO v_raw_ocr
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task LIKE v_ocr_prefix || '-' || v_day || '-%';
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('kind', spelling_photo_kind(m[3]))), '[]'::jsonb)
+    INTO v_photos
+  FROM (
+    SELECT regexp_match(task, v_ocr_re) AS m
+    FROM image_uploads
+    WHERE profile = v_profile
+      AND task LIKE v_ocr_prefix || '-' || v_day || '-%'
+  ) parsed
+  WHERE m IS NOT NULL;
+
+  v_parsed_ocr := COALESCE(jsonb_array_length(v_photos), 0);
+  FOR v_i IN 0 .. v_parsed_ocr - 1 LOOP
+    v_word := v_photos -> v_i ->> 'kind';
+    IF v_word IN ('unverified', 'unknown') THEN
+      v_ocr_unverified := true;
+    ELSIF v_word = 'incorrect' THEN
+      v_ocr_incorrect := true;
+    END IF;
+  END LOOP;
+
+  IF v_ocr_unverified OR v_raw_ocr > v_parsed_ocr THEN
+    RETURN jsonb_build_object(
+      'phase', 'waiting', 'language', v_language, 'label', v_label,
+      'message', v_message_wait, 'round', NULL, 'expectedCount', NULL, 'words', '[]'::jsonb
+    );
+  END IF;
+
+  SELECT words, xtra_round, COALESCE(xtra_sent_round, 0)
+    INTO v_words, v_round, v_sent
+  FROM spelling_dictation_reviews
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language;
+
+  IF v_words IS NULL OR jsonb_typeof(v_words) <> 'array' OR jsonb_array_length(v_words) = 0 THEN
+    IF v_ocr_incorrect THEN
+      RETURN jsonb_build_object(
+        'phase', 'waiting', 'language', v_language, 'label', v_label,
+        'message', v_message_wait, 'round', NULL, 'expectedCount', NULL, 'words', '[]'::jsonb
+      );
+    END IF;
+    RETURN jsonb_build_object(
+      'phase', 'perfect', 'language', v_language, 'label', v_label,
+      'message', '', 'round', NULL, 'expectedCount', NULL, 'words', '[]'::jsonb
+    );
+  END IF;
+
+  v_round := COALESCE(v_round, 1);
+  v_xtra_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r' || lpad(v_round::text, 2, '0')
+    || '-([0-9]+)-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'n', m[1]::int,
+           'word', m[2],
+           'kind', spelling_photo_kind(m[3])
+         )), '[]'::jsonb)
+    INTO v_photos
+  FROM (
+    SELECT regexp_match(task, v_xtra_re) AS m
+    FROM image_uploads
+    WHERE profile = v_profile
+      AND task LIKE v_xtra_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%'
+  ) parsed
+  WHERE m IS NOT NULL;
+
+  FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
+    v_word := v_words ->> v_i;
+    v_filled := 0;
+    v_kinds := ARRAY['missing', 'missing', 'missing'];
+    FOR v_n IN 0 .. COALESCE(jsonb_array_length(v_photos), 0) - 1 LOOP
+      v_item := v_photos -> v_n;
+      IF v_item->>'word' IS DISTINCT FROM v_word THEN
+        CONTINUE;
+      END IF;
+      IF (v_item->>'n')::int BETWEEN 1 AND 3 AND v_kinds[(v_item->>'n')::int] = 'missing' THEN
+        v_kinds[(v_item->>'n')::int] := v_item->>'kind';
+        v_filled := v_filled + 1;
+      END IF;
+    END LOOP;
+
+    IF v_filled = 3
+       AND v_kinds[1] = 'correct' AND v_kinds[2] = 'correct' AND v_kinds[3] = 'correct' THEN
+      CONTINUE;
+    END IF;
+
+    v_all_correct := false;
+    IF v_filled < 3 THEN
+      v_any_missing := true;
+      v_practice := v_practice || jsonb_build_array(jsonb_build_object(
+        'word', v_word,
+        'round', v_round,
+        'copies', jsonb_build_array(
+          jsonb_build_object('n', 1, 'status', v_kinds[1]),
+          jsonb_build_object('n', 2, 'status', v_kinds[2]),
+          jsonb_build_object('n', 3, 'status', v_kinds[3])
+        )
+      ));
+    ELSIF v_kinds[1] IN ('unverified', 'unknown')
+          OR v_kinds[2] IN ('unverified', 'unknown')
+          OR v_kinds[3] IN ('unverified', 'unknown') THEN
+      v_round_unverified := true;
+    END IF;
+  END LOOP;
+
+  IF v_all_correct THEN
+    RETURN jsonb_build_object(
+      'phase', 'perfect', 'language', v_language, 'label', v_label,
+      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', '[]'::jsonb
+    );
+  END IF;
+
+  IF v_any_missing THEN
+    RETURN jsonb_build_object(
+      'phase', 'practice', 'language', v_language, 'label', v_label,
+      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', v_practice
+    );
+  END IF;
+
+  IF v_round_unverified AND v_sent < v_round THEN
+    RETURN jsonb_build_object(
+      'phase', 'pending_submit', 'language', v_language, 'label', v_label,
+      'message', v_message_wait, 'round', v_round,
+      'expectedCount', jsonb_array_length(v_words) * 3,
+      'words', '[]'::jsonb
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'phase', 'waiting', 'language', v_language, 'label', v_label,
+    'message', v_message_wait, 'round', v_round, 'expectedCount', NULL, 'words', '[]'::jsonb
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION spelling_photo_kind(text) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION af_get_spelling_xtra_status(text, text, date) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_list_unverified_spelling.sql
+-- -----------------------------------------------------------------------------
+-- Call site: the Grok spelling automation.
+-- Returns unverified photos for one profile, language, and date.
+-- p_kind is 'ocr' or 'xtra'. Each row includes the image and the word to compare.
+
+CREATE OR REPLACE FUNCTION af_list_unverified_spelling(
+  p_profile text,
+  p_language text,
+  p_date date,
+  p_kind text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_kind text := lower(trim(COALESCE(p_kind, 'ocr')));
+  v_prefix text;
+  v_day text;
+  v_re text;
+  v_rows jsonb;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language = 'eng' AND v_kind = 'ocr' THEN
+    v_prefix := 'EngSpellingOCR';
+  ELSIF v_language = 'fr' AND v_kind = 'ocr' THEN
+    v_prefix := 'FrSpellingOCR';
+  ELSIF v_language = 'eng' AND v_kind = 'xtra' THEN
+    v_prefix := 'EngSpellingOCRXtra';
+  ELSIF v_language = 'fr' AND v_kind = 'xtra' THEN
+    v_prefix := 'FrSpellingOCRXtra';
+  ELSE
+    RAISE EXCEPTION 'Invalid language or kind: % %', p_language, p_kind;
+  END IF;
+
+  IF p_date IS NULL THEN
+    p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+  v_day := to_char(p_date, 'YYYY-MM-DD');
+
+  IF v_kind = 'ocr' THEN
+    v_re := '^(?:Eng|Fr)SpellingOCR-' || v_day || '-([0-9]+)-(.+)-unverified$';
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'id', id,
+             'task', task,
+             'word', m[2],
+             'n', m[1]::int,
+             'round', NULL,
+             'image', image
+           ) ORDER BY m[1]::int), '[]'::jsonb)
+      INTO v_rows
+    FROM (
+      SELECT id, task, image, regexp_match(task, v_re) AS m
+      FROM image_uploads
+      WHERE profile = v_profile
+        AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
+    ) parsed
+    WHERE m IS NOT NULL;
+  ELSE
+    v_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r([0-9]+)-([0-9]+)-(.+)-unverified$';
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'id', id,
+             'task', task,
+             'word', m[3],
+             'n', m[2]::int,
+             'round', m[1]::int,
+             'image', image
+           ) ORDER BY m[1]::int, m[2]::int), '[]'::jsonb)
+      INTO v_rows
+    FROM (
+      SELECT id, task, image, regexp_match(task, v_re) AS m
+      FROM image_uploads
+      WHERE profile = v_profile
+        AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
+    ) parsed
+    WHERE m IS NOT NULL;
+  END IF;
+
+  RETURN COALESCE(v_rows, '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_list_unverified_spelling(text, text, date, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_score_spelling_photos.sql
+-- -----------------------------------------------------------------------------
+-- Call site: the Grok spelling automation, after it has compared each image to its word.
+-- p_scores is a JSON array of {"id": <image_uploads.id>, "correct": true|false}.
+-- Only a task that still ends in -unverified is changed. Returns how many rows changed.
+
+CREATE OR REPLACE FUNCTION af_score_spelling_photos(p_scores jsonb)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_item jsonb;
+  v_i int;
+  v_id bigint;
+  v_correct boolean;
+  v_updated int := 0;
+  v_one int;
+BEGIN
+  IF p_scores IS NULL OR jsonb_typeof(p_scores) <> 'array' THEN
+    RAISE EXCEPTION 'p_scores must be a JSON array';
+  END IF;
+
+  FOR v_i IN 0 .. jsonb_array_length(p_scores) - 1 LOOP
+    v_item := p_scores -> v_i;
+    v_id := (v_item->>'id')::bigint;
+    v_correct := COALESCE((v_item->>'correct')::boolean, false);
+    UPDATE image_uploads
+    SET task = regexp_replace(task, '-unverified$', CASE WHEN v_correct THEN '-✓' ELSE '-X' END)
+    WHERE id = v_id
+      AND task LIKE '%-unverified';
+    GET DIAGNOSTICS v_one = ROW_COUNT;
+    v_updated := v_updated + v_one;
+  END LOOP;
+
+  RETURN v_updated;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_score_spelling_photos(jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_set_spelling_xtra_words.sql
+-- -----------------------------------------------------------------------------
+-- Call site: the Grok spelling automation, only when at least one word was incorrect.
+-- Do not call this when every photo was correct. An empty list is ignored.
+-- The first call publishes round 1. A later call, after that round is fully scored,
+-- replaces the list and starts the next round.
+
+CREATE OR REPLACE FUNCTION af_set_spelling_xtra_words(
+  p_profile text,
+  p_language text,
+  p_date date,
+  p_words text[]
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_words jsonb := '[]'::jsonb;
+  v_word text;
+  v_round int;
+  v_prefix text;
+  v_day text;
+  v_photo_count int := 0;
+  v_unverified int := 0;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language = 'eng' THEN
+    v_prefix := 'EngSpellingOCRXtra';
+  ELSIF v_language = 'fr' THEN
+    v_prefix := 'FrSpellingOCRXtra';
+  ELSE
+    RAISE EXCEPTION 'Invalid language: %', p_language;
+  END IF;
+  IF p_date IS NULL THEN
+    p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+
+  IF p_words IS NOT NULL THEN
+    FOREACH v_word IN ARRAY p_words LOOP
+      v_word := btrim(v_word);
+      IF v_word <> '' AND NOT v_words @> jsonb_build_array(v_word) THEN
+        v_words := v_words || to_jsonb(v_word);
+      END IF;
+    END LOOP;
+  END IF;
+  IF jsonb_array_length(v_words) < 1 THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO spelling_dictation_reviews (profile, review_date, language, status, webhook_sent)
+  VALUES (v_profile, p_date, v_language, 'incomplete', false)
+  ON CONFLICT (profile, review_date, language) DO NOTHING;
+
+  SELECT xtra_round INTO v_round
+  FROM spelling_dictation_reviews
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language;
+
+  v_day := to_char(p_date, 'YYYY-MM-DD');
+  IF v_round IS NOT NULL THEN
+    SELECT count(*), count(*) FILTER (WHERE task LIKE '%-unverified')
+      INTO v_photo_count, v_unverified
+    FROM image_uploads
+    WHERE profile = v_profile
+      AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
+    IF v_unverified > 0 THEN
+      RETURN;
+    END IF;
+    IF v_photo_count > 0 THEN
+      v_round := v_round + 1;
+    END IF;
+  END IF;
+  v_round := COALESCE(v_round, 1);
+
+  UPDATE spelling_dictation_reviews
+  SET words = v_words,
+      xtra_round = v_round,
+      status = 'incomplete'
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language
+    AND status IS DISTINCT FROM 'complete';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_set_spelling_xtra_words(text, text, date, text[]) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_enqueue_spelling_xtra_review.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/xtra.html after a round is stored, and web/map.html if that webhook never went out.
+-- Sends kind "xtra". xtra_sent_round stops a second POST for the same round.
+-- The next round can send again after af_set_spelling_xtra_words advances xtra_round.
+
+CREATE OR REPLACE FUNCTION af_enqueue_spelling_xtra_review(
+  p_profile text,
+  p_language text,
+  p_date date,
+  p_expected_count int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_prefix text;
+  v_day text;
+  v_round int;
+  v_sent int;
+  v_count int;
+  v_token text;
+  v_body text;
+  v_status int;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language = 'eng' THEN
+    v_prefix := 'EngSpellingOCRXtra';
+  ELSIF v_language = 'fr' THEN
+    v_prefix := 'FrSpellingOCRXtra';
+  ELSE
+    RAISE EXCEPTION 'Invalid language: %', p_language;
+  END IF;
+  IF p_date IS NULL OR COALESCE(p_expected_count, 0) < 1 THEN
+    RETURN;
+  END IF;
+
+  SELECT xtra_round, COALESCE(xtra_sent_round, 0)
+    INTO v_round, v_sent
+  FROM spelling_dictation_reviews
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language;
+
+  IF v_round IS NULL OR v_sent >= v_round THEN
+    RETURN;
+  END IF;
+
+  v_day := to_char(p_date, 'YYYY-MM-DD');
+  SELECT count(*) INTO v_count
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
+
+  IF v_count < p_expected_count THEN
+    RETURN;
+  END IF;
+
+  UPDATE spelling_dictation_reviews
+  SET xtra_sent_round = v_round
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language
+    AND COALESCE(xtra_sent_round, 0) < v_round
+    AND status IS DISTINCT FROM 'complete';
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT decrypted_secret INTO v_token
+  FROM vault.decrypted_secrets
+  WHERE name = 'spelling_ocr_webhook_bearer'
+  LIMIT 1;
+
+  IF v_token IS NULL OR btrim(v_token) = '' THEN
+    UPDATE spelling_dictation_reviews
+    SET xtra_sent_round = v_sent
+    WHERE profile = v_profile AND review_date = p_date AND language = v_language;
+    RAISE WARNING 'spelling_ocr_webhook_bearer not configured in Supabase Vault';
+    RETURN;
+  END IF;
+
+  v_body := jsonb_build_object(
+    'profile', v_profile,
+    'language', v_language,
+    'date', v_day,
+    'kind', 'xtra',
+    'round', v_round
+  )::text;
+
+  BEGIN
+    SELECT r.status INTO v_status
+    FROM extensions.http((
+      'POST',
+      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
+        extensions.http_header('Content-Type', 'application/json')
+      ]::extensions.http_header[],
+      'application/json',
+      v_body
+    )::extensions.http_request) r;
+  EXCEPTION WHEN OTHERS THEN
+    UPDATE spelling_dictation_reviews
+    SET xtra_sent_round = v_sent
+    WHERE profile = v_profile AND review_date = p_date AND language = v_language;
+    RAISE WARNING 'spelling extra webhook request failed: %', SQLERRM;
+    RETURN;
+  END;
+
+  IF v_status IS NULL OR v_status < 200 OR v_status >= 300 THEN
+    UPDATE spelling_dictation_reviews
+    SET xtra_sent_round = v_sent
+    WHERE profile = v_profile AND review_date = p_date AND language = v_language;
+    RAISE WARNING 'spelling extra webhook returned status %', COALESCE(v_status, -1);
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_enqueue_spelling_xtra_review(text, text, date, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_mark_spelling_xtra_complete.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/map.html when the extra task has nothing left to practice.
+
+CREATE OR REPLACE FUNCTION af_mark_spelling_xtra_complete(
+  p_profile text,
+  p_language text,
+  p_date date
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_status jsonb;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language NOT IN ('eng', 'fr') THEN
+    RAISE EXCEPTION 'Invalid language: %', p_language;
+  END IF;
+  IF p_date IS NULL THEN
+    p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+
+  v_status := af_get_spelling_xtra_status(v_profile, v_language, p_date);
+  IF v_status->>'phase' IS DISTINCT FROM 'perfect' THEN
+    RAISE EXCEPTION 'Spelling extra is not finished';
+  END IF;
+
+  INSERT INTO spelling_dictation_reviews (profile, review_date, language, status, webhook_sent)
+  VALUES (v_profile, p_date, v_language, 'complete', false)
+  ON CONFLICT (profile, review_date, language) DO UPDATE
+  SET status = 'complete';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_mark_spelling_xtra_complete(text, text, date) TO anon, authenticated, service_role;
 
 
 -- -----------------------------------------------------------------------------
@@ -3080,6 +3592,7 @@ BEGIN
   END IF;
 
   -- Same required games the web battle hub uses to enable Daily Spin.
+  -- Checklist items and not-yet-converted tasks do not block the wheel.
   v_today := (ARRAY['sun','mon','tue','wed','thu','fri','sat'])[
     extract(dow FROM (NOW() AT TIME ZONE 'America/Toronto'))::int + 1
   ];
@@ -3191,6 +3704,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION af_get_or_unlock_daily_prize(text) TO anon, authenticated, service_role;
 
+-- The wheel reads this instead of the table, so a locked-down reward_spinner still draws.
 CREATE OR REPLACE FUNCTION af_list_reward_spinner()
 RETURNS jsonb
 LANGUAGE sql

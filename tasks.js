@@ -17,6 +17,7 @@
     if (task.webGame && task.url) return "html";
     if (QUIZ[task.launch]) return "quiz";
     if (task.launch === "spellingOCR") return "spell";
+    if (task.launch === "spellingOCRXtra") return "xtra";
     if (LATER[task.launch]) return "later";
     return "skip";
   }
@@ -48,7 +49,18 @@
       q.set("file", file);
       if (task.totalQuestions) q.set("questions", String(task.totalQuestions));
       location.href = "spell.html?" + q.toString();
+    } else if (how === "xtra") {
+      q.set("lang", copyLang(task));
+      location.href = "xtra.html?" + q.toString();
     }
+  }
+
+  function copyLang(task) {
+    const raw = String(task.url || "");
+    const match = /lang=(eng|fr)/i.exec(raw);
+    if (match) return match[1].toLowerCase();
+    if (/french/i.test(raw) || /french/i.test(task.title || "")) return "fr";
+    return "eng";
   }
 
   function completionMap(rows, skipChecklist) {
@@ -63,7 +75,7 @@
     return map;
   }
 
-  function renderSection(container, tasks, doneMap) {
+  function renderSection(container, tasks, doneMap, copyState) {
     container.innerHTML = "";
     const visible = (tasks || []).filter(function (task) { return kind(task) !== "skip"; });
     if (!visible.length) {
@@ -75,19 +87,37 @@
     visible.forEach(function (task) {
       const title = task.title || task.launch;
       const finished = doneMap[title] === true;
+      const copy = copyState && copyState[title];
+      const locked = !finished && task.launch === "spellingOCRXtra" && (!copy || copy.phase !== "practice");
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "task" + (kind(task) === "later" ? " later" : "") + (finished ? " done" : "");
+      btn.className = "task" + (kind(task) === "later" || locked ? " later" : "") + (finished ? " done" : "");
       btn.textContent = title;
       if (finished) {
         const note = document.createElement("small");
         note.textContent = "Done";
         btn.appendChild(note);
+      } else if (locked) {
+        const note = document.createElement("small");
+        note.textContent = copy && copy.phase !== "need_ocr" ? "Checking spelling…" : "Do spelling first";
+        btn.appendChild(note);
+        btn.addEventListener("click", function () {
+          const language = copy && copy.label ? copy.label : "English";
+          const message = copy && copy.message
+            ? copy.message
+            : "Complete " + language + " Spelling OCR first.";
+          window.alert(message);
+        });
       } else if (kind(task) === "later") {
         const note = document.createElement("small");
         note.textContent = "Not converted yet";
         btn.appendChild(note);
       } else {
+        if (copy && copy.phase === "practice") {
+          const note = document.createElement("small");
+          note.textContent = "Write the missed words";
+          btn.appendChild(note);
+        }
         btn.addEventListener("click", function () { openTask(task, task.section || "optional"); });
       }
       box.appendChild(btn);

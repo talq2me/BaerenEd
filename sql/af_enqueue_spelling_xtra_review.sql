@@ -1,9 +1,8 @@
--- Call site: web/spell.html after the last spelling drawing is stored.
--- Fires once per profile, language, and day after that many OCR images are stored.
--- New photos end in -unverified until Grok scores them. See af_list_unverified_spelling.sql.
--- Vault secret spelling_ocr_webhook_bearer is the crsr_ token only (no "Bearer " prefix).
+-- Call site: web/xtra.html after a round is stored, and web/map.html if that webhook never went out.
+-- Sends kind "xtra". xtra_sent_round stops a second POST for the same round.
+-- The next round can send again after af_set_spelling_xtra_words advances xtra_round.
 
-CREATE OR REPLACE FUNCTION af_enqueue_spelling_ocr_review(
+CREATE OR REPLACE FUNCTION af_enqueue_spelling_xtra_review(
   p_profile text,
   p_language text,
   p_date date,
@@ -19,48 +18,57 @@ DECLARE
   v_language text := lower(trim(p_language));
   v_prefix text;
   v_day text;
+  v_round int;
+  v_sent int;
   v_count int;
   v_token text;
   v_body text;
   v_status int;
-  v_claimed int;
 BEGIN
   IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
     RAISE EXCEPTION 'Invalid profile: %', p_profile;
   END IF;
-  IF v_language NOT IN ('eng', 'fr') THEN
+  IF v_language = 'eng' THEN
+    v_prefix := 'EngSpellingOCRXtra';
+  ELSIF v_language = 'fr' THEN
+    v_prefix := 'FrSpellingOCRXtra';
+  ELSE
     RAISE EXCEPTION 'Invalid language: %', p_language;
   END IF;
   IF p_date IS NULL OR COALESCE(p_expected_count, 0) < 1 THEN
     RETURN;
   END IF;
 
-  v_prefix := CASE v_language WHEN 'eng' THEN 'EngSpellingOCR' ELSE 'FrSpellingOCR' END;
-  v_day := to_char(p_date, 'YYYY-MM-DD');
+  SELECT xtra_round, COALESCE(xtra_sent_round, 0)
+    INTO v_round, v_sent
+  FROM spelling_dictation_reviews
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language;
 
+  IF v_round IS NULL OR v_sent >= v_round THEN
+    RETURN;
+  END IF;
+
+  v_day := to_char(p_date, 'YYYY-MM-DD');
   SELECT count(*) INTO v_count
   FROM image_uploads
   WHERE profile = v_profile
-    AND task LIKE v_prefix || '-' || v_day || '-%';
+    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
 
   IF v_count < p_expected_count THEN
     RETURN;
   END IF;
 
-  INSERT INTO spelling_dictation_reviews (profile, review_date, language, status, webhook_sent)
-  VALUES (v_profile, p_date, v_language, 'incomplete', false)
-  ON CONFLICT (profile, review_date, language) DO NOTHING;
-
   UPDATE spelling_dictation_reviews
-  SET webhook_sent = true
+  SET xtra_sent_round = v_round
   WHERE profile = v_profile
     AND review_date = p_date
     AND language = v_language
-    AND webhook_sent = false
+    AND COALESCE(xtra_sent_round, 0) < v_round
     AND status IS DISTINCT FROM 'complete';
 
-  GET DIAGNOSTICS v_claimed = ROW_COUNT;
-  IF v_claimed = 0 THEN
+  IF NOT FOUND THEN
     RETURN;
   END IF;
 
@@ -71,11 +79,8 @@ BEGIN
 
   IF v_token IS NULL OR btrim(v_token) = '' THEN
     UPDATE spelling_dictation_reviews
-    SET webhook_sent = false
-    WHERE profile = v_profile
-      AND review_date = p_date
-      AND language = v_language
-      AND status IS DISTINCT FROM 'complete';
+    SET xtra_sent_round = v_sent
+    WHERE profile = v_profile AND review_date = p_date AND language = v_language;
     RAISE WARNING 'spelling_ocr_webhook_bearer not configured in Supabase Vault';
     RETURN;
   END IF;
@@ -83,7 +88,9 @@ BEGIN
   v_body := jsonb_build_object(
     'profile', v_profile,
     'language', v_language,
-    'date', v_day
+    'date', v_day,
+    'kind', 'xtra',
+    'round', v_round
   )::text;
 
   BEGIN
@@ -100,25 +107,19 @@ BEGIN
     )::extensions.http_request) r;
   EXCEPTION WHEN OTHERS THEN
     UPDATE spelling_dictation_reviews
-    SET webhook_sent = false
-    WHERE profile = v_profile
-      AND review_date = p_date
-      AND language = v_language
-      AND status IS DISTINCT FROM 'complete';
-    RAISE WARNING 'spelling OCR webhook request failed: %', SQLERRM;
+    SET xtra_sent_round = v_sent
+    WHERE profile = v_profile AND review_date = p_date AND language = v_language;
+    RAISE WARNING 'spelling extra webhook request failed: %', SQLERRM;
     RETURN;
   END;
 
   IF v_status IS NULL OR v_status < 200 OR v_status >= 300 THEN
     UPDATE spelling_dictation_reviews
-    SET webhook_sent = false
-    WHERE profile = v_profile
-      AND review_date = p_date
-      AND language = v_language
-      AND status IS DISTINCT FROM 'complete';
-    RAISE WARNING 'spelling OCR webhook returned status %', COALESCE(v_status, -1);
+    SET xtra_sent_round = v_sent
+    WHERE profile = v_profile AND review_date = p_date AND language = v_language;
+    RAISE WARNING 'spelling extra webhook returned status %', COALESCE(v_status, -1);
   END IF;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION af_enqueue_spelling_ocr_review(text, text, date, int) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION af_enqueue_spelling_xtra_review(text, text, date, int) TO anon, authenticated, service_role;

@@ -179,6 +179,12 @@
             border: 2px solid #4CAF50;
         }
 
+        .entry-word.unverified {
+            color: #8a5a00;
+            background: #fff7e6;
+            border: 2px solid #e6b84d;
+        }
+
         .entry-word.incorrect {
             color: #f44336;
             background: #ffebee;
@@ -321,83 +327,60 @@
         const supabaseUrl = localStorage.getItem('supabaseUrl');
         const supabaseKey = localStorage.getItem('supabaseKey');
 
-        // Load spelling submissions
+        function spellingPrefixes() {
+            const prefixes = [game];
+            if (String(game).endsWith('SpellingOCR')) prefixes.push(String(game).replace(/OCR$/, 'OCRXtra'));
+            return prefixes;
+        }
+
+        // Load spelling submissions, including copy rounds stored beside the OCR paper.
         async function loadSpellingSubmissions() {
             if (!supabaseUrl || !supabaseKey) {
                 document.getElementById('loading').innerHTML = 'Please configure Supabase URL and API Key in the main reports page.';
                 document.getElementById('loading').style.color = '#f44336';
                 return;
             }
+            const headers = {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json'
+            };
+            const prefixes = spellingPrefixes();
             try {
-                // Query image_uploads table for entries matching the profile and game pattern
-                // Use ilike (case-insensitive) and proper URL encoding
-                const taskPattern = `${game}-`;
-                const encodedPattern = encodeURIComponent(taskPattern) + '%25';
-                
-                const queryUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&task=ilike.${encodedPattern}&select=id,task,image,capture_date_time&order=task`;
-                console.log('Querying:', queryUrl);
-                
-                const response = await fetch(queryUrl, {
-                    headers: {
-                        'apikey': supabaseKey,
-                        'Authorization': `Bearer ${supabaseKey}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    }
-                });
-
-                console.log('Response status:', response.status);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Error response:', errorText);
-                    
-                    // Try alternative query without LIKE if the first one fails
-                    console.log('Trying alternative query without pattern matching...');
-                    const altResponse = await fetch(
-                        `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&select=id,task,image,capture_date_time&order=task`,
-                        {
-                            headers: {
-                                'apikey': supabaseKey,
-                                'Authorization': `Bearer ${supabaseKey}`,
-                                'Content-Type': 'application/json'
-                            }
+                const batches = [];
+                for (const prefix of prefixes) {
+                    const encodedPattern = encodeURIComponent(`${prefix}-`) + '%25';
+                    const queryUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&task=ilike.${encodedPattern}&select=id,task,image,capture_date_time&order=task`;
+                    const response = await fetch(queryUrl, { headers });
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        const altResponse = await fetch(
+                            `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&select=id,task,image,capture_date_time&order=task`,
+                            { headers }
+                        );
+                        if (!altResponse.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
                         }
-                    );
-                    
-                    if (!altResponse.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-                    }
-                    
-                    // Filter client-side if LIKE doesn't work
-                    const allData = await altResponse.json();
-                    const data = allData.filter(entry => entry.task && entry.task.startsWith(taskPattern));
-                    console.log('Filtered data:', data);
-                    
-                    document.getElementById('loading').style.display = 'none';
-                    
-                    if (!data || data.length === 0) {
-                        document.getElementById('noData').style.display = 'block';
+                        const allData = await altResponse.json();
+                        const wanted = prefixes.map((item) => item + '-');
+                        const data = allData.filter((entry) => entry.task && wanted.some((start) => entry.task.startsWith(start)));
+                        document.getElementById('loading').style.display = 'none';
+                        if (!data.length) {
+                            document.getElementById('noData').style.display = 'block';
+                            return;
+                        }
+                        displayEntries(data);
                         return;
                     }
-                    
-                    // Continue with filtered data
-                    displayEntries(data);
-                    return;
+                    batches.push(await response.json());
                 }
-
-                const data = await response.json();
-                console.log('Data received:', data);
-                
+                const data = batches.flat();
                 document.getElementById('loading').style.display = 'none';
-
-                if (!data || data.length === 0) {
+                if (!data.length) {
                     document.getElementById('noData').style.display = 'block';
                     return;
                 }
-                
                 displayEntries(data);
-
             } catch (error) {
                 console.error('Error loading spelling submissions:', error);
                 document.getElementById('loading').innerHTML = `Error loading submissions: ${error.message}. Please check your configuration and browser console for details.`;
@@ -405,9 +388,22 @@
             }
         }
         
+        function photoKind(status) {
+            const value = String(status || '');
+            if (value === '✓' || value === 'checkmark' || value.toLowerCase() === 'correct') return 'correct';
+            if (value.toLowerCase() === 'unverified') return 'unverified';
+            return 'incorrect';
+        }
+
+        function statusLabel(kind) {
+            if (kind === 'correct') return 'Correct';
+            if (kind === 'unverified') return 'Unverified';
+            return 'Incorrect';
+        }
+
         /**
-         * Parse task strings like "EngSpellingOCR-2026-09-24-01-uncooked-X"
-         * or the older "EngSpellingOCR-01-uncooked-X".
+         * Parse task strings like "EngSpellingOCR-2026-09-24-01-uncooked-unverified"
+         * or "EngSpellingOCRXtra-2026-10-02-r01-02-well-known-X".
          * Words may contain "-" (hyphenated); the final segment is always the status marker.
          */
         function parseSpellingOcrTask(task) {
@@ -417,25 +413,46 @@
             if (parts.length < 4) return null;
             const gamePrefix = parts[0];
             const gp = gamePrefix.toLowerCase();
-            if (gp !== 'engspellingocr' && gp !== 'frspellingocr') return null;
+            const isCopy = gp === 'engspellingocrxtra' || gp === 'frspellingocrxtra'
+                || gp === 'engspellingcopy' || gp === 'frspellingcopy';
+            const isOcr = gp === 'engspellingocr' || gp === 'frspellingocr';
+            if (!isCopy && !isOcr) return null;
             let index = 1;
             let ymd = null;
-            if (parts.length >= 7 && /^\d{4}$/.test(parts[1]) && /^\d{2}$/.test(parts[2]) && /^\d{2}$/.test(parts[3])) {
+            if (/^\d{4}$/.test(parts[1]) && /^\d{2}$/.test(parts[2]) && /^\d{2}$/.test(parts[3])) {
                 ymd = `${parts[1]}-${parts[2]}-${parts[3]}`;
                 index = 4;
             }
-            const questionNumber = parseInt(parts[index], 10);
-            if (!Number.isFinite(questionNumber) || questionNumber < 1) return null;
-            const status = parts[parts.length - 1];
-            const word = parts.slice(index + 1, -1).join('-');
-            if (!word) return null;
-            const isCorrect = status === '✓' || status === 'checkmark' || status.toLowerCase() === 'correct';
-            return { gamePrefix, questionNumber, word, isCorrect, ymd };
+            let round = null;
+            let questionNumber;
+            let word;
+            if (isCopy) {
+                if (!/^r\d+$/i.test(parts[index] || '')) return null;
+                round = parseInt(parts[index].slice(1), 10);
+                questionNumber = parseInt(parts[index + 1], 10);
+                word = parts.slice(index + 2, -1).join('-');
+            } else {
+                questionNumber = parseInt(parts[index], 10);
+                word = parts.slice(index + 1, -1).join('-');
+            }
+            if (!Number.isFinite(questionNumber) || questionNumber < 1 || !word) return null;
+            const kind = photoKind(parts[parts.length - 1]);
+            return {
+                gamePrefix,
+                questionNumber,
+                word,
+                ymd,
+                round,
+                kind: isCopy ? 'copy' : 'ocr',
+                status: kind,
+                isCorrect: kind === 'correct',
+                isUnverified: kind === 'unverified'
+            };
         }
 
-        function taskWithStatus(task, isCorrect) {
+        function taskWithStatus(task, status) {
             const parts = String(task || '').trim().split('-');
-            parts[parts.length - 1] = isCorrect ? '✓' : 'X';
+            parts[parts.length - 1] = status === 'correct' ? '✓' : status === 'unverified' ? 'unverified' : 'X';
             return parts.join('-');
         }
 
@@ -447,11 +464,13 @@
                 bar.style.display = 'none';
                 return;
             }
-            const correct = rowsState.filter((row) => row.parsed.isCorrect).length;
-            const incorrect = rowsState.length - correct;
-            const dirty = rowsState.some((row) => row.parsed.isCorrect !== row.savedCorrect);
+            const correct = rowsState.filter((row) => row.parsed.status === 'correct').length;
+            const unverified = rowsState.filter((row) => row.parsed.status === 'unverified').length;
+            const incorrect = rowsState.length - correct - unverified;
+            const dirty = rowsState.some((row) => row.parsed.status !== row.savedStatus);
+            const unverifiedNote = unverified ? `, ${unverified} unverified` : '';
             bar.style.display = 'flex';
-            summary.textContent = `${correct} correct, ${incorrect} incorrect`;
+            summary.textContent = `${correct} correct, ${incorrect} incorrect${unverifiedNote}`;
             saveBtn.disabled = !dirty;
             saveBtn.textContent = dirty ? 'Save' : 'Saved';
         }
@@ -533,7 +552,7 @@
                 parsedRows.push({
                     entry,
                     parsed: p,
-                    savedCorrect: p.isCorrect,
+                    savedStatus: p.status,
                     savedTask: entry.task
                 });
             }
@@ -544,6 +563,12 @@
                 const dayA = a.parsed.ymd || '';
                 const dayB = b.parsed.ymd || '';
                 if (dayA !== dayB) return dayB.localeCompare(dayA);
+                const kindA = a.parsed.kind === 'ocr' ? 0 : 1;
+                const kindB = b.parsed.kind === 'ocr' ? 0 : 1;
+                if (kindA !== kindB) return kindA - kindB;
+                const roundA = a.parsed.round || 0;
+                const roundB = b.parsed.round || 0;
+                if (roundA !== roundB) return roundA - roundB;
                 return a.parsed.questionNumber - b.parsed.questionNumber;
             });
 
@@ -559,8 +584,10 @@
             parsedRows.forEach(({ entry, parsed }) => {
                     const questionNumber = parsed.questionNumber;
                     const word = parsed.word;
-                    const isCorrect = parsed.isCorrect;
                     const dayKey = parsed.ymd || '';
+                    const slotLabel = parsed.kind === 'ocr'
+                        ? `#${questionNumber}`
+                        : `Round ${parsed.round} · ${questionNumber}`;
                     if (dayKey !== lastDay) {
                         lastDay = dayKey;
                         const dayHeading = document.createElement('div');
@@ -578,22 +605,23 @@
                     headerDiv.innerHTML = `
                         <div class="entry-toggle">▼</div>
                         <div class="entry-info">
-                            <div class="entry-number">#${questionNumber}</div>
+                            <div class="entry-number">${slotLabel}</div>
                         </div>
                     `;
                     const wordBtn = document.createElement('button');
                     wordBtn.type = 'button';
-                    wordBtn.className = `entry-word ${isCorrect ? 'correct' : 'incorrect'}`;
-                    wordBtn.textContent = `${word} · ${isCorrect ? 'Correct' : 'Incorrect'}`;
+                    wordBtn.className = `entry-word ${parsed.status}`;
+                    wordBtn.textContent = `${word} · ${statusLabel(parsed.status)}`;
                     wordBtn.addEventListener('click', function(e) {
                         e.stopPropagation();
                         const row = rowsState.find((item) => item.entry === entry);
                         if (!row) return;
-                        row.parsed.isCorrect = !row.parsed.isCorrect;
-                        const nowCorrect = row.parsed.isCorrect;
-                        wordBtn.className = `entry-word ${nowCorrect ? 'correct' : 'incorrect'}`;
-                        if (nowCorrect !== row.savedCorrect) wordBtn.classList.add('dirty');
-                        wordBtn.textContent = `${word} · ${nowCorrect ? 'Correct' : 'Incorrect'}`;
+                        row.parsed.status = row.parsed.status === 'correct' ? 'incorrect' : 'correct';
+                        row.parsed.isCorrect = row.parsed.status === 'correct';
+                        row.parsed.isUnverified = false;
+                        wordBtn.className = `entry-word ${row.parsed.status}`;
+                        if (row.parsed.status !== row.savedStatus) wordBtn.classList.add('dirty');
+                        wordBtn.textContent = `${word} · ${statusLabel(row.parsed.status)}`;
                         updateScoreBar();
                     });
                     headerDiv.querySelector('.entry-info').appendChild(wordBtn);
@@ -665,7 +693,7 @@
 
         async function saveScoreChanges() {
             const saveBtn = document.getElementById('saveScores');
-            const dirty = rowsState.filter((row) => row.parsed.isCorrect !== row.savedCorrect);
+            const dirty = rowsState.filter((row) => row.parsed.status !== row.savedStatus);
             if (!dirty.length) return;
             saveBtn.disabled = true;
             saveBtn.textContent = 'Saving...';
@@ -677,7 +705,7 @@
             };
             try {
                 for (const row of dirty) {
-                    const newTask = taskWithStatus(row.savedTask, row.parsed.isCorrect);
+                    const newTask = taskWithStatus(row.savedTask, row.parsed.status);
                     const response = await fetch(
                         `${supabaseUrl}/rest/v1/image_uploads?id=eq.${encodeURIComponent(row.entry.id)}`,
                         {
@@ -689,7 +717,7 @@
                     if (!response.ok) {
                         throw new Error(await response.text());
                     }
-                    row.savedCorrect = row.parsed.isCorrect;
+                    row.savedStatus = row.parsed.status;
                     row.savedTask = newTask;
                     row.entry.task = newTask;
                 }

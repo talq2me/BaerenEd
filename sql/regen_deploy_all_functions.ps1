@@ -6,11 +6,7 @@ $files = @(
 
   "af_get_stars_to_minutes.sql",
 
-  "af_update_tasks_from_config_checklist_items.sql",
-
-  "af_update_tasks_from_config_chores.sql",
-
-  "af_update_tasks_from_config_photo_chores.sql",
+  "af_catalog_as_config.sql",
 
   "af_update_tasks_from_config_practice.sql",
 
@@ -83,6 +79,18 @@ $files = @(
   "af_maybe_advance_spelling_pools.sql",
 
   "af_enqueue_spelling_ocr_review.sql",
+
+  "af_get_spelling_xtra_status.sql",
+
+  "af_list_unverified_spelling.sql",
+
+  "af_score_spelling_photos.sql",
+
+  "af_set_spelling_xtra_words.sql",
+
+  "af_enqueue_spelling_xtra_review.sql",
+
+  "af_mark_spelling_xtra_complete.sql",
 
   "af_maybe_record_collector_card_day.sql",
 

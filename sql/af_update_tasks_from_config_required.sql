@@ -9,27 +9,20 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 DECLARE
-  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
   config_json jsonb;
-  http_status int;
   existing_required jsonb;
   merged_required jsonb;
-  merged_checklist jsonb;
   v_today_short text := lower(to_char((NOW() AT TIME ZONE 'America/Toronto'), 'Dy'));
   v_today_date date := (NOW() AT TIME ZONE 'America/Toronto')::date;
-  v_required_possible_stars int := 0;
-  v_checklist_possible_stars int := 0;
   v_possible_stars int := 0;
   v_game_indices jsonb;
 BEGIN
   IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
     config_json := p_config_json;
   ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, config_json
-    FROM http_get(github_url) r
-    LIMIT 1;
-    IF http_status != 200 OR config_json IS NULL THEN
-      RAISE WARNING 'af_update_tasks_from_config_required: failed to fetch config for % (status %, content null)', p_profile, COALESCE(http_status, -1);
+    config_json := af_catalog_as_config(p_profile);
+    IF config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_required: no catalog rows for %', p_profile;
       RETURN;
     END IF;
   END IF;
@@ -76,14 +69,8 @@ BEGIN
     '{}'::jsonb
   ) INTO merged_required;
 
-  PERFORM af_update_tasks_from_config_checklist_items(p_profile, config_json);
-
-  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO merged_checklist
-  FROM user_data
-  WHERE profile = p_profile;
-
   SELECT COALESCE(SUM(COALESCE((e.value->>'stars')::int, 0)), 0)
-  INTO v_required_possible_stars
+  INTO v_possible_stars
   FROM jsonb_each(COALESCE(merged_required, '{}'::jsonb)) AS e(key, value)
   WHERE
     NOT (
@@ -125,19 +112,6 @@ BEGIN
            )
          )
     );
-
-  SELECT COALESCE(SUM(COALESCE((e.value->>'stars')::int, 0)), 0)
-  INTO v_checklist_possible_stars
-  FROM jsonb_each(COALESCE(merged_checklist, '{}'::jsonb)) AS e(key, value)
-  WHERE
-    NULLIF(TRIM(COALESCE(e.value->>'displayDays', '')), '') IS NULL
-    OR EXISTS (
-      SELECT 1
-      FROM unnest(string_to_array(lower(replace(COALESCE(e.value->>'displayDays', ''), ' ', '')), ',')) AS d(day_token)
-      WHERE d.day_token = v_today_short
-    );
-
-  v_possible_stars := v_required_possible_stars + v_checklist_possible_stars;
 
   UPDATE user_data
   SET

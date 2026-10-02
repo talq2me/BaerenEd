@@ -14,18 +14,16 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 DECLARE
-  github_url text := 'https://talq2me.github.io/BaerenEd/app/src/main/assets/config/' || p_profile || '_config.json';
   config_json jsonb;
-  http_status int;
   existing_practice jsonb;
   merged_practice jsonb;
 BEGIN
   IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
     config_json := p_config_json;
   ELSE
-    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
-    IF http_status != 200 OR config_json IS NULL THEN
-      RAISE WARNING 'af_update_tasks_from_config_practice: failed to fetch config for %', p_profile;
+    config_json := af_catalog_as_config(p_profile);
+    IF config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_practice: no catalog rows for %', p_profile;
       RETURN;
     END IF;
   END IF;
