@@ -19,6 +19,7 @@ DECLARE
   v_reward_name text := NULL;
   v_total_tasks int := 0;
   v_incomplete_tasks int := 0;
+  v_today text := NULL;
 BEGIN
   SELECT
     NULLIF(trim(ud.prize_unlocked), '')
@@ -43,11 +44,45 @@ BEGIN
     );
   END IF;
 
+  -- Same required games the web battle hub uses to enable Daily Spin.
+  -- Checklist items and not-yet-converted tasks do not block the wheel.
+  v_today := (ARRAY['sun','mon','tue','wed','thu','fri','sat'])[
+    extract(dow FROM (NOW() AT TIME ZONE 'America/Toronto'))::int + 1
+  ];
+
   SELECT
     COUNT(*),
-    COUNT(*) FILTER (WHERE lower(coalesce(t.completion_status, 'incomplete')) <> 'complete')
+    COUNT(*) FILTER (WHERE NOT done)
   INTO v_total_tasks, v_incomplete_tasks
-  FROM af_get_current_required_tasks(p_profile) t;
+  FROM (
+    SELECT EXISTS (
+      SELECT 1
+      FROM af_get_tasks_required(p_profile) t
+      WHERE NOT COALESCE(t.is_checklist, false)
+        AND t.task_name = a.title
+        AND lower(coalesce(t.completion_status, '')) IN ('complete', 'done')
+    ) AS done
+    FROM web_assignments a
+    WHERE upper(a.profile) = upper(trim(p_profile))
+      AND a.enabled
+      AND a.section = 'required'
+      AND NOT COALESCE(a.chrome_page, false)
+      AND (a.video_sequence IS NULL OR btrim(a.video_sequence) = '')
+      AND COALESCE(a.launch, '') NOT IN ('boukili', 'googleReadAlong', 'printing', 'tappableText', 'storyRead')
+      AND (
+        a.display_days IS NULL
+        OR btrim(a.display_days) = ''
+        OR position(v_today IN lower(a.display_days)) > 0
+      )
+  ) web_tasks;
+
+  IF v_total_tasks = 0 THEN
+    SELECT
+      COUNT(*),
+      COUNT(*) FILTER (WHERE lower(coalesce(t.completion_status, 'incomplete')) NOT IN ('complete', 'done'))
+    INTO v_total_tasks, v_incomplete_tasks
+    FROM af_get_current_required_tasks(p_profile) t;
+  END IF;
 
   IF v_total_tasks = 0 OR v_incomplete_tasks > 0 THEN
     RETURN jsonb_build_object(
@@ -121,3 +156,24 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_get_or_unlock_daily_prize(text) TO anon, authenticated, service_role;
+
+-- The wheel reads this instead of the table, so a locked-down reward_spinner still draws.
+CREATE OR REPLACE FUNCTION af_list_reward_spinner()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object('id', rs.id, 'name', rs.name, 'percent', rs.percent)
+      ORDER BY rs.id
+    ),
+    '[]'::jsonb
+  )
+  FROM reward_spinner rs
+  WHERE rs.percent > 0;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_list_reward_spinner() TO anon, authenticated, service_role;

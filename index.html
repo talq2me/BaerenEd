@@ -334,7 +334,16 @@
     });
 
     const WHEEL_COLORS = ["#FFCDD2", "#FFE0B2", "#FFF9C4", "#C8E6C9", "#B3E5FC", "#D1C4E9"];
+    const WHEEL_FALLBACK = [
+      { name: "Pick a small treat", percent: 20 },
+      { name: "Extra 10 minutes screen time", percent: 20 },
+      { name: "Quick card/board game with parent", percent: 15 },
+      { name: "Pokemon Card", percent: 20 },
+      { name: "Extra Minecraft time", percent: 5 },
+      { name: "Choose tomorrow night's dinner", percent: 20 }
+    ];
     let wheelRewards = [];
+    let wheelFromServer = false;
     let wheelAngle = 0;
     let wheelSpinning = false;
 
@@ -457,15 +466,36 @@
       });
     }
 
+    function prizeRows(value) {
+      const rows = Array.isArray(value) ? value : [];
+      return rows.filter(function (row) { return Number(row.percent) > 0 && row.name; });
+    }
+
     async function loadWheelRewards() {
-      if (wheelRewards.length) return wheelRewards;
-      const c = Baeren.cfg();
-      const res = await fetch(c.url + "/rest/v1/reward_spinner?select=id,name,percent&percent=gt.0&order=id.asc", {
-        headers: { apikey: c.key, Authorization: "Bearer " + c.key }
-      });
-      const text = await res.text();
-      if (!res.ok) throw new Error("Could not load the prizes.");
-      wheelRewards = JSON.parse(text || "[]");
+      if (wheelFromServer && wheelRewards.length) return wheelRewards;
+      try {
+        const fromRpc = prizeRows(await Baeren.rpc("af_list_reward_spinner", {}));
+        if (fromRpc.length) {
+          wheelRewards = fromRpc;
+          wheelFromServer = true;
+          return wheelRewards;
+        }
+      } catch (err) {}
+      try {
+        const c = Baeren.cfg();
+        const res = await fetch(c.url + "/rest/v1/reward_spinner?select=id,name,percent&percent=gt.0&order=id.asc", {
+          headers: { apikey: c.key, Authorization: "Bearer " + c.key }
+        });
+        if (res.ok) {
+          const fromTable = prizeRows(JSON.parse(await res.text() || "[]"));
+          if (fromTable.length) {
+            wheelRewards = fromTable;
+            wheelFromServer = true;
+            return wheelRewards;
+          }
+        }
+      } catch (err) {}
+      if (!wheelRewards.length) wheelRewards = WHEEL_FALLBACK.slice();
       return wheelRewards;
     }
 
@@ -473,12 +503,12 @@
       document.getElementById("wheel").hidden = false;
       document.getElementById("wheelMsg").textContent = "Tap Spin for today's prize!";
       document.getElementById("wheelSpin").textContent = "Spin";
-      document.getElementById("wheelSpin").disabled = true;
+      document.getElementById("wheelSpin").disabled = false;
+      if (!wheelRewards.length) wheelRewards = WHEEL_FALLBACK.slice();
       drawWheel(wheelAngle);
       try {
         await loadWheelRewards();
         drawWheel(wheelAngle);
-        document.getElementById("wheelSpin").disabled = false;
       } catch (err) {
         document.getElementById("wheelMsg").textContent = err.message || String(err);
       }
