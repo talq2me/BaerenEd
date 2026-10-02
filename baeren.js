@@ -49,10 +49,16 @@
     sessionStorage.setItem("baerenPinOk", "1");
   }
 
+  function paintProfile(profile) {
+    const el = document.getElementById("profileLabel");
+    if (el) el.textContent = profile;
+  }
+
   function setProfile(profile) {
     if (profile !== "AM" && profile !== "BM" && profile !== "TE") return;
     localStorage.setItem("baerenProfile", profile);
     document.cookie = "baerenProfile=" + profile + "; Path=/; Max-Age=31536000; SameSite=Lax";
+    paintProfile(profile);
   }
 
   const resetReady = {};
@@ -205,6 +211,8 @@
     if (/^https?:/i.test(path)) return path;
     return `${ASSETS}/${String(path).replace(/^\//, "")}`;
   }
+
+  paintProfile(readProfile());
 
   global.Baeren = {
     ASSETS,

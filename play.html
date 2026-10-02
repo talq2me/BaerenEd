@@ -8,12 +8,13 @@
     body { margin: 0; font-family: system-ui, sans-serif; background: #1b2430; color: #fff; }
     #bar { display: flex; gap: 12px; align-items: center; padding: 10px 14px; background: #121820; }
     #bar a { color: #9bd; }
+    .profile-label { padding: 4px 12px; border-radius: 999px; background: #fff; color: #1b3a4b; font-weight: 800; letter-spacing: .04em; }
     #frame { width: 100%; height: calc(100vh - 48px); border: 0; background: #fff; }
     #err { padding: 24px; }
   </style>
 </head>
 <body>
-  <div id="bar"><a href="index.html">Back</a><span id="label"></span></div>
+  <div id="bar"><a href="index.html">Back</a><span id="profileLabel" class="profile-label"></span><span id="label"></span></div>
   <iframe id="frame" title="Game" allow="camera; microphone"></iframe>
   <p id="err" hidden></p>
   <script src="baeren.js"></script>
