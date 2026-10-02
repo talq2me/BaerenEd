@@ -55,7 +55,10 @@
     <section id="hub" class="panel" hidden>
       <a class="task pokedex-link" href="pokedex.html" id="pokedexLink">My Pokemon</a>
       <p id="battleMsg" class="battle-msg"></p>
-      <div class="row battle-row"><button type="button" id="battleBtn" disabled>Battle</button></div>
+      <div class="row battle-row">
+        <button type="button" id="battleBtn" disabled>Battle</button>
+        <button type="button" id="spinBtn" disabled>Daily Spin</button>
+      </div>
       <div class="battle" id="battle"></div>
       <div class="row maps">
         <a class="task" href="map.html?map=required">Required</a>
@@ -64,6 +67,20 @@
       <p id="hubMsg"></p>
     </section>
     <p id="needSetup" hidden>Save the Supabase URL and key in Parent setup to load the games.</p>
+  </div>
+  <div id="wheel" class="victory" hidden>
+    <div class="victory-card wheel-card">
+      <h2>Daily Spin</h2>
+      <div class="wheel-wrap">
+        <div class="wheel-pointer"></div>
+        <canvas id="wheelCanvas" width="300" height="300"></canvas>
+      </div>
+      <p id="wheelMsg">Tap Spin for today's prize!</p>
+      <div class="row wheel-actions">
+        <button type="button" id="wheelSpin">Spin</button>
+        <button type="button" id="wheelClose">Close</button>
+      </div>
+    </div>
   </div>
   <div id="victory" class="victory" hidden>
     <div class="victory-card">
@@ -196,6 +213,10 @@
       const battleBtn = document.getElementById("battleBtn");
       battleBtn.disabled = !ready;
       battleBtn.textContent = "Battle";
+      const prize = String(hub.prize_unlocked || "").trim();
+      const spinBtn = document.getElementById("spinBtn");
+      spinBtn.disabled = !(allDone && required.length > 0) && !prize;
+      spinBtn.textContent = prize ? "Today's Prize" : "Daily Spin";
       window.hubBattle = {
         unlocked: unlocked,
         done: doneCount,
@@ -310,6 +331,199 @@
       } catch (err) {
         document.getElementById("hubMsg").textContent = err.message || String(err);
       }
+    });
+
+    const WHEEL_COLORS = ["#FFCDD2", "#FFE0B2", "#FFF9C4", "#C8E6C9", "#B3E5FC", "#D1C4E9"];
+    let wheelRewards = [];
+    let wheelAngle = 0;
+    let wheelSpinning = false;
+
+    function wheelSweep(rewards) {
+      const total = rewards.reduce(function (sum, reward) {
+        return sum + Math.max(0, Number(reward.percent) || 0);
+      }, 0) || 1;
+      return rewards.map(function (reward) {
+        return (Math.max(0, Number(reward.percent) || 0) / total) * 360;
+      });
+    }
+
+    function landingRotation(rewards, index) {
+      const sweeps = wheelSweep(rewards);
+      let start = -90;
+      for (let i = 0; i < sweeps.length; i++) {
+        if (i === index) return 270 - (start + sweeps[i] / 2);
+        start += sweeps[i];
+      }
+      return 0;
+    }
+
+    function wrapWheelLabel(text, maxChars) {
+      const words = String(text || "").split(/\s+/);
+      const lines = [];
+      let line = "";
+      words.forEach(function (word) {
+        const next = line ? line + " " + word : word;
+        if (next.length <= maxChars) line = next;
+        else {
+          if (line) lines.push(line);
+          line = word;
+        }
+      });
+      if (line) lines.push(line);
+      return lines.slice(0, 3);
+    }
+
+    function drawWheel(angle) {
+      const canvas = document.getElementById("wheelCanvas");
+      const ctx = canvas.getContext("2d");
+      const size = canvas.width;
+      const cx = size / 2;
+      const cy = size / 2;
+      const radius = size * 0.44;
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle * Math.PI / 180);
+      if (!wheelRewards.length) {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#d0d0d0";
+        ctx.fill();
+      } else {
+        const sweeps = wheelSweep(wheelRewards);
+        let start = -90;
+        wheelRewards.forEach(function (reward, i) {
+          const sweep = sweeps[i];
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, radius, start * Math.PI / 180, (start + sweep) * Math.PI / 180);
+          ctx.closePath();
+          ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          const mid = (start + sweep / 2) * Math.PI / 180;
+          const tx = Math.cos(mid) * radius * 0.62;
+          const ty = Math.sin(mid) * radius * 0.62;
+          ctx.save();
+          ctx.translate(tx, ty);
+          ctx.rotate(mid + Math.PI / 2);
+          ctx.fillStyle = "#111";
+          ctx.font = "bold 13px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const lines = wrapWheelLabel(reward.name, sweep < 40 ? 8 : 12);
+          lines.forEach(function (text, line) {
+            ctx.fillText(text, 0, (line - (lines.length - 1) / 2) * 14);
+          });
+          ctx.restore();
+          start += sweep;
+        });
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function spinWheelTo(index) {
+      const target = ((landingRotation(wheelRewards, index) % 360) + 360) % 360;
+      const start = wheelAngle;
+      const startMod = ((start % 360) + 360) % 360;
+      let delta = target - startMod;
+      if (delta < 0) delta += 360;
+      const change = (7 * 360) + delta;
+      const duration = 4600;
+      const begun = performance.now();
+      wheelSpinning = true;
+      document.getElementById("wheelSpin").disabled = true;
+      document.getElementById("wheelMsg").textContent = "Spinning...";
+      return new Promise(function (resolve) {
+        function frame(now) {
+          const t = Math.min(1, (now - begun) / duration);
+          const eased = 1 - Math.pow(1 - t, 2);
+          wheelAngle = start + change * eased;
+          drawWheel(wheelAngle);
+          if (t < 1) requestAnimationFrame(frame);
+          else {
+            wheelSpinning = false;
+            document.getElementById("wheelSpin").disabled = false;
+            resolve();
+          }
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
+    async function loadWheelRewards() {
+      if (wheelRewards.length) return wheelRewards;
+      const c = Baeren.cfg();
+      const res = await fetch(c.url + "/rest/v1/reward_spinner?select=id,name,percent&percent=gt.0&order=id.asc", {
+        headers: { apikey: c.key, Authorization: "Bearer " + c.key }
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error("Could not load the prizes.");
+      wheelRewards = JSON.parse(text || "[]");
+      return wheelRewards;
+    }
+
+    async function openWheel() {
+      document.getElementById("wheel").hidden = false;
+      document.getElementById("wheelMsg").textContent = "Tap Spin for today's prize!";
+      document.getElementById("wheelSpin").textContent = "Spin";
+      document.getElementById("wheelSpin").disabled = true;
+      drawWheel(wheelAngle);
+      try {
+        await loadWheelRewards();
+        drawWheel(wheelAngle);
+        document.getElementById("wheelSpin").disabled = false;
+      } catch (err) {
+        document.getElementById("wheelMsg").textContent = err.message || String(err);
+      }
+    }
+
+    async function spinForPrize() {
+      if (wheelSpinning) return;
+      const spin = document.getElementById("wheelSpin");
+      spin.disabled = true;
+      document.getElementById("wheelMsg").textContent = "Checking today's prize...";
+      try {
+        const result = await Baeren.rpc("af_get_or_unlock_daily_prize", { p_profile: Baeren.cfg().profile }) || {};
+        const prize = String(result.prize_unlocked || "").trim();
+        if (!prize) {
+          const err = String(result.error || "").trim();
+          document.getElementById("wheelMsg").textContent = err
+            ? err
+            : "Finish today's required tasks, then tap Spin again.";
+          spin.disabled = false;
+          return;
+        }
+        const index = wheelRewards.findIndex(function (reward) {
+          return String(reward.name || "").toLowerCase() === prize.toLowerCase();
+        });
+        if (index >= 0) await spinWheelTo(index);
+        document.getElementById("wheelMsg").textContent = "Today's prize: " + prize;
+        spin.textContent = "Show Prize";
+        spin.disabled = false;
+        await loadHub(Baeren.cfg().profile);
+      } catch (err) {
+        document.getElementById("wheelMsg").textContent = err.message || String(err);
+        spin.disabled = false;
+      }
+    }
+
+    document.getElementById("spinBtn").addEventListener("click", function () {
+      if (document.getElementById("spinBtn").disabled) return;
+      openWheel();
+    });
+    document.getElementById("wheelSpin").addEventListener("click", function () {
+      spinForPrize();
+    });
+    document.getElementById("wheelClose").addEventListener("click", function () {
+      if (wheelSpinning) return;
+      document.getElementById("wheel").hidden = true;
     });
 
     document.getElementById("battleBtn").addEventListener("click", function () {

@@ -51,7 +51,23 @@ body.arena { background-color: #667eea; background-size: cover; background-posit
 .fill { height: 100%; width: 0; background: #2ecc71; transition: width 2s ease; }
 .battle-msg { text-align: center; font-weight: 800; min-height: 1.2em; margin: 10px 0 0; }
 .battle-row { justify-content: center; margin: 4px 0 12px; }
-.battle-row button, #victoryClose, #unlockSave { background: #1b3a4b; color: #fff; }
+.battle-row button, #victoryClose, #wheelSpin, #wheelClose, #unlockSave { background: #1b3a4b; color: #fff; }
+.wheel-card { max-width: 420px; }
+.wheel-wrap { position: relative; width: 300px; height: 300px; margin: 8px auto 0; }
+.wheel-pointer {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 2px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 20px solid #e53935;
+}
+#wheelCanvas { width: 300px; height: 300px; display: block; }
+.wheel-actions { justify-content: center; margin-top: 8px; }
 .victory { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: flex; align-items: center; justify-content: center; z-index: 5; }
 .victory[hidden] { display: none; }
 .victory-card { background: #fff; border-radius: 20px; padding: 28px; text-align: center; max-width: 320px; }
