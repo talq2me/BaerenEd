@@ -117,7 +117,10 @@
         report("Camera is not available in this browser.");
         return;
       }
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(function (stream) {
+      navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" } }
+      }).then(function (stream) {
         const wrap = document.createElement("div");
         wrap.id = "baerenCam";
         wrap.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;";
