@@ -154,8 +154,7 @@
     function renderCounts(hub) {
       const bank = Number(hub.kid_bank_balance || 0).toFixed(2);
       document.getElementById("counts").textContent =
-        "$" + bank + " \u{1F3E6}   " +
-        (hub.coins_earned || 0) + " \u{1FA99}   " +
+        "$" + bank + " \u{1FA99}   " +
         (hub.berries_earned || 0) + " \u{1F34D}   " +
         (hub.banked_mins || 0) + " \u{23F1}";
     }
