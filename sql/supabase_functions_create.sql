@@ -17,6 +17,7 @@ DROP FUNCTION IF EXISTS af_delete_behavior_log(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_upload_by_id(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_uploads_ilike(text, text);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_ocr_review(text, text, date, int);
+DROP FUNCTION IF EXISTS af_enqueue_spelling_paper_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_xtra_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_get_battle_hub_counts(text);
 DROP FUNCTION IF EXISTS af_get_behavior_log(text, timestamp, timestamp);
@@ -73,9 +74,11 @@ DROP FUNCTION IF EXISTS af_upsert_device(text, text, text, text, text, text, tex
 DROP FUNCTION IF EXISTS af_upsert_image_upload(text, text, text);
 DROP FUNCTION IF EXISTS af_upsert_settings_row(text, text, boolean, boolean, integer);
 DROP FUNCTION IF EXISTS af_upsert_user_data_columns(text, jsonb);
+DROP FUNCTION IF EXISTS af_web_add_assignment(text, text, text, text, text, int, int, text, boolean);
 DROP FUNCTION IF EXISTS af_web_battle_state(text);
 DROP FUNCTION IF EXISTS af_web_finish_battle(text, int);
 DROP FUNCTION IF EXISTS af_web_list_tasks(text);
+DROP FUNCTION IF EXISTS af_web_remove_assignment(text, text, text);
 DROP FUNCTION IF EXISTS af_web_report_assignments(text);
 DROP FUNCTION IF EXISTS af_web_save_schedule(text, jsonb, boolean);
 DROP FUNCTION IF EXISTS spelling_photo_kind(text);
@@ -2769,11 +2772,146 @@ GRANT EXECUTE ON FUNCTION af_enqueue_spelling_ocr_review(text, text, date, int) 
 
 
 -- -----------------------------------------------------------------------------
+-- FILE: af_enqueue_spelling_paper_review.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/paper.html after the paper spelling list photo is stored.
+-- One image holds the whole list. The webhook body includes kind "paper"
+-- so the Grok automation can score each word on that single photo.
+-- New photos end in -unverified until Grok scores them. See af_list_unverified_spelling.sql.
+-- Vault secret spelling_ocr_webhook_bearer is the crsr_ token only (no "Bearer " prefix).
+
+DROP FUNCTION IF EXISTS af_enqueue_spelling_list_review(text, text, date, int);
+
+CREATE OR REPLACE FUNCTION af_enqueue_spelling_paper_review(
+  p_profile text,
+  p_language text,
+  p_date date,
+  p_expected_count int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_prefix text;
+  v_day text;
+  v_count int;
+  v_token text;
+  v_body text;
+  v_status int;
+  v_claimed int;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language NOT IN ('eng', 'fr') THEN
+    RAISE EXCEPTION 'Invalid language: %', p_language;
+  END IF;
+  IF p_date IS NULL OR COALESCE(p_expected_count, 0) < 1 THEN
+    RETURN;
+  END IF;
+
+  v_prefix := CASE v_language WHEN 'eng' THEN 'EngSpellingOCRPaper' ELSE 'FrSpellingOCRPaper' END;
+  v_day := to_char(p_date, 'YYYY-MM-DD');
+
+  SELECT count(*) INTO v_count
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task LIKE v_prefix || '-' || v_day || '-%';
+
+  IF v_count < p_expected_count THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO spelling_dictation_reviews (profile, review_date, language, status, webhook_sent)
+  VALUES (v_profile, p_date, v_language, 'incomplete', false)
+  ON CONFLICT (profile, review_date, language) DO NOTHING;
+
+  UPDATE spelling_dictation_reviews
+  SET webhook_sent = true
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language
+    AND webhook_sent = false
+    AND status IS DISTINCT FROM 'complete';
+
+  GET DIAGNOSTICS v_claimed = ROW_COUNT;
+  IF v_claimed = 0 THEN
+    RETURN;
+  END IF;
+
+  SELECT decrypted_secret INTO v_token
+  FROM vault.decrypted_secrets
+  WHERE name = 'spelling_ocr_webhook_bearer'
+  LIMIT 1;
+
+  IF v_token IS NULL OR btrim(v_token) = '' THEN
+    UPDATE spelling_dictation_reviews
+    SET webhook_sent = false
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'spelling_ocr_webhook_bearer not configured in Supabase Vault';
+    RETURN;
+  END IF;
+
+  v_body := jsonb_build_object(
+    'profile', v_profile,
+    'language', v_language,
+    'date', v_day,
+    'kind', 'paper'
+  )::text;
+
+  BEGIN
+    SELECT r.status INTO v_status
+    FROM extensions.http((
+      'POST',
+      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
+        extensions.http_header('Content-Type', 'application/json')
+      ]::extensions.http_header[],
+      'application/json',
+      v_body
+    )::extensions.http_request) r;
+  EXCEPTION WHEN OTHERS THEN
+    UPDATE spelling_dictation_reviews
+    SET webhook_sent = false
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'spelling list webhook request failed: %', SQLERRM;
+    RETURN;
+  END;
+
+  IF v_status IS NULL OR v_status < 200 OR v_status >= 300 THEN
+    UPDATE spelling_dictation_reviews
+    SET webhook_sent = false
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'spelling list webhook returned status %', COALESCE(v_status, -1);
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_enqueue_spelling_paper_review(text, text, date, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
 -- FILE: af_get_spelling_xtra_status.sql
 -- -----------------------------------------------------------------------------
 -- Call site: web/map.html and web/xtra.html.
 -- The extra task completes itself when every OCR photo is scored correct and Grok
 -- never wrote a review list. It also completes when the current extra round is all correct.
+-- A paper photo (EngSpellingOCRPaper / FrSpellingOCRPaper) counts as that day's OCR paper.
+-- An extra round is one sheet photo, task ...-rNN-sheet-word|word-status.
 -- A review list appears only when Grok calls af_set_spelling_xtra_words.
 
 DROP FUNCTION IF EXISTS af_get_spelling_copy_status(text, text, date);
@@ -2814,10 +2952,13 @@ DECLARE
   v_language text := lower(trim(p_language));
   v_day text;
   v_ocr_prefix text;
+  v_paper_prefix text;
   v_xtra_prefix text;
   v_title text;
   v_label text;
   v_ocr_re text;
+  v_paper_re text;
+  v_sheet text;
   v_xtra_re text;
   v_ocr_complete boolean := false;
   v_ocr_unverified boolean := false;
@@ -2845,11 +2986,13 @@ BEGIN
   END IF;
   IF v_language = 'eng' THEN
     v_ocr_prefix := 'EngSpellingOCR';
+    v_paper_prefix := 'EngSpellingOCRPaper';
     v_xtra_prefix := 'EngSpellingOCRXtra';
     v_title := 'Eng Spelling OCR';
     v_label := 'English';
   ELSIF v_language = 'fr' THEN
     v_ocr_prefix := 'FrSpellingOCR';
+    v_paper_prefix := 'FrSpellingOCRPaper';
     v_xtra_prefix := 'FrSpellingOCRXtra';
     v_title := 'FR Spelling OCR';
     v_label := 'French';
@@ -2862,6 +3005,7 @@ BEGIN
   END IF;
   v_day := to_char(p_date, 'YYYY-MM-DD');
   v_ocr_re := '^(?:Eng|Fr)SpellingOCR-' || v_day || '-([0-9]+)-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
+  v_paper_re := '^(?:Eng|Fr)SpellingOCRPaper-' || v_day || '-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
 
   SELECT lower(COALESCE(required_tasks -> v_title ->> 'status', '')) IN ('complete', 'done')
     INTO v_ocr_complete
@@ -2884,17 +3028,25 @@ BEGIN
   SELECT count(*) INTO v_raw_ocr
   FROM image_uploads
   WHERE profile = v_profile
-    AND task LIKE v_ocr_prefix || '-' || v_day || '-%';
+    AND (
+      task LIKE v_ocr_prefix || '-' || v_day || '-%'
+      OR task LIKE v_paper_prefix || '-' || v_day || '-%'
+    );
 
-  SELECT COALESCE(jsonb_agg(jsonb_build_object('kind', spelling_photo_kind(m[3]))), '[]'::jsonb)
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('kind', spelling_photo_kind(status))), '[]'::jsonb)
     INTO v_photos
   FROM (
-    SELECT regexp_match(task, v_ocr_re) AS m
+    SELECT (regexp_match(task, v_ocr_re))[3] AS status
     FROM image_uploads
     WHERE profile = v_profile
       AND task LIKE v_ocr_prefix || '-' || v_day || '-%'
+    UNION ALL
+    SELECT (regexp_match(task, v_paper_re))[2]
+    FROM image_uploads
+    WHERE profile = v_profile
+      AND task LIKE v_paper_prefix || '-' || v_day || '-%'
   ) parsed
-  WHERE m IS NOT NULL;
+  WHERE status IS NOT NULL;
 
   v_parsed_ocr := COALESCE(jsonb_array_length(v_photos), 0);
   FOR v_i IN 0 .. v_parsed_ocr - 1 LOOP
@@ -2935,81 +3087,41 @@ BEGIN
 
   v_round := COALESCE(v_round, 1);
   v_xtra_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r' || lpad(v_round::text, 2, '0')
-    || '-([0-9]+)-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
+    || '-sheet-.+-(unverified|X|x|✓|checkmark|correct|incorrect)$';
 
-  SELECT COALESCE(jsonb_agg(jsonb_build_object(
-           'n', m[1]::int,
-           'word', m[2],
-           'kind', spelling_photo_kind(m[3])
-         )), '[]'::jsonb)
-    INTO v_photos
-  FROM (
-    SELECT regexp_match(task, v_xtra_re) AS m
-    FROM image_uploads
-    WHERE profile = v_profile
-      AND task LIKE v_xtra_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%'
-  ) parsed
-  WHERE m IS NOT NULL;
+  SELECT spelling_photo_kind((regexp_match(task, v_xtra_re))[1])
+    INTO v_sheet
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task LIKE v_xtra_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%'
+    AND regexp_match(task, v_xtra_re) IS NOT NULL
+  ORDER BY id DESC
+  LIMIT 1;
 
-  FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
-    v_word := v_words ->> v_i;
-    v_filled := 0;
-    v_kinds := ARRAY['missing', 'missing', 'missing'];
-    FOR v_n IN 0 .. COALESCE(jsonb_array_length(v_photos), 0) - 1 LOOP
-      v_item := v_photos -> v_n;
-      IF v_item->>'word' IS DISTINCT FROM v_word THEN
-        CONTINUE;
-      END IF;
-      IF (v_item->>'n')::int BETWEEN 1 AND 3 AND v_kinds[(v_item->>'n')::int] = 'missing' THEN
-        v_kinds[(v_item->>'n')::int] := v_item->>'kind';
-        v_filled := v_filled + 1;
-      END IF;
-    END LOOP;
-
-    IF v_filled = 3
-       AND v_kinds[1] = 'correct' AND v_kinds[2] = 'correct' AND v_kinds[3] = 'correct' THEN
-      CONTINUE;
-    END IF;
-
-    v_all_correct := false;
-    IF v_filled < 3 THEN
-      v_any_missing := true;
+  IF v_sheet IS NULL THEN
+    FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
       v_practice := v_practice || jsonb_build_array(jsonb_build_object(
-        'word', v_word,
-        'round', v_round,
-        'copies', jsonb_build_array(
-          jsonb_build_object('n', 1, 'status', v_kinds[1]),
-          jsonb_build_object('n', 2, 'status', v_kinds[2]),
-          jsonb_build_object('n', 3, 'status', v_kinds[3])
-        )
+        'word', v_words ->> v_i,
+        'round', v_round
       ));
-    ELSIF v_kinds[1] IN ('unverified', 'unknown')
-          OR v_kinds[2] IN ('unverified', 'unknown')
-          OR v_kinds[3] IN ('unverified', 'unknown') THEN
-      v_round_unverified := true;
-    END IF;
-  END LOOP;
-
-  IF v_all_correct THEN
-    RETURN jsonb_build_object(
-      'phase', 'perfect', 'language', v_language, 'label', v_label,
-      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', '[]'::jsonb
-    );
-  END IF;
-
-  IF v_any_missing THEN
+    END LOOP;
     RETURN jsonb_build_object(
       'phase', 'practice', 'language', v_language, 'label', v_label,
       'message', '', 'round', v_round, 'expectedCount', NULL, 'words', v_practice
     );
   END IF;
 
-  IF v_round_unverified AND v_sent < v_round THEN
+  IF v_sheet = 'correct' THEN
+    RETURN jsonb_build_object(
+      'phase', 'perfect', 'language', v_language, 'label', v_label,
+      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', '[]'::jsonb
+    );
+  END IF;
+
+  IF v_sheet = 'unverified' AND v_sent < v_round THEN
     RETURN jsonb_build_object(
       'phase', 'pending_submit', 'language', v_language, 'label', v_label,
-      'message', v_message_wait, 'round', v_round,
-      'expectedCount', jsonb_array_length(v_words) * 3,
-      'words', '[]'::jsonb
+      'message', v_message_wait, 'round', v_round, 'expectedCount', 1, 'words', '[]'::jsonb
     );
   END IF;
 
@@ -3029,7 +3141,10 @@ GRANT EXECUTE ON FUNCTION af_get_spelling_xtra_status(text, text, date) TO anon,
 -- -----------------------------------------------------------------------------
 -- Call site: the Grok spelling automation.
 -- Returns unverified photos for one profile, language, and date.
--- p_kind is 'ocr' or 'xtra'. Each row includes the image and the word to compare.
+-- p_kind is 'ocr', 'paper', or 'xtra'.
+-- An ocr row is one photo of one word.
+-- A paper row is one photo of the whole list. words is that list in order.
+-- An xtra row is one photo of the rewrite sheet. words is the missed list; each word was written 3 times.
 
 CREATE OR REPLACE FUNCTION af_list_unverified_spelling(
   p_profile text,
@@ -3059,6 +3174,10 @@ BEGIN
     v_prefix := 'EngSpellingOCR';
   ELSIF v_language = 'fr' AND v_kind = 'ocr' THEN
     v_prefix := 'FrSpellingOCR';
+  ELSIF v_language = 'eng' AND v_kind = 'paper' THEN
+    v_prefix := 'EngSpellingOCRPaper';
+  ELSIF v_language = 'fr' AND v_kind = 'paper' THEN
+    v_prefix := 'FrSpellingOCRPaper';
   ELSIF v_language = 'eng' AND v_kind = 'xtra' THEN
     v_prefix := 'EngSpellingOCRXtra';
   ELSIF v_language = 'fr' AND v_kind = 'xtra' THEN
@@ -3090,16 +3209,31 @@ BEGIN
         AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
     ) parsed
     WHERE m IS NOT NULL;
-  ELSE
-    v_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r([0-9]+)-([0-9]+)-(.+)-unverified$';
+  ELSIF v_kind = 'paper' THEN
+    v_re := '^(?:Eng|Fr)SpellingOCRPaper-' || v_day || '-(.+)-unverified$';
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
              'id', id,
              'task', task,
-             'word', m[3],
-             'n', m[2]::int,
+             'words', to_jsonb(string_to_array(m[1], '|')),
+             'image', image
+           ) ORDER BY id), '[]'::jsonb)
+      INTO v_rows
+    FROM (
+      SELECT id, task, image, regexp_match(task, v_re) AS m
+      FROM image_uploads
+      WHERE profile = v_profile
+        AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
+    ) parsed
+    WHERE m IS NOT NULL;
+  ELSE
+    v_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r([0-9]+)-sheet-(.+)-unverified$';
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'id', id,
+             'task', task,
+             'words', to_jsonb(string_to_array(m[2], '|')),
              'round', m[1]::int,
              'image', image
-           ) ORDER BY m[1]::int, m[2]::int), '[]'::jsonb)
+           ) ORDER BY m[1]::int, id), '[]'::jsonb)
       INTO v_rows
     FROM (
       SELECT id, task, image, regexp_match(task, v_re) AS m
@@ -3233,7 +3367,7 @@ BEGIN
       INTO v_photo_count, v_unverified
     FROM image_uploads
     WHERE profile = v_profile
-      AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
+      AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%';
     IF v_unverified > 0 THEN
       RETURN;
     END IF;
@@ -3260,8 +3394,9 @@ GRANT EXECUTE ON FUNCTION af_set_spelling_xtra_words(text, text, date, text[]) T
 -- -----------------------------------------------------------------------------
 -- FILE: af_enqueue_spelling_xtra_review.sql
 -- -----------------------------------------------------------------------------
--- Call site: web/xtra.html after a round is stored, and web/map.html if that webhook never went out.
--- Sends kind "xtra". xtra_sent_round stops a second POST for the same round.
+-- Call site: web/xtra.html after the rewrite sheet is stored, and web/map.html if that webhook never went out.
+-- One photo per round. p_expected_count is 1. Sends kind "xtra".
+-- xtra_sent_round stops a second POST for the same round.
 -- The next round can send again after af_set_spelling_xtra_words advances xtra_round.
 
 CREATE OR REPLACE FUNCTION af_enqueue_spelling_xtra_review(
@@ -3316,7 +3451,7 @@ BEGIN
   SELECT count(*) INTO v_count
   FROM image_uploads
   WHERE profile = v_profile
-    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
+    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%';
 
   IF v_count < p_expected_count THEN
     RETURN;
@@ -5033,5 +5168,126 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_web_save_schedule(text, jsonb, boolean) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_remove_assignment.sql
+-- -----------------------------------------------------------------------------
+-- Removes one web_assignments row by profile, section, and launch.
+-- Match is not the title, so a sentence task can be removed before a new title is added.
+-- Does not write user_data. Call af_update_tasks_from_config_required afterward.
+
+CREATE OR REPLACE FUNCTION af_web_remove_assignment(
+  p_profile text,
+  p_section text,
+  p_launch text
+)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_section text := lower(trim(p_section));
+  v_launch text := nullif(btrim(p_launch), '');
+  v_n int;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_section IS NULL OR v_section NOT IN ('required', 'optional', 'bonus', 'checklist') THEN
+    RAISE EXCEPTION 'Invalid section: %', p_section;
+  END IF;
+  IF v_launch IS NULL THEN
+    RAISE EXCEPTION 'p_launch is required';
+  END IF;
+
+  DELETE FROM web_assignments
+  WHERE profile = v_profile
+    AND section = v_section
+    AND launch = v_launch;
+
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RETURN v_n;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_remove_assignment(text, text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_add_assignment.sql
+-- -----------------------------------------------------------------------------
+-- Adds one web_assignments row. Inserts the launch into web_games when it is missing.
+-- Does not write user_data. Call af_update_tasks_from_config_required afterward.
+
+CREATE OR REPLACE FUNCTION af_web_add_assignment(
+  p_profile text,
+  p_section text,
+  p_launch text,
+  p_title text,
+  p_url text,
+  p_sort_order int,
+  p_stars int,
+  p_description text,
+  p_web_game boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_section text := lower(trim(p_section));
+  v_launch text := nullif(btrim(p_launch), '');
+  v_title text := nullif(btrim(p_title), '');
+  v_sort int;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_section IS NULL OR v_section NOT IN ('required', 'optional', 'bonus', 'checklist') THEN
+    RAISE EXCEPTION 'Invalid section: %', p_section;
+  END IF;
+  IF v_launch IS NULL THEN
+    RAISE EXCEPTION 'p_launch is required';
+  END IF;
+  IF v_title IS NULL THEN
+    RAISE EXCEPTION 'p_title is required';
+  END IF;
+
+  INSERT INTO web_games (launch) VALUES (v_launch) ON CONFLICT DO NOTHING;
+
+  v_sort := p_sort_order;
+  IF v_sort IS NULL THEN
+    SELECT COALESCE(max(sort_order), 0) + 1
+      INTO v_sort
+    FROM web_assignments
+    WHERE profile = v_profile
+      AND section = v_section;
+  END IF;
+
+  INSERT INTO web_assignments (
+    profile, section, launch, title, enabled, sort_order, stars, url,
+    web_game, description
+  )
+  VALUES (
+    v_profile,
+    v_section,
+    v_launch,
+    v_title,
+    true,
+    v_sort,
+    p_stars,
+    nullif(btrim(p_url), ''),
+    COALESCE(p_web_game, false),
+    nullif(btrim(p_description), '')
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_add_assignment(text, text, text, text, text, int, int, text, boolean) TO anon, authenticated, service_role;
 
 

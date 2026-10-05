@@ -329,7 +329,10 @@
 
         function spellingPrefixes() {
             const prefixes = [game];
-            if (String(game).endsWith('SpellingOCR')) prefixes.push(String(game).replace(/OCR$/, 'OCRXtra'));
+            if (String(game).endsWith('SpellingOCR')) {
+                prefixes.push(String(game).replace(/OCR$/, 'OCRXtra'));
+                prefixes.push(String(game).replace(/OCR$/, 'OCRPaper'));
+            }
             return prefixes;
         }
 
@@ -415,8 +418,9 @@
             const gp = gamePrefix.toLowerCase();
             const isCopy = gp === 'engspellingocrxtra' || gp === 'frspellingocrxtra'
                 || gp === 'engspellingcopy' || gp === 'frspellingcopy';
+            const isList = gp === 'engspellingocrpaper' || gp === 'frspellingocrpaper';
             const isOcr = gp === 'engspellingocr' || gp === 'frspellingocr';
-            if (!isCopy && !isOcr) return null;
+            if (!isCopy && !isOcr && !isList) return null;
             let index = 1;
             let ymd = null;
             if (/^\d{4}$/.test(parts[1]) && /^\d{2}$/.test(parts[2]) && /^\d{2}$/.test(parts[3])) {
@@ -426,11 +430,23 @@
             let round = null;
             let questionNumber;
             let word;
+            let sheet = false;
             if (isCopy) {
                 if (!/^r\d+$/i.test(parts[index] || '')) return null;
                 round = parseInt(parts[index].slice(1), 10);
-                questionNumber = parseInt(parts[index + 1], 10);
-                word = parts.slice(index + 2, -1).join('-');
+                if (/^sheet$/i.test(parts[index + 1] || '')) {
+                    sheet = true;
+                    questionNumber = 1;
+                    word = parts.slice(index + 2, -1).join('-').split('|').filter(Boolean)
+                        .map((item, n) => (n + 1) + '. ' + item + ' ×3').join(', ');
+                } else {
+                    questionNumber = parseInt(parts[index + 1], 10);
+                    word = parts.slice(index + 2, -1).join('-');
+                }
+            } else if (isList) {
+                questionNumber = 1;
+                word = parts.slice(index, -1).join('-').split('|').filter(Boolean)
+                    .map((item, n) => (n + 1) + '. ' + item).join(', ');
             } else {
                 questionNumber = parseInt(parts[index], 10);
                 word = parts.slice(index + 1, -1).join('-');
@@ -443,7 +459,8 @@
                 word,
                 ymd,
                 round,
-                kind: isCopy ? 'copy' : 'ocr',
+                kind: isCopy ? 'copy' : (isList ? 'list' : 'ocr'),
+                sheet: sheet,
                 status: kind,
                 isCorrect: kind === 'correct',
                 isUnverified: kind === 'unverified'
@@ -563,8 +580,8 @@
                 const dayA = a.parsed.ymd || '';
                 const dayB = b.parsed.ymd || '';
                 if (dayA !== dayB) return dayB.localeCompare(dayA);
-                const kindA = a.parsed.kind === 'ocr' ? 0 : 1;
-                const kindB = b.parsed.kind === 'ocr' ? 0 : 1;
+                const kindA = a.parsed.kind === 'copy' ? 1 : 0;
+                const kindB = b.parsed.kind === 'copy' ? 1 : 0;
                 if (kindA !== kindB) return kindA - kindB;
                 const roundA = a.parsed.round || 0;
                 const roundB = b.parsed.round || 0;
@@ -587,7 +604,11 @@
                     const dayKey = parsed.ymd || '';
                     const slotLabel = parsed.kind === 'ocr'
                         ? `#${questionNumber}`
-                        : `Round ${parsed.round} · ${questionNumber}`;
+                        : parsed.kind === 'list'
+                            ? 'Paper list'
+                            : parsed.sheet
+                                ? `Round ${parsed.round} · paper`
+                                : `Round ${parsed.round} · ${questionNumber}`;
                     if (dayKey !== lastDay) {
                         lastDay = dayKey;
                         const dayHeading = document.createElement('div');
@@ -633,7 +654,9 @@
                     const imageDiv = document.createElement('div');
                     imageDiv.className = 'entry-image-container';
                     const img = document.createElement('img');
-                    img.src = `data:image/png;base64,${entry.image}`;
+                    const rawImage = String(entry.image || '');
+                    const mime = rawImage.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+                    img.src = rawImage.startsWith('data:') ? rawImage : `data:${mime};base64,${rawImage}`;
                     img.className = 'entry-image';
                     img.alt = `Question ${questionNumber}: ${word}`;
                     img.onclick = () => showModal(img.src);

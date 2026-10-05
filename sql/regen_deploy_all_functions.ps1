@@ -80,6 +80,8 @@ $files = @(
 
   "af_enqueue_spelling_ocr_review.sql",
 
+  "af_enqueue_spelling_paper_review.sql",
+
   "af_get_spelling_xtra_status.sql",
 
   "af_list_unverified_spelling.sql",
@@ -134,7 +136,11 @@ $files = @(
 
   "af_web_report_assignments.sql",
 
-  "af_web_save_schedule.sql"
+  "af_web_save_schedule.sql",
+
+  "af_web_remove_assignment.sql",
+
+  "af_web_add_assignment.sql"
 
 )
 

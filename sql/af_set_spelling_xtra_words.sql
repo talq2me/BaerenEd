@@ -67,7 +67,7 @@ BEGIN
       INTO v_photo_count, v_unverified
     FROM image_uploads
     WHERE profile = v_profile
-      AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
+      AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%';
     IF v_unverified > 0 THEN
       RETURN;
     END IF;

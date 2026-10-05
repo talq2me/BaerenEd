@@ -312,7 +312,7 @@
             if (!row || row.enabled === false) return false;
             if (WEB_SKIP[row.launch] || row.chromePage || row.videoSequence) return false;
             if (row.webGame && row.url) return true;
-            if (WEB_QUIZ[row.launch] || row.launch === 'spellingOCR' || WEB_LATER[row.launch]) return true;
+            if (WEB_QUIZ[row.launch] || row.launch === 'spellingOCR' || row.launch === 'spellingOCRPaper' || WEB_LATER[row.launch]) return true;
             return false;
         }
 

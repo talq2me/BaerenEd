@@ -7,8 +7,25 @@
   <link rel="stylesheet" href="baeren.css">
   <style>
     .paper { background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-    canvas { width: 100%; height: 240px; touch-action: none; background: #fff; border: 2px dashed #c5d0dc; border-radius: 8px; cursor: crosshair; }
+    .sheet { position: relative; background: #fff; }
+    canvas { display: block; position: relative; z-index: 1; width: 100%; height: 240px; touch-action: none; background: transparent; border: 2px dashed #c5d0dc; border-radius: 8px; cursor: crosshair; }
     canvas.erasing { cursor: cell; }
+    /* Lines sit under the ink. The canvas stays transparent so erasing reveals them, and the saved image is flattened onto white without the lines. */
+    .guides {
+      position: absolute;
+      z-index: 0;
+      inset: 2px;
+      border-radius: 6px;
+      pointer-events: none;
+      background-image:
+        linear-gradient(#ff69b4, #ff69b4),
+        linear-gradient(#87ceeb, #87ceeb),
+        linear-gradient(#87ceeb, #87ceeb),
+        linear-gradient(#ff69b4, #ff69b4);
+      background-repeat: no-repeat;
+      background-size: 100% 3px;
+      background-position: left 20%, left 40%, left 60%, left 80%;
+    }
     #clearBtn { background: #d9e4ee; color: #1c2430; }
     #clearBtn.on { background: #1b3a4b; color: #fff; }
     #doneBtn { background: #1b3a4b; color: #fff; }
@@ -24,7 +41,7 @@
   </header>
   <main class="quiz">
     <p id="prompt" class="prompt"></p>
-    <div class="paper"><canvas id="paper" width="900" height="360"></canvas></div>
+    <div class="paper"><div class="sheet"><div class="guides" aria-hidden="true"></div><canvas id="paper" width="900" height="360"></canvas></div></div>
     <div class="row" style="margin-top:12px">
       <button type="button" id="clearBtn" aria-pressed="false">Erase</button>
       <button type="button" id="hearBtn">Hear again</button>
@@ -90,12 +107,12 @@
       const btn = document.getElementById("clearBtn");
       btn.classList.toggle("on", on);
       btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.textContent = on ? "Write" : "Erase";
       canvas.classList.toggle("erasing", on);
     }
 
     function fillPaper() {
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       dirty = false;
       document.getElementById("doneBtn").disabled = true;
       setErasing(false);
@@ -103,7 +120,7 @@
 
     function eraseDot(p) {
       ctx.save();
-      ctx.fillStyle = "#fff";
+      ctx.globalCompositeOperation = "destination-out";
       ctx.beginPath();
       ctx.arc(p.x, p.y, ERASE_RADIUS, 0, Math.PI * 2);
       ctx.fill();
@@ -151,6 +168,7 @@
         eraseStroke(p);
         return;
       }
+      ctx.globalCompositeOperation = "source-over";
       ctx.strokeStyle = "#1c2430";
       ctx.lineWidth = 6;
       ctx.lineCap = "round";
@@ -197,7 +215,14 @@
         p_task_pattern: pattern
       });
       if (existing) await Baeren.rpc("af_delete_image_upload_by_id", { p_id: existing });
-      const dataUrl = canvas.toDataURL("image/png");
+      const flat = document.createElement("canvas");
+      flat.width = canvas.width;
+      flat.height = canvas.height;
+      const flatCtx = flat.getContext("2d");
+      flatCtx.fillStyle = "#fff";
+      flatCtx.fillRect(0, 0, flat.width, flat.height);
+      flatCtx.drawImage(canvas, 0, 0);
+      const dataUrl = flat.toDataURL("image/png");
       await Baeren.rpc("af_upsert_image_upload", {
         p_profile: profile,
         p_task: task,

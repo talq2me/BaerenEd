@@ -181,7 +181,10 @@
                 const profile = el.dataset.profile;
                 const game = el.dataset.game;
                     const prefixes = [game];
-                    if (game.endsWith('SpellingOCR')) prefixes.push(game.replace(/OCR$/, 'OCRXtra'));
+                    if (game.endsWith('SpellingOCR')) {
+                        prefixes.push(game.replace(/OCR$/, 'OCRXtra'));
+                        prefixes.push(game.replace(/OCR$/, 'OCRPaper'));
+                    }
                 try {
                     const batches = await Promise.all(prefixes.map(async (prefix) => {
                         const pattern = encodeURIComponent(`${prefix}-`) + '%25';

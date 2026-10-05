@@ -1,6 +1,8 @@
 -- Call site: web/map.html and web/xtra.html.
 -- The extra task completes itself when every OCR photo is scored correct and Grok
 -- never wrote a review list. It also completes when the current extra round is all correct.
+-- A paper photo (EngSpellingOCRPaper / FrSpellingOCRPaper) counts as that day's OCR paper.
+-- An extra round is one sheet photo, task ...-rNN-sheet-word|word-status.
 -- A review list appears only when Grok calls af_set_spelling_xtra_words.
 
 DROP FUNCTION IF EXISTS af_get_spelling_copy_status(text, text, date);
@@ -41,10 +43,13 @@ DECLARE
   v_language text := lower(trim(p_language));
   v_day text;
   v_ocr_prefix text;
+  v_paper_prefix text;
   v_xtra_prefix text;
   v_title text;
   v_label text;
   v_ocr_re text;
+  v_paper_re text;
+  v_sheet text;
   v_xtra_re text;
   v_ocr_complete boolean := false;
   v_ocr_unverified boolean := false;
@@ -72,11 +77,13 @@ BEGIN
   END IF;
   IF v_language = 'eng' THEN
     v_ocr_prefix := 'EngSpellingOCR';
+    v_paper_prefix := 'EngSpellingOCRPaper';
     v_xtra_prefix := 'EngSpellingOCRXtra';
     v_title := 'Eng Spelling OCR';
     v_label := 'English';
   ELSIF v_language = 'fr' THEN
     v_ocr_prefix := 'FrSpellingOCR';
+    v_paper_prefix := 'FrSpellingOCRPaper';
     v_xtra_prefix := 'FrSpellingOCRXtra';
     v_title := 'FR Spelling OCR';
     v_label := 'French';
@@ -89,6 +96,7 @@ BEGIN
   END IF;
   v_day := to_char(p_date, 'YYYY-MM-DD');
   v_ocr_re := '^(?:Eng|Fr)SpellingOCR-' || v_day || '-([0-9]+)-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
+  v_paper_re := '^(?:Eng|Fr)SpellingOCRPaper-' || v_day || '-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
 
   SELECT lower(COALESCE(required_tasks -> v_title ->> 'status', '')) IN ('complete', 'done')
     INTO v_ocr_complete
@@ -111,17 +119,25 @@ BEGIN
   SELECT count(*) INTO v_raw_ocr
   FROM image_uploads
   WHERE profile = v_profile
-    AND task LIKE v_ocr_prefix || '-' || v_day || '-%';
+    AND (
+      task LIKE v_ocr_prefix || '-' || v_day || '-%'
+      OR task LIKE v_paper_prefix || '-' || v_day || '-%'
+    );
 
-  SELECT COALESCE(jsonb_agg(jsonb_build_object('kind', spelling_photo_kind(m[3]))), '[]'::jsonb)
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('kind', spelling_photo_kind(status))), '[]'::jsonb)
     INTO v_photos
   FROM (
-    SELECT regexp_match(task, v_ocr_re) AS m
+    SELECT (regexp_match(task, v_ocr_re))[3] AS status
     FROM image_uploads
     WHERE profile = v_profile
       AND task LIKE v_ocr_prefix || '-' || v_day || '-%'
+    UNION ALL
+    SELECT (regexp_match(task, v_paper_re))[2]
+    FROM image_uploads
+    WHERE profile = v_profile
+      AND task LIKE v_paper_prefix || '-' || v_day || '-%'
   ) parsed
-  WHERE m IS NOT NULL;
+  WHERE status IS NOT NULL;
 
   v_parsed_ocr := COALESCE(jsonb_array_length(v_photos), 0);
   FOR v_i IN 0 .. v_parsed_ocr - 1 LOOP
@@ -162,81 +178,41 @@ BEGIN
 
   v_round := COALESCE(v_round, 1);
   v_xtra_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r' || lpad(v_round::text, 2, '0')
-    || '-([0-9]+)-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
+    || '-sheet-.+-(unverified|X|x|✓|checkmark|correct|incorrect)$';
 
-  SELECT COALESCE(jsonb_agg(jsonb_build_object(
-           'n', m[1]::int,
-           'word', m[2],
-           'kind', spelling_photo_kind(m[3])
-         )), '[]'::jsonb)
-    INTO v_photos
-  FROM (
-    SELECT regexp_match(task, v_xtra_re) AS m
-    FROM image_uploads
-    WHERE profile = v_profile
-      AND task LIKE v_xtra_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%'
-  ) parsed
-  WHERE m IS NOT NULL;
+  SELECT spelling_photo_kind((regexp_match(task, v_xtra_re))[1])
+    INTO v_sheet
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task LIKE v_xtra_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%'
+    AND regexp_match(task, v_xtra_re) IS NOT NULL
+  ORDER BY id DESC
+  LIMIT 1;
 
-  FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
-    v_word := v_words ->> v_i;
-    v_filled := 0;
-    v_kinds := ARRAY['missing', 'missing', 'missing'];
-    FOR v_n IN 0 .. COALESCE(jsonb_array_length(v_photos), 0) - 1 LOOP
-      v_item := v_photos -> v_n;
-      IF v_item->>'word' IS DISTINCT FROM v_word THEN
-        CONTINUE;
-      END IF;
-      IF (v_item->>'n')::int BETWEEN 1 AND 3 AND v_kinds[(v_item->>'n')::int] = 'missing' THEN
-        v_kinds[(v_item->>'n')::int] := v_item->>'kind';
-        v_filled := v_filled + 1;
-      END IF;
-    END LOOP;
-
-    IF v_filled = 3
-       AND v_kinds[1] = 'correct' AND v_kinds[2] = 'correct' AND v_kinds[3] = 'correct' THEN
-      CONTINUE;
-    END IF;
-
-    v_all_correct := false;
-    IF v_filled < 3 THEN
-      v_any_missing := true;
+  IF v_sheet IS NULL THEN
+    FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
       v_practice := v_practice || jsonb_build_array(jsonb_build_object(
-        'word', v_word,
-        'round', v_round,
-        'copies', jsonb_build_array(
-          jsonb_build_object('n', 1, 'status', v_kinds[1]),
-          jsonb_build_object('n', 2, 'status', v_kinds[2]),
-          jsonb_build_object('n', 3, 'status', v_kinds[3])
-        )
+        'word', v_words ->> v_i,
+        'round', v_round
       ));
-    ELSIF v_kinds[1] IN ('unverified', 'unknown')
-          OR v_kinds[2] IN ('unverified', 'unknown')
-          OR v_kinds[3] IN ('unverified', 'unknown') THEN
-      v_round_unverified := true;
-    END IF;
-  END LOOP;
-
-  IF v_all_correct THEN
-    RETURN jsonb_build_object(
-      'phase', 'perfect', 'language', v_language, 'label', v_label,
-      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', '[]'::jsonb
-    );
-  END IF;
-
-  IF v_any_missing THEN
+    END LOOP;
     RETURN jsonb_build_object(
       'phase', 'practice', 'language', v_language, 'label', v_label,
       'message', '', 'round', v_round, 'expectedCount', NULL, 'words', v_practice
     );
   END IF;
 
-  IF v_round_unverified AND v_sent < v_round THEN
+  IF v_sheet = 'correct' THEN
+    RETURN jsonb_build_object(
+      'phase', 'perfect', 'language', v_language, 'label', v_label,
+      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', '[]'::jsonb
+    );
+  END IF;
+
+  IF v_sheet = 'unverified' AND v_sent < v_round THEN
     RETURN jsonb_build_object(
       'phase', 'pending_submit', 'language', v_language, 'label', v_label,
-      'message', v_message_wait, 'round', v_round,
-      'expectedCount', jsonb_array_length(v_words) * 3,
-      'words', '[]'::jsonb
+      'message', v_message_wait, 'round', v_round, 'expectedCount', 1, 'words', '[]'::jsonb
     );
   END IF;
 

@@ -1,6 +1,9 @@
 -- Call site: the Grok spelling automation.
 -- Returns unverified photos for one profile, language, and date.
--- p_kind is 'ocr' or 'xtra'. Each row includes the image and the word to compare.
+-- p_kind is 'ocr', 'paper', or 'xtra'.
+-- An ocr row is one photo of one word.
+-- A paper row is one photo of the whole list. words is that list in order.
+-- An xtra row is one photo of the rewrite sheet. words is the missed list; each word was written 3 times.
 
 CREATE OR REPLACE FUNCTION af_list_unverified_spelling(
   p_profile text,
@@ -30,6 +33,10 @@ BEGIN
     v_prefix := 'EngSpellingOCR';
   ELSIF v_language = 'fr' AND v_kind = 'ocr' THEN
     v_prefix := 'FrSpellingOCR';
+  ELSIF v_language = 'eng' AND v_kind = 'paper' THEN
+    v_prefix := 'EngSpellingOCRPaper';
+  ELSIF v_language = 'fr' AND v_kind = 'paper' THEN
+    v_prefix := 'FrSpellingOCRPaper';
   ELSIF v_language = 'eng' AND v_kind = 'xtra' THEN
     v_prefix := 'EngSpellingOCRXtra';
   ELSIF v_language = 'fr' AND v_kind = 'xtra' THEN
@@ -61,16 +68,31 @@ BEGIN
         AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
     ) parsed
     WHERE m IS NOT NULL;
-  ELSE
-    v_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r([0-9]+)-([0-9]+)-(.+)-unverified$';
+  ELSIF v_kind = 'paper' THEN
+    v_re := '^(?:Eng|Fr)SpellingOCRPaper-' || v_day || '-(.+)-unverified$';
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
              'id', id,
              'task', task,
-             'word', m[3],
-             'n', m[2]::int,
+             'words', to_jsonb(string_to_array(m[1], '|')),
+             'image', image
+           ) ORDER BY id), '[]'::jsonb)
+      INTO v_rows
+    FROM (
+      SELECT id, task, image, regexp_match(task, v_re) AS m
+      FROM image_uploads
+      WHERE profile = v_profile
+        AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
+    ) parsed
+    WHERE m IS NOT NULL;
+  ELSE
+    v_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r([0-9]+)-sheet-(.+)-unverified$';
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'id', id,
+             'task', task,
+             'words', to_jsonb(string_to_array(m[2], '|')),
              'round', m[1]::int,
              'image', image
-           ) ORDER BY m[1]::int, m[2]::int), '[]'::jsonb)
+           ) ORDER BY m[1]::int, id), '[]'::jsonb)
       INTO v_rows
     FROM (
       SELECT id, task, image, regexp_match(task, v_re) AS m
