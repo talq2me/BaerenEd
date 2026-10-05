@@ -1,12 +1,12 @@
 [
-  {"word":"off","sentence":"Please turn the light off."},
-  {"word":"pass","sentence":"Please pass the ball to me."},
-  {"word":"sell","sentence":"They sell apples at the store."},
-  {"word":"buzz","sentence":"The bees buzz near the flowers."},
-  {"word":"cliff","sentence":"The bird sat on the cliff."},
-  {"word":"all","sentence":"We ate all of the cookies."},
-  {"word":"fall","sentence":"Leaves fall from the tree."},
-  {"word":"roll","sentence":"Can you roll the ball to me?"},
-  {"word":"full","sentence":"The cup is full of water."},
-  {"word":"pull","sentence":"I will pull the wagon."}
+  {"word":"than","sentence":"I am taller than my brother."},
+  {"word":"flash","sentence":"I saw a flash of light."},
+  {"word":"cloth","sentence":"Wipe the table with a soft cloth."},
+  {"word":"check","sentence":"Please check your work."},
+  {"word":"shrimp","sentence":"We ate shrimp for dinner."},
+  {"word":"thrill","sentence":"The ride was a big thrill."},
+  {"word":"string","sentence":"Tie the box with string."},
+  {"word":"shrink","sentence":"Hot water can shrink a shirt."},
+  {"word":"which","sentence":"Which book do you want?"},
+  {"word":"splash","sentence":"The kids love to splash in the pool."}
 ]
