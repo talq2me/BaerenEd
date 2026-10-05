@@ -8,6 +8,9 @@
   <style>
     .paper { background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     canvas { width: 100%; height: 240px; touch-action: none; background: #fff; border: 2px dashed #c5d0dc; border-radius: 8px; cursor: crosshair; }
+    canvas.erasing { cursor: cell; }
+    #clearBtn { background: #d9e4ee; color: #1c2430; }
+    #clearBtn.on { background: #1b3a4b; color: #fff; }
     #doneBtn { background: #1b3a4b; color: #fff; }
     #doneBtn:disabled { opacity: .45; }
   </style>
@@ -23,7 +26,7 @@
     <p id="prompt" class="prompt"></p>
     <div class="paper"><canvas id="paper" width="900" height="360"></canvas></div>
     <div class="row" style="margin-top:12px">
-      <button type="button" id="clearBtn">Clear</button>
+      <button type="button" id="clearBtn" aria-pressed="false">Erase</button>
       <button type="button" id="hearBtn">Hear again</button>
       <button type="button" id="doneBtn" disabled>Done</button>
     </div>
@@ -54,8 +57,11 @@
     let words = [];
     let index = 0;
     let drawing = false;
+    let erasing = false;
+    let eraseFrom = null;
     let dirty = false;
     let busy = false;
+    const ERASE_RADIUS = 28;
 
     function torontoYmd() {
       return new Intl.DateTimeFormat("en-CA", {
@@ -79,11 +85,42 @@
       Baeren.speak(line, locale, 0.75);
     }
 
+    function setErasing(on) {
+      erasing = on;
+      const btn = document.getElementById("clearBtn");
+      btn.classList.toggle("on", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      canvas.classList.toggle("erasing", on);
+    }
+
     function fillPaper() {
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       dirty = false;
       document.getElementById("doneBtn").disabled = true;
+      setErasing(false);
+    }
+
+    function eraseDot(p) {
+      ctx.save();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, ERASE_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function eraseStroke(to) {
+      const from = eraseFrom || to;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const dist = Math.hypot(dx, dy);
+      const step = ERASE_RADIUS * 0.45;
+      const n = Math.max(1, Math.ceil(dist / step));
+      for (let i = 1; i <= n; i++) {
+        eraseDot({ x: from.x + dx * i / n, y: from.y + dy * i / n });
+      }
+      eraseFrom = to;
     }
 
     function showWord() {
@@ -109,6 +146,15 @@
       event.preventDefault();
       drawing = true;
       const p = point(event);
+      if (erasing) {
+        eraseFrom = null;
+        eraseStroke(p);
+        return;
+      }
+      ctx.strokeStyle = "#1c2430";
+      ctx.lineWidth = 6;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
     }
@@ -117,6 +163,10 @@
       if (!drawing) return;
       event.preventDefault();
       const p = point(event);
+      if (erasing) {
+        eraseStroke(p);
+        return;
+      }
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
       dirty = true;
@@ -125,6 +175,7 @@
 
     function endDraw() {
       drawing = false;
+      eraseFrom = null;
     }
 
     canvas.addEventListener("mousedown", startDraw);
@@ -175,7 +226,7 @@
     }
 
     document.getElementById("clearBtn").addEventListener("click", function () {
-      if (!busy) fillPaper();
+      if (!busy) setErasing(!erasing);
     });
     document.getElementById("hearBtn").addEventListener("click", speakCurrent);
     document.getElementById("doneBtn").addEventListener("click", async function () {
