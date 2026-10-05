@@ -1,0 +1,32 @@
+[
+  {
+    "prompt": {"text": "Build the irregular word: could.", "lang": "eng", "displayText": true},
+    "question": {"text": "could", "lang": "eng", "displayText": true},
+    "correctChoices": [{"text": "c"}, {"text": "ou"}, {"text": "l"}, {"text": "d"}],
+    "extraChoices": [{"text": "w"}, {"text": "s"}]
+  },
+  {
+    "prompt": {"text": "Build the irregular word: would.", "lang": "eng", "displayText": true},
+    "question": {"text": "would", "lang": "eng", "displayText": true},
+    "correctChoices": [{"text": "w"}, {"text": "ou"}, {"text": "l"}, {"text": "d"}],
+    "extraChoices": [{"text": "c"}, {"text": "s"}]
+  },
+  {
+    "prompt": {"text": "Build the irregular word: should.", "lang": "eng", "displayText": true},
+    "question": {"text": "should", "lang": "eng", "displayText": true},
+    "correctChoices": [{"text": "s"}, {"text": "h"}, {"text": "ou"}, {"text": "l"}, {"text": "d"}],
+    "extraChoices": [{"text": "c"}, {"text": "w"}]
+  },
+  {
+    "prompt": {"text": "Build the irregular word: or.", "lang": "eng", "displayText": true},
+    "question": {"text": "or", "lang": "eng", "displayText": true},
+    "correctChoices": [{"text": "o"}, {"text": "r"}],
+    "extraChoices": [{"text": "f"}, {"text": "a"}]
+  },
+  {
+    "prompt": {"text": "Build the irregular word: for.", "lang": "eng", "displayText": true},
+    "question": {"text": "for", "lang": "eng", "displayText": true},
+    "correctChoices": [{"text": "f"}, {"text": "o"}, {"text": "r"}],
+    "extraChoices": [{"text": "ou"}, {"text": "u"}]
+  }
+]

@@ -1,0 +1,59 @@
+{
+  "id": "ufli-chain-digraphs-review-2-g1",
+  "concept": "digraphs-review-2",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "string",
+        "prompt": "Write the word string.",
+        "correctChoices": [{"text": "s"}, {"text": "t"}, {"text": "r"}, {"text": "i"}, {"text": "n"}, {"text": "g"}],
+        "extraChoices": [{"text": "a"}, {"text": "u"}]
+      },
+      "steps": [
+        {
+          "from": "string",
+          "to": "strong",
+          "prompt": "Say string. Change i to o. Build strong."
+        },
+        {
+          "from": "strong",
+          "to": "strung",
+          "prompt": "Say strong. Change o to u. Build strung."
+        },
+        {
+          "from": "strung",
+          "to": "sprung",
+          "prompt": "Say strung. Change t to p. Build sprung."
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "spring",
+        "prompt": "Write the word spring.",
+        "correctChoices": [{"text": "s"}, {"text": "p"}, {"text": "r"}, {"text": "i"}, {"text": "n"}, {"text": "g"}],
+        "extraChoices": [{"text": "t"}, {"text": "u"}]
+      },
+      "steps": [
+        {
+          "from": "spring",
+          "to": "sprint",
+          "prompt": "Say spring. Change g to t. Build sprint."
+        },
+        {
+          "from": "sprint",
+          "to": "print",
+          "prompt": "Say sprint. Take away s at the beginning. Build print."
+        },
+        {
+          "from": "print",
+          "to": "prints",
+          "prompt": "Say print. Add s at the end. Build prints."
+        }
+      ]
+    }
+  ]
+}
