@@ -64,6 +64,43 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            background: white;
+            border-radius: 10px;
+            padding: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .toolbar button {
+            flex: 0 0 auto;
+            border: none;
+            background: #5a7a9c;
+            color: white;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.85em;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .toolbar button:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+
+        .day-label {
+            flex: 1;
+            text-align: center;
+            color: #334155;
+            font-size: 0.92em;
+            font-weight: 700;
+        }
+
         .entry-container {
             background: white;
             margin: 20px 0;
@@ -294,6 +331,11 @@
             </div>
             <a href="spelling_ocr_report.html" class="back-button">← Back</a>
         </div>
+        <div class="toolbar">
+            <button type="button" id="prevDay">← Previous</button>
+            <div class="day-label" id="dayLabel">Today</div>
+            <button type="button" id="nextDay">Next →</button>
+        </div>
         <div id="lastUpdated" class="header-meta" style="margin: -4px 0 12px; color: #64748b; font-size: 0.78em;"></div>
         <div class="score-bar" id="scoreBar" style="display: none;">
             <div class="score-summary" id="scoreSummary"></div>
@@ -319,9 +361,47 @@
         const profile = urlParams.get('profile') || 'AM';
         const game = urlParams.get('game') || 'EngSpellingOCR';
         let rowsState = [];
+        let loadToken = 0;
 
-        // Update header
-        document.getElementById('headerSubtitle').textContent = `${profile} - ${game}`;
+        function torontoYmdFromDate(date) {
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(date);
+        }
+
+        function torontoTodayYmd() {
+            return torontoYmdFromDate(new Date());
+        }
+
+        function addTorontoDays(ymd, deltaDays) {
+            const parts = ymd.split('-').map(Number);
+            const base = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 17, 0, 0));
+            base.setUTCDate(base.getUTCDate() + deltaDays);
+            return torontoYmdFromDate(base);
+        }
+
+        function formatTorontoLong(ymd) {
+            const parts = ymd.split('-').map(Number);
+            const ms = Date.UTC(parts[0], parts[1] - 1, parts[2], 17, 0, 0);
+            return new Date(ms).toLocaleDateString('en-US', {
+                timeZone: 'America/Toronto',
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        let selectedYmd = urlParams.get('ymd');
+        if (!selectedYmd || !/^\d{4}-\d{2}-\d{2}$/.test(selectedYmd)) {
+            selectedYmd = torontoTodayYmd();
+        }
+
+        const gameLabel = game.startsWith('Fr') ? 'French Spelling OCR' : 'English Spelling OCR';
+        document.getElementById('headerSubtitle').textContent = `${profile} · ${gameLabel}`;
 
         // Load saved configuration
         const supabaseUrl = localStorage.getItem('supabaseUrl');
@@ -336,8 +416,33 @@
             return prefixes;
         }
 
-        // Load spelling submissions, including copy rounds stored beside the OCR paper.
+        function syncDayChrome() {
+            const today = torontoTodayYmd();
+            const label = formatTorontoLong(selectedYmd);
+            document.getElementById('dayLabel').textContent = selectedYmd === today ? `Today · ${label}` : label;
+            document.getElementById('nextDay').disabled = selectedYmd >= today;
+        }
+
+        function showEmptyDay() {
+            rowsState = [];
+            updateScoreBar();
+            document.getElementById('entriesContainer').innerHTML = '';
+            document.getElementById('lastUpdated').style.display = 'none';
+            const empty = document.getElementById('noData');
+            empty.textContent = `Nothing for ${formatTorontoLong(selectedYmd)}.`;
+            empty.style.display = 'block';
+        }
+
+        // Load spelling submissions for the selected Toronto day, including copy rounds and the paper photo.
         async function loadSpellingSubmissions() {
+            const token = ++loadToken;
+            syncDayChrome();
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').style.color = '#666';
+            document.getElementById('loading').textContent = 'Loading spelling submissions...';
+            document.getElementById('noData').style.display = 'none';
+            document.getElementById('entriesContainer').innerHTML = '';
+            document.getElementById('scoreBar').style.display = 'none';
             if (!supabaseUrl || !supabaseKey) {
                 document.getElementById('loading').innerHTML = 'Please configure Supabase URL and API Key in the main reports page.';
                 document.getElementById('loading').style.color = '#f44336';
@@ -349,46 +454,83 @@
                 'Content-Type': 'application/json'
             };
             const prefixes = spellingPrefixes();
+            const dayStarts = prefixes.map((item) => `${item}-${selectedYmd}-`);
+            const dayStart = `${selectedYmd}T00:00:00`;
+            const dayEnd = `${addTorontoDays(selectedYmd, 1)}T00:00:00`;
+            function matchesSelectedDay(entry) {
+                const task = entry.task || '';
+                if (dayStarts.some((start) => task.startsWith(start))) return true;
+                if (dayStarts.some((start) => task.startsWith(start.slice(0, start.indexOf(selectedYmd))))) {
+                    const captureDay = String(entry.capture_date_time || '').slice(0, 10);
+                    const hasTaskDate = /^(?:Eng|Fr)SpellingOCR(?:Xtra|Paper)?-\d{4}-\d{2}-\d{2}-/.test(task);
+                    return !hasTaskDate && captureDay === selectedYmd;
+                }
+                return false;
+            }
             try {
                 const batches = [];
                 for (const prefix of prefixes) {
-                    const encodedPattern = encodeURIComponent(`${prefix}-`) + '%25';
-                    const queryUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&task=ilike.${encodedPattern}&select=id,task,image,capture_date_time&order=task`;
+                    const encodedPattern = encodeURIComponent(`${prefix}-${selectedYmd}-`) + '%25';
+                    const queryUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&task=ilike.${encodedPattern}&select=id,task,image,capture_date_time&order=task`;
                     const response = await fetch(queryUrl, { headers });
                     if (!response.ok) {
                         const errorText = await response.text();
                         const altResponse = await fetch(
-                            `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${profile}&select=id,task,image,capture_date_time&order=task`,
+                            `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&select=id,task,image,capture_date_time&order=task`,
                             { headers }
                         );
                         if (!altResponse.ok) {
                             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
                         }
                         const allData = await altResponse.json();
-                        const wanted = prefixes.map((item) => item + '-');
-                        const data = allData.filter((entry) => entry.task && wanted.some((start) => entry.task.startsWith(start)));
+                        const data = allData.filter(matchesSelectedDay);
+                        if (token !== loadToken) return;
                         document.getElementById('loading').style.display = 'none';
                         if (!data.length) {
-                            document.getElementById('noData').style.display = 'block';
+                            showEmptyDay();
                             return;
                         }
                         displayEntries(data);
                         return;
                     }
-                    batches.push(await response.json());
+                    const dated = await response.json();
+                    const legacyAny = encodeURIComponent(`${prefix}-`) + '%25';
+                    const legacyDated = encodeURIComponent(`${prefix}-____-__-__-`) + '%25';
+                    const legacyUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&task=ilike.${legacyAny}&task=not.ilike.${legacyDated}&capture_date_time=gte.${encodeURIComponent(dayStart)}&capture_date_time=lt.${encodeURIComponent(dayEnd)}&select=id,task,image,capture_date_time&order=task`;
+                    const legacyResponse = await fetch(legacyUrl, { headers });
+                    const legacy = legacyResponse.ok ? await legacyResponse.json() : [];
+                    batches.push(dated.concat(legacy));
                 }
-                const data = batches.flat();
+                if (token !== loadToken) return;
+                const data = batches.flat().filter(matchesSelectedDay);
                 document.getElementById('loading').style.display = 'none';
                 if (!data.length) {
-                    document.getElementById('noData').style.display = 'block';
+                    showEmptyDay();
                     return;
                 }
                 displayEntries(data);
             } catch (error) {
+                if (token !== loadToken) return;
                 console.error('Error loading spelling submissions:', error);
                 document.getElementById('loading').innerHTML = `Error loading submissions: ${error.message}. Please check your configuration and browser console for details.`;
                 document.getElementById('loading').style.color = '#f44336';
             }
+        }
+
+        function shiftDay(deltaDays) {
+            if (rowsState.some((row) => row.parsed.status !== row.savedStatus)) {
+                const leave = window.confirm('Leave this day without saving score changes?');
+                if (!leave) return;
+            }
+            const next = addTorontoDays(selectedYmd, deltaDays);
+            if (next > torontoTodayYmd()) return;
+            selectedYmd = next;
+            const url = new URL(window.location.href);
+            url.searchParams.set('profile', profile);
+            url.searchParams.set('game', game);
+            url.searchParams.set('ymd', selectedYmd);
+            window.history.replaceState({}, '', url);
+            loadSpellingSubmissions();
         }
         
         function photoKind(status) {
@@ -492,17 +634,6 @@
             saveBtn.textContent = dirty ? 'Save' : 'Saved';
         }
 
-        function formatTorontoLongDateFromMs(ms) {
-            const d = new Date(ms);
-            if (isNaN(d.getTime())) return '';
-            return d.toLocaleDateString('en-US', {
-                timeZone: 'America/Toronto',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        }
-
         function formatTorontoDateTime(isoStr) {
             const d = new Date(isoStr);
             if (isNaN(d.getTime())) return '';
@@ -516,7 +647,7 @@
         function displayEntries(data) {
             const lastUpdatedEl = document.getElementById('lastUpdated');
             if (!data || data.length === 0) {
-                lastUpdatedEl.style.display = 'none';
+                showEmptyDay();
                 return;
             }
 
@@ -531,29 +662,8 @@
                 } else {
                     const validTimes = validIdx.map((i) => times[i]);
                     const latestIdx = validIdx[validTimes.reduce((best, t, j, arr) => (t >= arr[best] ? j : best), 0)];
-                    const latestMs = times[latestIdx];
-                    const earliestMs = Math.min(...validTimes);
                     const latestIso = dates[latestIdx];
-
-                    const torontoDayFmt = new Intl.DateTimeFormat('en-CA', {
-                        timeZone: 'America/Toronto',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    });
-                    const dayKeys = [...new Set(validTimes.map((ms) => torontoDayFmt.format(new Date(ms))))].sort();
-
-                    let dayLine = '';
-                    if (dayKeys.length === 1) {
-                        dayLine = `Results for day: ${formatTorontoLongDateFromMs(latestMs)} (America/Toronto)`;
-                    } else if (dayKeys.length > 1) {
-                        const firstLabel = formatTorontoLongDateFromMs(earliestMs);
-                        const lastLabel = formatTorontoLongDateFromMs(latestMs);
-                        dayLine = `Results span ${dayKeys.length} calendar days (${firstLabel} – ${lastLabel}, America/Toronto)`;
-                    }
-
-                    const lastUpdatedLine = `last_updated (latest capture): ${formatTorontoDateTime(latestIso)} (America/Toronto)`;
-                    lastUpdatedEl.innerHTML = [dayLine, lastUpdatedLine].filter(Boolean).join('<br>');
+                    lastUpdatedEl.textContent = `Latest capture: ${formatTorontoDateTime(latestIso)}`;
                     lastUpdatedEl.style.display = 'block';
                 }
             }
@@ -562,8 +672,10 @@
             for (let i = 0; i < data.length; i++) {
                 const entry = data[i];
                 const p = parseSpellingOcrTask(entry.task);
-                if (!p) {
-                    console.warn('Skipping unparsable OCR task:', entry.task);
+                const captureDay = String(entry.capture_date_time || '').match(/^(\d{4}-\d{2}-\d{2})/);
+                const rowDay = (p && p.ymd) || (captureDay && captureDay[1]) || '';
+                if (!p || rowDay !== selectedYmd) {
+                    console.warn('Skipping OCR task outside this day:', entry.task);
                     continue;
                 }
                 parsedRows.push({
@@ -577,9 +689,6 @@
             updateScoreBar();
 
             parsedRows.sort((a, b) => {
-                const dayA = a.parsed.ymd || '';
-                const dayB = b.parsed.ymd || '';
-                if (dayA !== dayB) return dayB.localeCompare(dayA);
                 const kindA = a.parsed.kind === 'copy' ? 1 : 0;
                 const kindB = b.parsed.kind === 'copy' ? 1 : 0;
                 if (kindA !== kindB) return kindA - kindB;
@@ -595,13 +704,14 @@
 
             if (parsedRows.length > 0) {
                 noDataEl.style.display = 'none';
+            } else {
+                showEmptyDay();
+                return;
             }
 
-            let lastDay = null;
             parsedRows.forEach(({ entry, parsed }) => {
                     const questionNumber = parsed.questionNumber;
                     const word = parsed.word;
-                    const dayKey = parsed.ymd || '';
                     const slotLabel = parsed.kind === 'ocr'
                         ? `#${questionNumber}`
                         : parsed.kind === 'list'
@@ -609,13 +719,6 @@
                             : parsed.sheet
                                 ? `Round ${parsed.round} · paper`
                                 : `Round ${parsed.round} · ${questionNumber}`;
-                    if (dayKey !== lastDay) {
-                        lastDay = dayKey;
-                        const dayHeading = document.createElement('div');
-                        dayHeading.className = 'day-heading';
-                        dayHeading.textContent = dayKey || 'Undated';
-                        container.appendChild(dayHeading);
-                    }
 
                     const entryDiv = document.createElement('div');
                     entryDiv.className = 'entry-container';
@@ -712,6 +815,8 @@
             modal.style.display = 'none';
         }
 
+        document.getElementById('prevDay').addEventListener('click', () => shiftDay(-1));
+        document.getElementById('nextDay').addEventListener('click', () => shiftDay(1));
         document.getElementById('saveScores').addEventListener('click', saveScoreChanges);
 
         async function saveScoreChanges() {
