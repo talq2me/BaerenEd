@@ -2911,7 +2911,8 @@ GRANT EXECUTE ON FUNCTION af_enqueue_spelling_paper_review(text, text, date, int
 -- The extra task completes itself when every OCR photo is scored correct and Grok
 -- never wrote a review list. It also completes when the current extra round is all correct.
 -- A paper photo (EngSpellingOCRPaper / FrSpellingOCRPaper) counts as that day's OCR paper.
--- An extra round is one sheet photo, task ...-rNN-sheet-word|word-status.
+-- Paper extra is one sheet photo, task ...-rNN-sheet-word|word-status.
+-- Screen extra is one drawing per copy, task ...-rNN-01-word-status, three copies of each word.
 -- A review list appears only when Grok calls af_set_spelling_xtra_words.
 
 DROP FUNCTION IF EXISTS af_get_spelling_copy_status(text, text, date);
@@ -3098,19 +3099,6 @@ BEGIN
   ORDER BY id DESC
   LIMIT 1;
 
-  IF v_sheet IS NULL THEN
-    FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
-      v_practice := v_practice || jsonb_build_array(jsonb_build_object(
-        'word', v_words ->> v_i,
-        'round', v_round
-      ));
-    END LOOP;
-    RETURN jsonb_build_object(
-      'phase', 'practice', 'language', v_language, 'label', v_label,
-      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', v_practice
-    );
-  END IF;
-
   IF v_sheet = 'correct' THEN
     RETURN jsonb_build_object(
       'phase', 'perfect', 'language', v_language, 'label', v_label,
@@ -3123,6 +3111,101 @@ BEGIN
       'phase', 'pending_submit', 'language', v_language, 'label', v_label,
       'message', v_message_wait, 'round', v_round, 'expectedCount', 1, 'words', '[]'::jsonb
     );
+  END IF;
+
+  IF v_sheet IS NULL THEN
+    v_xtra_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r' || lpad(v_round::text, 2, '0')
+      || '-([0-9]+)-(.+)-(unverified|X|x|✓|checkmark|correct|incorrect)$';
+
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'n', m[1]::int,
+             'word', m[2],
+             'kind', spelling_photo_kind(m[3])
+           )), '[]'::jsonb)
+      INTO v_photos
+    FROM (
+      SELECT regexp_match(task, v_xtra_re) AS m
+      FROM image_uploads
+      WHERE profile = v_profile
+        AND task LIKE v_xtra_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%'
+        AND task NOT LIKE v_xtra_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%'
+    ) parsed
+    WHERE m IS NOT NULL;
+
+    FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
+      v_word := v_words ->> v_i;
+      v_filled := 0;
+      v_kinds := ARRAY['missing', 'missing', 'missing'];
+      FOR v_n IN 0 .. COALESCE(jsonb_array_length(v_photos), 0) - 1 LOOP
+        v_item := v_photos -> v_n;
+        IF v_item->>'word' IS DISTINCT FROM v_word THEN
+          CONTINUE;
+        END IF;
+        IF (v_item->>'n')::int BETWEEN 1 AND 3 AND v_kinds[(v_item->>'n')::int] = 'missing' THEN
+          v_kinds[(v_item->>'n')::int] := v_item->>'kind';
+          v_filled := v_filled + 1;
+        END IF;
+      END LOOP;
+
+      IF v_filled = 3
+         AND v_kinds[1] = 'correct' AND v_kinds[2] = 'correct' AND v_kinds[3] = 'correct' THEN
+        CONTINUE;
+      END IF;
+
+      v_all_correct := false;
+      IF v_filled < 3 THEN
+        v_any_missing := true;
+        v_practice := v_practice || jsonb_build_array(jsonb_build_object(
+          'word', v_word,
+          'round', v_round,
+          'copies', jsonb_build_array(
+            jsonb_build_object('n', 1, 'status', v_kinds[1]),
+            jsonb_build_object('n', 2, 'status', v_kinds[2]),
+            jsonb_build_object('n', 3, 'status', v_kinds[3])
+          )
+        ));
+      ELSIF v_kinds[1] IN ('unverified', 'unknown')
+            OR v_kinds[2] IN ('unverified', 'unknown')
+            OR v_kinds[3] IN ('unverified', 'unknown') THEN
+        v_round_unverified := true;
+      END IF;
+    END LOOP;
+
+    IF v_all_correct AND COALESCE(jsonb_array_length(v_photos), 0) > 0 THEN
+      RETURN jsonb_build_object(
+        'phase', 'perfect', 'language', v_language, 'label', v_label,
+        'message', '', 'round', v_round, 'expectedCount', NULL, 'words', '[]'::jsonb
+      );
+    END IF;
+
+    IF v_any_missing OR COALESCE(jsonb_array_length(v_photos), 0) = 0 THEN
+      IF NOT v_any_missing THEN
+        FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
+          v_practice := v_practice || jsonb_build_array(jsonb_build_object(
+            'word', v_words ->> v_i,
+            'round', v_round,
+            'copies', jsonb_build_array(
+              jsonb_build_object('n', 1, 'status', 'missing'),
+              jsonb_build_object('n', 2, 'status', 'missing'),
+              jsonb_build_object('n', 3, 'status', 'missing')
+            )
+          ));
+        END LOOP;
+      END IF;
+      RETURN jsonb_build_object(
+        'phase', 'practice', 'language', v_language, 'label', v_label,
+        'message', '', 'round', v_round, 'expectedCount', NULL, 'words', v_practice
+      );
+    END IF;
+
+    IF v_round_unverified AND v_sent < v_round THEN
+      RETURN jsonb_build_object(
+        'phase', 'pending_submit', 'language', v_language, 'label', v_label,
+        'message', v_message_wait, 'round', v_round,
+        'expectedCount', jsonb_array_length(v_words) * 3,
+        'words', '[]'::jsonb
+      );
+    END IF;
   END IF;
 
   RETURN jsonb_build_object(
@@ -3144,7 +3227,8 @@ GRANT EXECUTE ON FUNCTION af_get_spelling_xtra_status(text, text, date) TO anon,
 -- p_kind is 'ocr', 'paper', or 'xtra'.
 -- An ocr row is one photo of one word.
 -- A paper row is one photo of the whole list. words is that list in order.
--- An xtra row is one photo of the rewrite sheet. words is the missed list; each word was written 3 times.
+-- An xtra paper row has mode "paper", one image, and words (each written 3 times).
+-- An xtra screen row has mode "screen", one image, and a single word copy number n.
 
 CREATE OR REPLACE FUNCTION af_list_unverified_spelling(
   p_profile text,
@@ -3230,6 +3314,7 @@ BEGIN
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
              'id', id,
              'task', task,
+             'mode', 'paper',
              'words', to_jsonb(string_to_array(m[2], '|')),
              'round', m[1]::int,
              'image', image
@@ -3240,6 +3325,26 @@ BEGIN
       FROM image_uploads
       WHERE profile = v_profile
         AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
+    ) parsed
+    WHERE m IS NOT NULL;
+
+    v_re := '^(?:Eng|Fr)SpellingOCRXtra-' || v_day || '-r([0-9]+)-([0-9]+)-(.+)-unverified$';
+    SELECT COALESCE(v_rows, '[]'::jsonb) || COALESCE(jsonb_agg(jsonb_build_object(
+             'id', id,
+             'task', task,
+             'mode', 'screen',
+             'word', m[3],
+             'n', m[2]::int,
+             'round', m[1]::int,
+             'image', image
+           ) ORDER BY m[1]::int, m[2]::int), '[]'::jsonb)
+      INTO v_rows
+    FROM (
+      SELECT id, task, image, regexp_match(task, v_re) AS m
+      FROM image_uploads
+      WHERE profile = v_profile
+        AND task LIKE v_prefix || '-' || v_day || '-%-unverified'
+        AND task NOT LIKE '%-sheet-%'
     ) parsed
     WHERE m IS NOT NULL;
   END IF;
@@ -3367,7 +3472,7 @@ BEGIN
       INTO v_photo_count, v_unverified
     FROM image_uploads
     WHERE profile = v_profile
-      AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%';
+      AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
     IF v_unverified > 0 THEN
       RETURN;
     END IF;
@@ -3395,7 +3500,8 @@ GRANT EXECUTE ON FUNCTION af_set_spelling_xtra_words(text, text, date, text[]) T
 -- FILE: af_enqueue_spelling_xtra_review.sql
 -- -----------------------------------------------------------------------------
 -- Call site: web/xtra.html after the rewrite sheet is stored, and web/map.html if that webhook never went out.
--- One photo per round. p_expected_count is 1. Sends kind "xtra".
+-- Paper sends one sheet and p_expected_count 1. Screen sends one drawing per copy.
+-- Sends kind "xtra".
 -- xtra_sent_round stops a second POST for the same round.
 -- The next round can send again after af_set_spelling_xtra_words advances xtra_round.
 
@@ -3451,7 +3557,7 @@ BEGIN
   SELECT count(*) INTO v_count
   FROM image_uploads
   WHERE profile = v_profile
-    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%';
+    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
 
   IF v_count < p_expected_count THEN
     RETURN;

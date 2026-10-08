@@ -39,6 +39,7 @@
   </main>
   <input type="file" id="cameraInput" accept="image/*" capture="environment">
   <script src="baeren.js"></script>
+  <script src="spellmode.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const file = (params.get("file") || "").replace(/^.*\//, "");
@@ -51,6 +52,7 @@
     const gameName = french ? "FrSpellingOCRPaper" : "EngSpellingOCRPaper";
     const locale = french ? "fr-FR" : "en-US";
     const language = french ? "fr" : "eng";
+    if (window.SpellMode) SpellMode.set(language, "paper");
     document.getElementById("title").textContent = title;
 
     let words = [];

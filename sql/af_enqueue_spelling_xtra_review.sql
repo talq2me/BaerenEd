@@ -1,5 +1,6 @@
 -- Call site: web/xtra.html after the rewrite sheet is stored, and web/map.html if that webhook never went out.
--- One photo per round. p_expected_count is 1. Sends kind "xtra".
+-- Paper sends one sheet and p_expected_count 1. Screen sends one drawing per copy.
+-- Sends kind "xtra".
 -- xtra_sent_round stops a second POST for the same round.
 -- The next round can send again after af_set_spelling_xtra_words advances xtra_round.
 
@@ -55,7 +56,7 @@ BEGIN
   SELECT count(*) INTO v_count
   FROM image_uploads
   WHERE profile = v_profile
-    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-sheet-%';
+    AND task LIKE v_prefix || '-' || v_day || '-r' || lpad(v_round::text, 2, '0') || '-%';
 
   IF v_count < p_expected_count THEN
     RETURN;

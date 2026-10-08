@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spelling</title>
+  <link rel="stylesheet" href="baeren.css">
+  <style>
+    .pick { display: grid; gap: 12px; margin-top: 16px; }
+    .pick button { background: #fff; min-height: 72px; font-size: 1.35rem; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a href="index.html" id="back">Back</a>
+    <h1 id="title">Spelling</h1>
+    <span id="profileLabel" class="profile-label"></span>
+  </header>
+  <main class="quiz" id="ask" hidden>
+    <p class="prompt">How do you want to write your spelling?</p>
+    <div class="pick">
+      <button type="button" id="screenBtn">On the screen</button>
+      <button type="button" id="paperBtn">On paper</button>
+    </div>
+  </main>
+  <script src="baeren.js"></script>
+  <script src="spellmode.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const title = params.get("title") || "Spelling";
+    const next = params.get("next") === "xtra" ? "xtra" : "list";
+    const file = params.get("file") || "";
+    const launch = params.get("launch") || "";
+    const french = params.get("lang") === "fr" || launch === "frSpellPhoto"
+      || /french/i.test(file) || /french/i.test(title);
+    const lang = french ? "fr" : "eng";
+    document.getElementById("title").textContent = title;
+    if (next === "xtra") document.getElementById("back").href = "map.html?map=required";
+
+    function choose(mode) {
+      SpellMode.set(lang, mode);
+      SpellMode.go(next, mode, params);
+    }
+
+    document.getElementById("screenBtn").addEventListener("click", function () { choose("screen"); });
+    document.getElementById("paperBtn").addEventListener("click", function () { choose("paper"); });
+
+    (async function () {
+      let mode = SpellMode.get(lang);
+      if (!mode) mode = await SpellMode.infer(lang);
+      if (mode) {
+        SpellMode.set(lang, mode);
+        SpellMode.go(next, mode, params);
+        return;
+      }
+      document.getElementById("ask").hidden = false;
+    })();
+  </script>
+</body>
+</html>

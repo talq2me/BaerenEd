@@ -40,6 +40,7 @@
   </main>
   <input type="file" id="cameraInput" accept="image/*" capture="environment">
   <script src="baeren.js"></script>
+  <script src="spellmode.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const title = params.get("title") || "Spelling extra";
@@ -48,6 +49,11 @@
     const locale = lang === "fr" ? "fr-FR" : "en-US";
     const label = lang === "fr" ? "French" : "English";
     document.getElementById("title").textContent = title;
+    if (window.SpellMode && SpellMode.get(lang) === "screen") {
+      location.replace("xtra-screen.html" + location.search);
+    } else if (window.SpellMode) {
+      SpellMode.set(lang, "paper");
+    }
 
     let words = [];
     let step = 0;
@@ -229,6 +235,7 @@
     }
 
     (async function () {
+      if (window.SpellMode && SpellMode.get(lang) === "screen") return;
       try {
         if (!Baeren.hasDb()) throw new Error("Supabase is not configured in this browser.");
         const status = await Baeren.rpc("af_get_spelling_xtra_status", {

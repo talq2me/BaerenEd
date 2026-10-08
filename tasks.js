@@ -42,25 +42,19 @@
       q.set("file", task.launch + ".json");
       if (task.totalQuestions) q.set("questions", String(task.totalQuestions));
       location.href = "quiz.html?" + q.toString();
-    } else if (how === "spell") {
+    } else if (how === "spell" || how === "paper") {
       const raw = task.url || "";
       const file = raw.indexOf("file=") >= 0
         ? raw.slice(raw.indexOf("file=") + 5).split("&")[0]
         : raw.replace(/^.*\//, "");
       q.set("file", file);
+      q.set("next", "list");
       if (task.totalQuestions) q.set("questions", String(task.totalQuestions));
-      location.href = "spell.html?" + q.toString();
-    } else if (how === "paper") {
-      const raw = task.url || "";
-      const listFile = raw.indexOf("file=") >= 0
-        ? raw.slice(raw.indexOf("file=") + 5).split("&")[0]
-        : raw.replace(/^.*\//, "");
-      q.set("file", listFile);
-      if (task.totalQuestions) q.set("questions", String(task.totalQuestions));
-      location.href = "paper.html?" + q.toString();
+      location.href = "spell-choose.html?" + q.toString();
     } else if (how === "xtra") {
       q.set("lang", copyLang(task));
-      location.href = "xtra.html?" + q.toString();
+      q.set("next", "xtra");
+      location.href = "spell-choose.html?" + q.toString();
     }
   }
 
