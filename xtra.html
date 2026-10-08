@@ -40,6 +40,7 @@
   </main>
   <input type="file" id="cameraInput" accept="image/*" capture="environment">
   <script src="baeren.js"></script>
+  <script src="android-shim.js"></script>
   <script src="spellmode.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
@@ -165,8 +166,41 @@
       });
     }
 
+    function usePhoto(dataUrl) {
+      photo = dataUrl;
+      document.getElementById("preview").src = photo;
+      document.getElementById("previewWrap").hidden = false;
+      document.getElementById("msg").textContent = "";
+      render();
+    }
+
+    window.onCameraSuccess = function (imageBase64) {
+      if (!imageBase64) {
+        document.getElementById("msg").textContent = "No image captured. Please try again.";
+        return;
+      }
+      const dataUrl = String(imageBase64).indexOf("data:image") === 0
+        ? imageBase64
+        : "data:image/jpeg;base64," + imageBase64;
+      usePhoto(dataUrl);
+    };
+
+    window.onCameraError = function (error) {
+      const text = String(error || "");
+      if (/cancel/i.test(text)) return;
+      document.getElementById("msg").textContent = text || "Could not open the camera.";
+    };
+
     document.getElementById("photoBtn").addEventListener("click", function () {
       if (busy || step < totalSteps()) return;
+      if (window.Android && typeof window.Android.openCamera === "function") {
+        try {
+          window.Android.openCamera("onCameraSuccess", "onCameraError");
+        } catch (e) {
+          document.getElementById("msg").textContent = e.message || String(e);
+        }
+        return;
+      }
       document.getElementById("cameraInput").click();
     });
 
@@ -175,11 +209,7 @@
       if (!fileInput) return;
       const reader = new FileReader();
       reader.onload = function () {
-        photo = reader.result;
-        document.getElementById("preview").src = photo;
-        document.getElementById("previewWrap").hidden = false;
-        document.getElementById("msg").textContent = "";
-        render();
+        usePhoto(reader.result);
       };
       reader.readAsDataURL(fileInput);
     });
