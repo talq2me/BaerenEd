@@ -373,6 +373,8 @@ CREATE INDEX IF NOT EXISTS idx_image_uploads_profile_task ON image_uploads(profi
 -- Existing DBs created before parent cash-grant columns
 ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS reward_granted BOOLEAN DEFAULT false;
 ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS granted_amount NUMERIC(12,2);
+-- Words Grok marked wrong on a paper sheet. Null means the photo mark is the whole score.
+ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS missed_words JSONB;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE image_uploads ENABLE ROW LEVEL SECURITY;

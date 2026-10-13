@@ -471,12 +471,12 @@
                 const batches = [];
                 for (const prefix of prefixes) {
                     const encodedPattern = encodeURIComponent(`${prefix}-${selectedYmd}-`) + '%25';
-                    const queryUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&task=ilike.${encodedPattern}&select=id,task,image,capture_date_time&order=task`;
+                    const queryUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&task=ilike.${encodedPattern}&select=id,task,image,capture_date_time,missed_words&order=task`;
                     const response = await fetch(queryUrl, { headers });
                     if (!response.ok) {
                         const errorText = await response.text();
                         const altResponse = await fetch(
-                            `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&select=id,task,image,capture_date_time&order=task`,
+                            `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&select=id,task,image,capture_date_time,missed_words&order=task`,
                             { headers }
                         );
                         if (!altResponse.ok) {
@@ -496,7 +496,7 @@
                     const dated = await response.json();
                     const legacyAny = encodeURIComponent(`${prefix}-`) + '%25';
                     const legacyDated = encodeURIComponent(`${prefix}-____-__-__-`) + '%25';
-                    const legacyUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&task=ilike.${legacyAny}&task=not.ilike.${legacyDated}&capture_date_time=gte.${encodeURIComponent(dayStart)}&capture_date_time=lt.${encodeURIComponent(dayEnd)}&select=id,task,image,capture_date_time&order=task`;
+                    const legacyUrl = `${supabaseUrl}/rest/v1/image_uploads?profile=eq.${encodeURIComponent(profile)}&task=ilike.${legacyAny}&task=not.ilike.${legacyDated}&capture_date_time=gte.${encodeURIComponent(dayStart)}&capture_date_time=lt.${encodeURIComponent(dayEnd)}&select=id,task,image,capture_date_time,missed_words&order=task`;
                     const legacyResponse = await fetch(legacyUrl, { headers });
                     const legacy = legacyResponse.ok ? await legacyResponse.json() : [];
                     batches.push(dated.concat(legacy));
@@ -544,6 +544,79 @@
             if (kind === 'correct') return 'Correct';
             if (kind === 'unverified') return 'Unverified';
             return 'Incorrect';
+        }
+
+        function missedList(value) {
+            if (!value) return null;
+            if (typeof value === 'string') {
+                try { value = JSON.parse(value); } catch (e) { return null; }
+            }
+            if (!Array.isArray(value)) return null;
+            const seen = {};
+            const out = [];
+            value.forEach((item) => {
+                const word = String(item || '').trim();
+                const key = word.toLowerCase();
+                if (!word || seen[key]) return;
+                seen[key] = true;
+                out.push(word);
+            });
+            return out;
+        }
+
+        function sheetWordList(task) {
+            const parts = String(task || '').trim().split('-');
+            if (parts.length < 5) return [];
+            const gp = (parts[0] || '').toLowerCase();
+            const isCopy = gp === 'engspellingocrxtra' || gp === 'frspellingocrxtra'
+                || gp === 'engspellingcopy' || gp === 'frspellingcopy';
+            const isList = gp === 'engspellingocrpaper' || gp === 'frspellingocrpaper';
+            if (!isCopy && !isList) return [];
+            let index = 1;
+            if (/^\d{4}$/.test(parts[1]) && /^\d{2}$/.test(parts[2]) && /^\d{2}$/.test(parts[3])) index = 4;
+            let raw = '';
+            if (isCopy) {
+                if (!/^r\d+$/i.test(parts[index] || '')) return [];
+                if (!/^sheet$/i.test(parts[index + 1] || '')) return [];
+                raw = parts.slice(index + 2, -1).join('-');
+            } else {
+                raw = parts.slice(index, -1).join('-');
+            }
+            return raw.split('|').map((item) => item.trim()).filter(Boolean);
+        }
+
+        function tallyTask(counts, task, status, missedWords) {
+            const kind = status || photoKind(String(task || '').trim().split('-').pop());
+            const words = sheetWordList(task);
+            const missed = missedList(missedWords);
+            if (kind === 'unverified') {
+                counts.unverified += 1;
+                return;
+            }
+            if (words.length && kind === 'correct') {
+                counts.correct += words.length;
+                return;
+            }
+            if (words.length && kind === 'incorrect' && missed && missed.length) {
+                const incorrectN = Math.min(missed.length, words.length);
+                counts.incorrect += incorrectN;
+                counts.correct += Math.max(0, words.length - incorrectN);
+                return;
+            }
+            if (kind === 'correct') counts.correct += 1;
+            else counts.incorrect += 1;
+        }
+
+        function sheetScoreLabel(task, status, missedWords, fallbackWord) {
+            const words = sheetWordList(task);
+            const missed = missedList(missedWords);
+            if (!words.length) return `${fallbackWord} · ${statusLabel(status)}`;
+            if (status === 'correct') return `${fallbackWord} · ${words.length} correct`;
+            if (status === 'incorrect' && missed && missed.length) {
+                const shown = missed.slice(0, words.length);
+                return `${fallbackWord} · ${Math.min(missed.length, words.length)} incorrect (${shown.join(', ')})`;
+            }
+            return `${fallbackWord} · ${statusLabel(status)}`;
         }
 
         /**
@@ -623,9 +696,13 @@
                 bar.style.display = 'none';
                 return;
             }
-            const correct = rowsState.filter((row) => row.parsed.status === 'correct').length;
-            const unverified = rowsState.filter((row) => row.parsed.status === 'unverified').length;
-            const incorrect = rowsState.length - correct - unverified;
+            const counts = { correct: 0, incorrect: 0, unverified: 0 };
+            rowsState.forEach((row) => {
+                tallyTask(counts, row.savedTask || row.entry.task, row.parsed.status, row.entry.missed_words);
+            });
+            const correct = counts.correct;
+            const incorrect = counts.incorrect;
+            const unverified = counts.unverified;
             const dirty = rowsState.some((row) => row.parsed.status !== row.savedStatus);
             const unverifiedNote = unverified ? `, ${unverified} unverified` : '';
             bar.style.display = 'flex';
@@ -734,8 +811,11 @@
                     `;
                     const wordBtn = document.createElement('button');
                     wordBtn.type = 'button';
+                    const taskForLabel = entry.task;
                     wordBtn.className = `entry-word ${parsed.status}`;
-                    wordBtn.textContent = `${word} · ${statusLabel(parsed.status)}`;
+                    wordBtn.textContent = (parsed.kind === 'list' || parsed.sheet)
+                        ? sheetScoreLabel(taskForLabel, parsed.status, entry.missed_words, word)
+                        : `${word} · ${statusLabel(parsed.status)}`;
                     wordBtn.addEventListener('click', function(e) {
                         e.stopPropagation();
                         const row = rowsState.find((item) => item.entry === entry);
@@ -745,7 +825,9 @@
                         row.parsed.isUnverified = false;
                         wordBtn.className = `entry-word ${row.parsed.status}`;
                         if (row.parsed.status !== row.savedStatus) wordBtn.classList.add('dirty');
-                        wordBtn.textContent = `${word} · ${statusLabel(row.parsed.status)}`;
+                        wordBtn.textContent = (row.parsed.kind === 'list' || row.parsed.sheet)
+                            ? sheetScoreLabel(row.savedTask || row.entry.task, row.parsed.status, row.entry.missed_words, word)
+                            : `${word} · ${statusLabel(row.parsed.status)}`;
                         updateScoreBar();
                     });
                     headerDiv.querySelector('.entry-info').appendChild(wordBtn);
