@@ -1,10 +1,10 @@
 [
-  {"word":"chapeau","sentence":"Je porte un chapeau quand il fait soleil."},
-  {"word":"automobile","sentence":"Papa lave son automobile le samedi."},
-  {"word":"gâteau","sentence":"Maman fait un gâteau pour ma fête."},
-  {"word":"côté","sentence":"Mon chat dort à côté de moi."},
-  {"word":"module","sentence":"Les astronautes entrent dans le module de la fusée."},
-  {"word":"lobe","sentence":"Le lobe de mon oreille est tout doux."},
-  {"word":"jaune","sentence":"Le soleil est jaune dans mon dessin."},
-  {"word":"fausse","sentence":"Cette réponse est fausse, essaie encore."}
+  {"word":"jeu","sentence":"Mon jeu préféré est avec mes amis."},
+  {"word":"fleur","sentence":"La fleur dans le jardin est rose."},
+  {"word":"beurre","sentence":"Je mets du beurre sur mon pain."},
+  {"word":"meuble","sentence":"Le meuble dans ma chambre est grand."},
+  {"word":"sœur","sentence":"Ma sœur joue avec moi tous les jours."},
+  {"word":"œuvre","sentence":"Cette œuvre d'art est très jolie."},
+  {"word":"peur","sentence":"Je n'ai pas peur du noir."},
+  {"word":"bœuf","sentence":"Le bœuf mange de l'herbe dans le champ."}
 ]
