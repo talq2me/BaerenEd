@@ -1,0 +1,79 @@
+{
+  "id": "ufli-chain-plural-es-g1",
+  "concept": "plural-es",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "sash",
+        "prompt": "Write the word sash.",
+        "correctChoices": [{"text": "s"}, {"text": "a"}, {"text": "s"}, {"text": "h"}],
+        "extraChoices": [{"text": "t"}, {"text": "k"}]
+      },
+      "steps": [
+        {
+          "from": "sash",
+          "to": "sashes",
+          "prompt": "Say sash. Add es at the end. Build sashes.",
+          "correctChoices": [{"text": "s"}, {"text": "a"}, {"text": "s"}, {"text": "h"}, {"text": "e"}, {"text": "s"}],
+          "extraChoices": [{"text": "t"}, {"text": "k"}]
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "tax",
+        "prompt": "Write the word tax.",
+        "correctChoices": [{"text": "t"}, {"text": "a"}, {"text": "x"}],
+        "extraChoices": [{"text": "m"}, {"text": "n"}]
+      },
+      "steps": [
+        {
+          "from": "tax",
+          "to": "taxes",
+          "prompt": "Say tax. Add es at the end. Build taxes.",
+          "correctChoices": [{"text": "t"}, {"text": "a"}, {"text": "x"}, {"text": "e"}, {"text": "s"}],
+          "extraChoices": [{"text": "m"}, {"text": "n"}]
+        }
+      ]
+    },
+    {
+      "id": "chain-3",
+      "seed": {
+        "word": "dress",
+        "prompt": "Write the word dress.",
+        "correctChoices": [{"text": "d"}, {"text": "r"}, {"text": "e"}, {"text": "s"}, {"text": "s"}],
+        "extraChoices": [{"text": "p"}, {"text": "i"}]
+      },
+      "steps": [
+        {
+          "from": "dress",
+          "to": "dresses",
+          "prompt": "Say dress. Add es at the end. Build dresses.",
+          "correctChoices": [{"text": "d"}, {"text": "r"}, {"text": "e"}, {"text": "s"}, {"text": "s"}, {"text": "e"}, {"text": "s"}],
+          "extraChoices": [{"text": "p"}, {"text": "i"}]
+        }
+      ]
+    },
+    {
+      "id": "chain-4",
+      "seed": {
+        "word": "bench",
+        "prompt": "Write the word bench.",
+        "correctChoices": [{"text": "b"}, {"text": "e"}, {"text": "n"}, {"text": "c"}, {"text": "h"}],
+        "extraChoices": [{"text": "t"}, {"text": "r"}]
+      },
+      "steps": [
+        {
+          "from": "bench",
+          "to": "benches",
+          "prompt": "Say bench. Add es at the end. Build benches.",
+          "correctChoices": [{"text": "b"}, {"text": "e"}, {"text": "n"}, {"text": "c"}, {"text": "h"}, {"text": "e"}, {"text": "s"}],
+          "extraChoices": [{"text": "t"}, {"text": "r"}]
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 [
   {
     "prompt": {
-      "text": "Build the irregular word: two.",
+      "text": "Build the irregular word: two. (There are two classes in line.)",
       "lang": "eng",
       "displayText": true
     },
@@ -32,7 +32,7 @@
   },
   {
     "prompt": {
-      "text": "Build the irregular word: does.",
+      "text": "Build the irregular word: does. (Does he have time to do the dishes?)",
       "lang": "eng",
       "displayText": true
     },
