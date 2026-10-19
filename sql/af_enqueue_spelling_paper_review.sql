@@ -4,6 +4,8 @@
 -- New photos end in -unverified until Grok scores them. See af_list_unverified_spelling.sql.
 -- Vault secret spelling_ocr_webhook_bearer is the crsr_ token only (no "Bearer " prefix).
 
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
+
 DROP FUNCTION IF EXISTS af_enqueue_spelling_list_review(text, text, date, int);
 
 CREATE OR REPLACE FUNCTION af_enqueue_spelling_paper_review(
@@ -55,7 +57,8 @@ BEGIN
   ON CONFLICT (profile, review_date, language) DO NOTHING;
 
   UPDATE spelling_dictation_reviews
-  SET webhook_sent = true
+  SET webhook_sent = true,
+      jumble_scored = false
   WHERE profile = v_profile
     AND review_date = p_date
     AND language = v_language

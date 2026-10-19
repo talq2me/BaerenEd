@@ -90,6 +90,8 @@ $files = @(
 
   "af_set_spelling_xtra_words.sql",
 
+  "af_score_spelling_jumble.sql",
+
   "af_enqueue_spelling_xtra_review.sql",
 
   "af_mark_spelling_xtra_complete.sql",

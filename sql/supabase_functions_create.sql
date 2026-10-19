@@ -53,6 +53,7 @@ DROP FUNCTION IF EXISTS af_reward_time_add(TEXT, INTEGER);
 DROP FUNCTION IF EXISTS af_reward_time_expire(TEXT, BOOLEAN);
 DROP FUNCTION IF EXISTS af_reward_time_pause(TEXT);
 DROP FUNCTION IF EXISTS af_reward_time_use(TEXT);
+DROP FUNCTION IF EXISTS af_score_spelling_jumble(text, text, date, text[], boolean);
 DROP FUNCTION IF EXISTS af_score_spelling_photos(jsonb);
 DROP FUNCTION IF EXISTS af_set_spelling_xtra_words(text, text, date, text[]);
 DROP FUNCTION IF EXISTS af_story_read_assigned_today(text, date, int);
@@ -2650,6 +2651,8 @@ GRANT EXECUTE ON FUNCTION af_maybe_advance_spelling_pools(text) TO anon, authent
 -- New photos end in -unverified until Grok scores them. See af_list_unverified_spelling.sql.
 -- Vault secret spelling_ocr_webhook_bearer is the crsr_ token only (no "Bearer " prefix).
 
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
+
 CREATE OR REPLACE FUNCTION af_enqueue_spelling_ocr_review(
   p_profile text,
   p_language text,
@@ -2699,7 +2702,8 @@ BEGIN
   ON CONFLICT (profile, review_date, language) DO NOTHING;
 
   UPDATE spelling_dictation_reviews
-  SET webhook_sent = true
+  SET webhook_sent = true,
+      jumble_scored = false
   WHERE profile = v_profile
     AND review_date = p_date
     AND language = v_language
@@ -2780,6 +2784,8 @@ GRANT EXECUTE ON FUNCTION af_enqueue_spelling_ocr_review(text, text, date, int) 
 -- New photos end in -unverified until Grok scores them. See af_list_unverified_spelling.sql.
 -- Vault secret spelling_ocr_webhook_bearer is the crsr_ token only (no "Bearer " prefix).
 
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
+
 DROP FUNCTION IF EXISTS af_enqueue_spelling_list_review(text, text, date, int);
 
 CREATE OR REPLACE FUNCTION af_enqueue_spelling_paper_review(
@@ -2831,7 +2837,8 @@ BEGIN
   ON CONFLICT (profile, review_date, language) DO NOTHING;
 
   UPDATE spelling_dictation_reviews
-  SET webhook_sent = true
+  SET webhook_sent = true,
+      jumble_scored = false
   WHERE profile = v_profile
     AND review_date = p_date
     AND language = v_language
@@ -2914,6 +2921,7 @@ GRANT EXECUTE ON FUNCTION af_enqueue_spelling_paper_review(text, text, date, int
 -- Paper extra is one sheet photo, task ...-rNN-sheet-word|word-status.
 -- Screen extra is one drawing per copy, task ...-rNN-01-word-status, three copies of each word.
 -- A review list appears only when Grok calls af_set_spelling_xtra_words.
+-- A jumble score (af_score_spelling_jumble) is immediate: jumble_scored skips photo review.
 
 DROP FUNCTION IF EXISTS af_get_spelling_copy_status(text, text, date);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_copy_review(text, text, date, int);
@@ -2922,6 +2930,7 @@ DROP FUNCTION IF EXISTS af_mark_spelling_copy_complete(text, text, date);
 ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS words JSONB;
 ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS xtra_round INT;
 ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS xtra_sent_round INT NOT NULL DEFAULT 0;
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
 
 CREATE OR REPLACE FUNCTION spelling_photo_kind(p_status text)
 RETURNS text
@@ -2962,6 +2971,7 @@ DECLARE
   v_sheet text;
   v_xtra_re text;
   v_ocr_complete boolean := false;
+  v_jumble boolean := false;
   v_ocr_unverified boolean := false;
   v_ocr_incorrect boolean := false;
   v_raw_ocr int := 0;
@@ -3023,6 +3033,37 @@ BEGIN
       'round', NULL,
       'expectedCount', NULL,
       'words', '[]'::jsonb
+    );
+  END IF;
+
+  SELECT COALESCE(jumble_scored, false), words, COALESCE(xtra_round, 1)
+    INTO v_jumble, v_words, v_round
+  FROM spelling_dictation_reviews
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language;
+
+  IF v_jumble THEN
+    IF v_words IS NULL OR jsonb_typeof(v_words) <> 'array' OR jsonb_array_length(v_words) = 0 THEN
+      RETURN jsonb_build_object(
+        'phase', 'perfect', 'language', v_language, 'label', v_label,
+        'message', '', 'round', NULL, 'expectedCount', NULL, 'words', '[]'::jsonb
+      );
+    END IF;
+    FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
+      v_practice := v_practice || jsonb_build_array(jsonb_build_object(
+        'word', v_words ->> v_i,
+        'round', v_round,
+        'copies', jsonb_build_array(
+          jsonb_build_object('n', 1, 'status', 'missing'),
+          jsonb_build_object('n', 2, 'status', 'missing'),
+          jsonb_build_object('n', 3, 'status', 'missing')
+        )
+      ));
+    END LOOP;
+    RETURN jsonb_build_object(
+      'phase', 'practice', 'language', v_language, 'label', v_label,
+      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', v_practice
     );
   END IF;
 
@@ -3434,6 +3475,8 @@ GRANT EXECUTE ON FUNCTION af_score_spelling_photos(jsonb) TO anon, authenticated
 -- The first call publishes round 1. A later call, after that round is fully scored,
 -- replaces the list and starts the next round.
 
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
+
 CREATE OR REPLACE FUNCTION af_set_spelling_xtra_words(
   p_profile text,
   p_language text,
@@ -3468,6 +3511,18 @@ BEGIN
   END IF;
   IF p_date IS NULL THEN
     p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+
+  -- A finished jumble already recorded the miss list. A late Grok reply must not replace it.
+  IF EXISTS (
+    SELECT 1
+    FROM spelling_dictation_reviews
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND jumble_scored
+  ) THEN
+    RETURN;
   END IF;
 
   IF p_words IS NOT NULL THEN
@@ -3520,6 +3575,79 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_set_spelling_xtra_words(text, text, date, text[]) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_score_spelling_jumble.sql
+-- -----------------------------------------------------------------------------
+-- Call site: web/jumble.html when a spelling jumble used as OCR or extra copy finishes.
+-- Misses are known immediately, so this does not wait for Grok.
+-- An empty miss list means every word was right on the first try.
+-- p_extra false replaces today's list from the main spelling jumble.
+-- p_extra true replaces the list with the words still missed on the extra jumble.
+
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
+
+CREATE OR REPLACE FUNCTION af_score_spelling_jumble(
+  p_profile text,
+  p_language text,
+  p_date date,
+  p_missed text[],
+  p_extra boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_language text := lower(trim(p_language));
+  v_words jsonb := '[]'::jsonb;
+  v_word text;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_language NOT IN ('eng', 'fr') THEN
+    RAISE EXCEPTION 'Invalid language: %', p_language;
+  END IF;
+  IF p_date IS NULL THEN
+    p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+
+  IF p_missed IS NOT NULL THEN
+    FOREACH v_word IN ARRAY p_missed LOOP
+      v_word := btrim(v_word);
+      IF v_word <> '' AND NOT v_words @> jsonb_build_array(v_word) THEN
+        v_words := v_words || to_jsonb(v_word);
+      END IF;
+    END LOOP;
+  END IF;
+
+  INSERT INTO spelling_dictation_reviews (profile, review_date, language, status, webhook_sent)
+  VALUES (v_profile, p_date, v_language, 'incomplete', false)
+  ON CONFLICT (profile, review_date, language) DO NOTHING;
+
+  UPDATE spelling_dictation_reviews
+  SET jumble_scored = true,
+      words = v_words,
+      xtra_round = CASE
+        WHEN jsonb_array_length(v_words) > 0 THEN COALESCE(xtra_round, 1)
+        ELSE xtra_round
+      END,
+      status = CASE
+        WHEN status = 'complete' AND NOT COALESCE(p_extra, false) THEN status
+        WHEN COALESCE(p_extra, false) AND jsonb_array_length(v_words) = 0 THEN status
+        ELSE 'incomplete'
+      END
+  WHERE profile = v_profile
+    AND review_date = p_date
+    AND language = v_language;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_score_spelling_jumble(text, text, date, text[], boolean) TO anon, authenticated, service_role;
 
 
 -- -----------------------------------------------------------------------------

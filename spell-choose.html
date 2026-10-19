@@ -16,11 +16,12 @@
     <h1 id="title">Spelling</h1>
     <span id="profileLabel" class="profile-label"></span>
   </header>
-  <main class="quiz" id="ask" hidden>
+  <main class="quiz" id="ask">
     <p class="prompt">How do you want to write your spelling?</p>
     <div class="pick">
       <button type="button" id="screenBtn">On the screen</button>
       <button type="button" id="paperBtn">On paper</button>
+      <button type="button" id="jumbleBtn">Keyboard</button>
     </div>
   </main>
   <script src="baeren.js"></script>
@@ -38,23 +39,19 @@
     if (next === "xtra") document.getElementById("back").href = "map.html?map=required";
 
     function choose(mode) {
+      if (mode === "jumble") {
+        const q = new URLSearchParams(params);
+        q.set("lang", lang);
+        location.href = "jumble.html?" + q.toString();
+        return;
+      }
       SpellMode.set(lang, mode);
       SpellMode.go(next, mode, params);
     }
 
     document.getElementById("screenBtn").addEventListener("click", function () { choose("screen"); });
     document.getElementById("paperBtn").addEventListener("click", function () { choose("paper"); });
-
-    (async function () {
-      let mode = SpellMode.get(lang);
-      if (!mode) mode = await SpellMode.infer(lang);
-      if (mode) {
-        SpellMode.set(lang, mode);
-        SpellMode.go(next, mode, params);
-        return;
-      }
-      document.getElementById("ask").hidden = false;
-    })();
+    document.getElementById("jumbleBtn").addEventListener("click", function () { choose("jumble"); });
   </script>
 </body>
 </html>

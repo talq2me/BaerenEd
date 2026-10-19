@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyboard</title>
+  <link rel="stylesheet" href="baeren.css">
+  <style>
+    body { margin: 0; background: #1b2430; }
+    .top a { color: #9bd; }
+    #frame { width: 100%; height: calc(100vh - 52px); border: 0; background: #fff; }
+    #wait { padding: 24px; color: #1c2430; background: #f4f7fb; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a href="index.html" id="back">Back</a>
+    <h1 id="title">Keyboard</h1>
+    <span id="profileLabel" class="profile-label"></span>
+  </header>
+  <p id="wait" class="prompt" hidden></p>
+  <iframe id="frame" title="Keyboard" hidden></iframe>
+  <script src="baeren.js"></script>
+  <script>
+    const ASSETS = "https://talq2me.github.io/BaerenEd/app/src/main/assets";
+    const HTML_BASE = ASSETS + "/html/";
+    const params = new URLSearchParams(location.search);
+    const title = params.get("title") || "Keyboard";
+    const section = params.get("section") || "required";
+    const stars = params.get("stars");
+    const next = params.get("next") === "xtra" ? "xtra" : "list";
+    const lang = params.get("lang") === "fr" ? "fr" : "eng";
+    const file = params.get("file") || "";
+    document.getElementById("title").textContent = next === "xtra" ? "Practice the missed words" : title;
+    if (next === "xtra") document.getElementById("back").href = "map.html?map=required";
+
+    function torontoYmd() {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Toronto",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).format(new Date());
+    }
+
+    function jumbleMode() {
+      return Baeren.cfg().profile === "BM" ? "extreme" : "hard";
+    }
+
+    function showWait(text) {
+      const wait = document.getElementById("wait");
+      wait.hidden = false;
+      wait.textContent = text;
+      document.getElementById("frame").hidden = true;
+    }
+
+    function gamePage() {
+      return lang === "fr" ? "frenchSpellingJumble.html" : "englishSpellingJumble.html";
+    }
+
+    function inject(html, search) {
+      const shimBase = new URL(".", location.href).href;
+      const searchJson = JSON.stringify(search).replace(/</g, "\\u003c");
+      const extraTitle = lang === "fr" ? "FR Spelling OCR Extra" : "Eng Spelling OCR Extra";
+      const finish = {
+        lang: lang,
+        next: next,
+        title: title,
+        section: section,
+        stars: stars == null || stars === "" ? null : Number(stars),
+        extraTitle: extraTitle,
+        back: next === "xtra" ? "map.html?map=required" : "index.html"
+      };
+      const finishJson = JSON.stringify(finish).replace(/</g, "\\u003c");
+      const tags =
+        '<script>(function(){var gameSearch=' + searchJson + ';var Orig=URLSearchParams;function Patched(init){if(typeof init==="string"&&init===window.location.search)return new Orig(gameSearch);return new Orig(init);}Patched.prototype=Orig.prototype;window.URLSearchParams=Patched;})();<\/script>' +
+        '<script src="' + shimBase + 'baeren.js"><\/script>' +
+        '<script src="' + shimBase + 'android-shim.js"><\/script>' +
+        '<script>window.__baerenJumbleFinish=(function(job){function day(){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Toronto",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}function practiceUrl(){var q=new URLSearchParams();q.set("title",job.extraTitle);q.set("section","required");q.set("stars","1");q.set("launch","spellingOCRXtra");q.set("lang",job.lang);q.set("next","xtra");return "jumble.html?"+q.toString();}return function(correct,incorrect,missed){var list=Array.isArray(missed)?missed.filter(function(w){return w&&String(w).trim();}):[];var extraLeft=job.next==="xtra"&&list.length>0;var extraDone=job.next==="xtra"&&list.length===0;setTimeout(function(){var profile=Baeren.cfg().profile;Baeren.rpc("af_score_spelling_jumble",{p_profile:profile,p_language:job.lang,p_date:day(),p_missed:list,p_extra:job.next==="xtra"}).then(function(){if(extraLeft)return;if(extraDone)return Baeren.rpc("af_mark_spelling_xtra_complete",{p_profile:profile,p_language:job.lang,p_date:day()});}).then(function(){if(extraLeft)return;return Baeren.completeTask({title:job.title,section:job.section,stars:job.stars,correct:Number(correct)||0,incorrect:Number(incorrect)||0,questionsAnswered:(Number(correct)||0)+(Number(incorrect)||0)});}).then(function(){window.parent.location.href=list.length?practiceUrl():job.back;}).catch(function(err){alert(err&&err.message?err.message:String(err));});},900);};})(' + finishJson + ');<\/script>' +
+        '<base href="' + HTML_BASE + '">';
+      if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, function (m) { return m + tags; });
+      return "<head>" + tags + "</head>" + html;
+    }
+
+    async function extraWords() {
+      const status = await Baeren.rpc("af_get_spelling_xtra_status", {
+        p_profile: Baeren.cfg().profile,
+        p_language: lang,
+        p_date: torontoYmd()
+      });
+      if (!status || status.phase !== "practice") {
+        const label = lang === "fr" ? "French" : "English";
+        showWait(status && status.message ? status.message : "Complete " + label + " Spelling OCR first.");
+        return null;
+      }
+      const words = [];
+      const seen = {};
+      (status.words || []).forEach(function (item) {
+        const word = item && item.word ? String(item.word).trim() : "";
+        if (!word || seen[word]) return;
+        seen[word] = true;
+        words.push({ word: word });
+      });
+      if (!words.length) {
+        showWait("Nothing to copy right now.");
+        return null;
+      }
+      return words;
+    }
+
+    async function start() {
+      if (!Baeren.hasDb()) {
+        showWait("Supabase is not configured in this browser.");
+        return;
+      }
+      const gameQuery = new URLSearchParams();
+      gameQuery.set("mode", jumbleMode());
+      if (next === "xtra") {
+        const words = await extraWords();
+        if (!words) return;
+        gameQuery.set("json", JSON.stringify(words));
+      } else if (!file) {
+        showWait("No word list was selected.");
+        return;
+      } else {
+        gameQuery.set("file", file);
+        const cap = params.get("questions");
+        if (cap) gameQuery.set("totalQuestions", cap);
+      }
+      const page = gamePage();
+      const res = await fetch("app/src/main/assets/html/" + page);
+      if (!res.ok) throw new Error("Could not load the jumble game.");
+      const html = await res.text();
+      const frame = document.getElementById("frame");
+      frame.hidden = false;
+      frame.srcdoc = inject(html, "?" + gameQuery.toString());
+    }
+
+    start().catch(function (err) {
+      showWait(err.message || String(err));
+    });
+  </script>
+</body>
+</html>

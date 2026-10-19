@@ -94,6 +94,7 @@
         let words = [];
         let correctCount = 0;
         let incorrectCount = 0;
+        let missedWords = [];
         let maxQuestions = 10;
         let currentWordIndex = 0;
         let currentWord = {};
@@ -147,6 +148,7 @@
             if (container) {
                 container.innerHTML = '<p style="color:red;font-weight:bold;">' + message + '</p>';
             }
+            if (typeof window.__baerenJumbleFinish === 'function') return;
             if (window.Android && typeof window.Android.gameCompleted === 'function') {
                 window.Android.gameCompleted(0, 0);
             }
@@ -230,6 +232,7 @@
             currentWordIndex = 0;
             correctCount = 0;
             incorrectCount = 0;
+            missedWords = [];
             updateStarCount();
             loadWord();
         }
@@ -342,6 +345,7 @@
             } else {
                 if (isFirstAttempt) {
                     incorrectCount++;
+                    missedWords.push(currentWord.word);
                     isFirstAttempt = false; // Mark that we've had the first attempt
                 }
                 startPracticeMode();
@@ -422,6 +426,10 @@
             document.getElementById('keyboardContainer').classList.add('hidden');
             document.querySelector('.button-container').style.display = 'none';
             document.getElementById('practiceContainer').classList.add('hidden');
+            if (completed !== false && typeof window.__baerenJumbleFinish === 'function') {
+                window.__baerenJumbleFinish(correctCount, incorrectCount, missedWords);
+                return;
+            }
             if (window.Android && typeof window.Android.gameCompleted === 'function') {
                 window.Android.gameCompleted(correctCount, incorrectCount);
             } else if (window.parent && window.parent !== window) {

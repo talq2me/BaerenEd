@@ -3,6 +3,8 @@
 -- The first call publishes round 1. A later call, after that round is fully scored,
 -- replaces the list and starts the next round.
 
+ALTER TABLE spelling_dictation_reviews ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
+
 CREATE OR REPLACE FUNCTION af_set_spelling_xtra_words(
   p_profile text,
   p_language text,
@@ -37,6 +39,18 @@ BEGIN
   END IF;
   IF p_date IS NULL THEN
     p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+
+  -- A finished jumble already recorded the miss list. A late Grok reply must not replace it.
+  IF EXISTS (
+    SELECT 1
+    FROM spelling_dictation_reviews
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND language = v_language
+      AND jumble_scored
+  ) THEN
+    RETURN;
   END IF;
 
   IF p_words IS NOT NULL THEN
