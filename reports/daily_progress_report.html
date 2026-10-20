@@ -425,6 +425,7 @@
         </div>
     </div>
 
+    <script src="spelling_ocr_counts.js"></script>
     <script>
         // Get kid from URL parameter
         const urlParams = new URLSearchParams(window.location.search);
@@ -441,6 +442,7 @@
 
         let reportUserData = null;
         let todayChorePhotos = [];
+        let spellingPhotoRows = [];
         let openPhoto = null;
         let choreTitleSet = new Set();
         let choreMetaById = {};
@@ -613,11 +615,15 @@
 
         async function fetchReportData() {
             try {
-                const [response, assignmentRows] = await Promise.all([
+                const [response, assignmentRows, spellingRows] = await Promise.all([
                     fetch(`${supabaseUrl}/rest/v1/user_data?profile=eq.${kid}&select=*`, {
                         headers: restHeaders
                     }),
-                    fetchWebAssignments()
+                    fetchWebAssignments(),
+                    SpellingOcrCounts.fetchToday(supabaseUrl, supabaseKey, kid).catch((err) => {
+                        console.warn('Spelling OCR scores unavailable', err);
+                        return [];
+                    })
                 ]);
 
                 if (!response.ok) {
@@ -632,6 +638,7 @@
 
                 reportUserData = data[0];
                 reportAssignments = assignmentRows;
+                spellingPhotoRows = spellingRows;
                 choreTitleSet = collectChoreTitles(assignmentRows);
                 try {
                     todayChorePhotos = await fetchTodayChorePhotos();
@@ -1005,6 +1012,9 @@
                 }
             });
 
+            const requiredSpellingScores = SpellingOcrCounts.scoresByTask(requiredTasks, spellingPhotoRows);
+            const practiceSpellingScores = SpellingOcrCounts.scoresByTask(practiceTasks, spellingPhotoRows);
+
             const requiredTaskKeys = Object.keys(requiredTasks);
             const requiredCountEl = document.getElementById('requiredCount');
             if (requiredCountEl) requiredCountEl.textContent = `(${requiredTaskKeys.length})`;
@@ -1019,8 +1029,9 @@
                 requiredTaskKeys.forEach(taskKey => {
                     const task = requiredTasks[taskKey];
                     const isComplete = task && (task.status === 'complete' || task.completed === true);
-                    const correct = task?.correct || 0;
-                    const incorrect = task?.incorrect || 0;
+                    const answers = SpellingOcrCounts.answerCounts(taskKey, task, requiredSpellingScores);
+                    const correct = answers.correct;
+                    const incorrect = answers.incorrect;
                     const questions = task?.questions || 0;
                     const isChore = isChoreRequiredTask(taskKey, task);
 
@@ -1028,7 +1039,7 @@
                     li.className = `task-item ${isComplete ? '' : 'incomplete'}`;
                     
                     const taskName = taskKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    const answerInfo = (!isChore && questions > 0) ? `   ${correct} ✅   ${incorrect} ❌` : '';
+                    const answerInfo = (!isChore && questions > 0 && answers.show) ? `   ${correct} ✅   ${incorrect} ❌` : '';
                     
                     li.innerHTML = `
                         <span class="task-name">${taskName} ${isComplete ? '✓' : ''}</span>
@@ -1061,15 +1072,16 @@
                 practiceTaskKeys.forEach(taskKey => {
                     const task = practiceTasks[taskKey];
                     const timesCompleted = task?.times_completed || 0;
-                    const correct = task?.correct || 0;
-                    const incorrect = task?.incorrect || 0;
+                    const answers = SpellingOcrCounts.answerCounts(taskKey, task, practiceSpellingScores);
+                    const correct = answers.correct;
+                    const incorrect = answers.incorrect;
                     const questionsAnswered = task?.questions_answered || 0;
 
                     const li = document.createElement('li');
                     li.className = 'task-item';
                     
                     const taskName = taskKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    const answerInfo = questionsAnswered > 0 ? `   ${correct} ✅   ${incorrect} ❌` : '';
+                    const answerInfo = (questionsAnswered > 0 && answers.show) ? `   ${correct} ✅   ${incorrect} ❌` : '';
                     const timesInfo = timesCompleted > 0 ? ` (Completed ${timesCompleted} time${timesCompleted > 1 ? 's' : ''})` : '';
                     
                     li.innerHTML = `

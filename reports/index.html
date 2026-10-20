@@ -887,6 +887,7 @@
         </div>
     </div>
 
+    <script src="spelling_ocr_counts.js"></script>
     <script>
         function loadConfig() {
             const url = localStorage.getItem('supabaseUrl');
@@ -1275,7 +1276,7 @@
             return false;
         }
 
-        function summarizeProgress(userData, assignments, todayPhotos) {
+        function summarizeProgress(userData, assignments, todayPhotos, spellingRows) {
             const todayToken = torontoDayToken();
             const requiredTasks = {};
             (assignments || []).forEach(function (row) {
@@ -1303,12 +1304,17 @@
                 const amt = Number(row.granted_amount);
                 return sum + (isFinite(amt) ? amt : 0);
             }, 0);
+            const spellingScores = SpellingOcrCounts.scoresByTask(requiredTasks, spellingRows || []);
+            const answerTotal = (field) => learningRequiredKeys.reduce((sum, key) => {
+                const answers = SpellingOcrCounts.answerCounts(key, requiredTasks[key], spellingScores);
+                return sum + (Number(answers[field]) || 0);
+            }, 0);
 
             return {
                 requiredComplete: completedRequired,
                 requiredIncomplete: totalRequired - completedRequired,
-                requiredCorrect: learningRequiredKeys.reduce((sum, key) => sum + (Number(requiredTasks[key]?.correct) || 0), 0),
-                requiredIncorrect: learningRequiredKeys.reduce((sum, key) => sum + (Number(requiredTasks[key]?.incorrect) || 0), 0),
+                requiredCorrect: answerTotal('correct'),
+                requiredIncorrect: answerTotal('incorrect'),
                 completionRate: totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : 0,
                 choresComplete: choresCompleted,
                 choresIncomplete: Math.max(0, choreRequiredKeys.length - choresCompleted),
@@ -1789,11 +1795,15 @@
 
             try {
                 const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
-                const [usersRes, photoRows, recordingMeta, ...assignmentLists] = await Promise.all([
+                const [usersRes, photoRows, recordingMeta, assignmentLists, spellingLists] = await Promise.all([
                     fetch(`${url}/rest/v1/user_data?profile=in.(AM,BM)&select=profile,required_tasks,photo_chores,kid_bank_balance`, { headers }),
                     fetchTodayChorePhotos(url, key),
                     fetchTodayRecordingMeta(url, key),
-                    ...KID_PROFILES.map(profile => fetchWebAssignments(url, key, profile))
+                    Promise.all(KID_PROFILES.map(profile => fetchWebAssignments(url, key, profile))),
+                    Promise.all(KID_PROFILES.map(profile => SpellingOcrCounts.fetchToday(url, key, profile).catch((err) => {
+                        console.warn('Spelling OCR scores unavailable', profile, err);
+                        return [];
+                    })))
                 ]);
                 if (!usersRes.ok) throw new Error(`user_data: ${usersRes.status}`);
                 const users = await usersRes.json();
@@ -1814,7 +1824,7 @@
                         clearKidSummary(profile, 'No data');
                     } else {
                         const photos = photoRows.filter(row => row.profile === profile);
-                        applyKidSummary(profile, summarizeProgress(userData, assignments, photos));
+                        applyKidSummary(profile, summarizeProgress(userData, assignments, photos, spellingLists[i] || []));
                     }
                     renderRecordings(profile);
                     if (mediaOpenByProfile[profile] && !visualsReady(profile)) {
