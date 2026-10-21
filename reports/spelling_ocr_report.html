@@ -260,6 +260,40 @@
             return counts;
         }
 
+        const typingLoads = {};
+
+        function loadTyping(supabaseUrl, supabaseKey, profile, ymd) {
+            const cacheKey = profile + ':' + ymd;
+            if (!typingLoads[cacheKey]) {
+                typingLoads[cacheKey] = fetch(`${supabaseUrl}/rest/v1/rpc/af_get_spelling_typing`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ p_profile: profile, p_date: ymd })
+                }).then(async (response) => {
+                    if (!response.ok) return {};
+                    const body = await response.json();
+                    return body && typeof body === 'object' ? body : {};
+                }).catch((error) => {
+                    console.warn('Typing scores unavailable', profile, error);
+                    return {};
+                });
+            }
+            return typingLoads[cacheKey];
+        }
+
+        function typingCounts(attempts) {
+            const counts = { correct: 0, incorrect: 0 };
+            (attempts || []).forEach((item) => {
+                if (item && (item.correct === true || item.correct === 'true')) counts.correct += 1;
+                else counts.incorrect += 1;
+            });
+            return counts;
+        }
+
         async function loadGameCounts() {
             const supabaseUrl = localStorage.getItem('supabaseUrl');
             const supabaseKey = localStorage.getItem('supabaseKey');
@@ -310,9 +344,19 @@
                     const counts = countTasks(batches.flat());
                     const total = counts.correct + counts.incorrect + counts.unverified;
                     const unverifiedNote = counts.unverified ? `, ${counts.unverified} unverified` : '';
-                    el.textContent = total
-                        ? `${counts.correct} correct, ${counts.incorrect} incorrect${unverifiedNote}`
-                        : 'Nothing today';
+                    if (total) {
+                        el.textContent = `${counts.correct} correct, ${counts.incorrect} incorrect${unverifiedNote}`;
+                        return;
+                    }
+                    const typing = await loadTyping(supabaseUrl, supabaseKey, profile, ymd);
+                    const lang = game.startsWith('Fr') ? 'fr' : 'eng';
+                    const attempts = Array.isArray(typing[lang]) ? typing[lang] : [];
+                    if (!attempts.length) {
+                        el.textContent = 'Nothing today';
+                        return;
+                    }
+                    const typed = typingCounts(attempts);
+                    el.textContent = `${typed.correct} correct, ${typed.incorrect} incorrect · keyboard`;
                 } catch (error) {
                     console.error('OCR count failed', profile, game, error);
                     el.textContent = 'Could not load counts';

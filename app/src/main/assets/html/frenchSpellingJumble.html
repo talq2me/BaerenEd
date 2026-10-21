@@ -95,6 +95,7 @@
         let correctCount = 0;
         let incorrectCount = 0;
         let missedWords = [];
+        let typedAttempts = [];
         let maxQuestions = 10;
         let currentWordIndex = 0;
         let currentWord = {};
@@ -233,6 +234,7 @@
             correctCount = 0;
             incorrectCount = 0;
             missedWords = [];
+            typedAttempts = [];
             updateStarCount();
             loadWord();
         }
@@ -335,6 +337,13 @@
         function handleSubmit() {
             if (isInPracticeMode) return handlePracticeSubmit();
             const spelledWord = selectedLetters.join('');
+            if (isFirstAttempt) {
+                typedAttempts.push({
+                    word: currentWord.word,
+                    typed: spelledWord,
+                    correct: spellingAnswersMatch(spelledWord, currentWord.word)
+                });
+            }
             if (spellingAnswersMatch(spelledWord, currentWord.word)) {
                 document.getElementById('messageContainer').innerHTML = `<span style="color: #4CAF50; font-weight: bold;">✓ Correct!</span>`;
                 if (isFirstAttempt) {
@@ -427,7 +436,7 @@
             document.querySelector('.button-container').style.display = 'none';
             document.getElementById('practiceContainer').classList.add('hidden');
             if (completed !== false && typeof window.__baerenJumbleFinish === 'function') {
-                window.__baerenJumbleFinish(correctCount, incorrectCount, missedWords);
+                window.__baerenJumbleFinish(correctCount, incorrectCount, missedWords, typedAttempts);
                 return;
             }
             if (window.Android && typeof window.Android.gameCompleted === 'function') {

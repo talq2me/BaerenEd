@@ -242,6 +242,41 @@
             padding: 0;
         }
 
+        .typed-compare {
+            margin-top: 16px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .typed-line {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            font-size: 1.15em;
+        }
+
+        .typed-line span {
+            flex: 0 0 72px;
+            color: #64748b;
+            font-size: 0.78em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .typed-line strong {
+            font-size: 1.35em;
+            letter-spacing: 0.04em;
+        }
+
+        .typed-line.wrong strong {
+            color: #c62828;
+        }
+
+        .typed-line.right strong {
+            color: #2e7d32;
+        }
+
         .entry-image-container {
             text-align: center;
             width: 100%;
@@ -361,6 +396,7 @@
         const profile = urlParams.get('profile') || 'AM';
         const game = urlParams.get('game') || 'EngSpellingOCR';
         let rowsState = [];
+        let typingRows = [];
         let loadToken = 0;
 
         function torontoYmdFromDate(date) {
@@ -423,6 +459,27 @@
             document.getElementById('nextDay').disabled = selectedYmd >= today;
         }
 
+        function typingLanguage() {
+            return String(game).startsWith('Fr') ? 'fr' : 'eng';
+        }
+
+        async function fetchTyping(headers) {
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_get_spelling_typing`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ p_profile: profile, p_date: selectedYmd })
+                });
+                if (!response.ok) return [];
+                const body = await response.json();
+                const list = body && body[typingLanguage()];
+                return Array.isArray(list) ? list : [];
+            } catch (error) {
+                console.warn('Typing scores unavailable', error);
+                return [];
+            }
+        }
+
         function showEmptyDay() {
             rowsState = [];
             updateScoreBar();
@@ -468,6 +525,7 @@
                 return false;
             }
             try {
+                const typingPromise = fetchTyping(headers);
                 const batches = [];
                 for (const prefix of prefixes) {
                     const encodedPattern = encodeURIComponent(`${prefix}-${selectedYmd}-`) + '%25';
@@ -485,12 +543,8 @@
                         const allData = await altResponse.json();
                         const data = allData.filter(matchesSelectedDay);
                         if (token !== loadToken) return;
-                        document.getElementById('loading').style.display = 'none';
-                        if (!data.length) {
-                            showEmptyDay();
-                            return;
-                        }
-                        displayEntries(data);
+                        typingRows = await typingPromise;
+                        finishLoaded(data);
                         return;
                     }
                     const dated = await response.json();
@@ -503,12 +557,8 @@
                 }
                 if (token !== loadToken) return;
                 const data = batches.flat().filter(matchesSelectedDay);
-                document.getElementById('loading').style.display = 'none';
-                if (!data.length) {
-                    showEmptyDay();
-                    return;
-                }
-                displayEntries(data);
+                typingRows = await typingPromise;
+                finishLoaded(data);
             } catch (error) {
                 if (token !== loadToken) return;
                 console.error('Error loading spelling submissions:', error);
@@ -688,17 +738,89 @@
             return parts.join('-');
         }
 
+        function attemptCorrect(item) {
+            return item && (item.correct === true || item.correct === 'true');
+        }
+
+        function renderTyping() {
+            const container = document.getElementById('entriesContainer');
+            typingRows.forEach((item, index) => {
+                const expected = String(item.word || '').trim();
+                const typed = String(item.typed || '').trim();
+                const correct = attemptCorrect(item);
+                const extra = item.extra === true || item.extra === 'true';
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'entry-container';
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'entry-header';
+                headerDiv.innerHTML = `
+                    <div class="entry-info">
+                        <div class="entry-number">${extra ? 'Extra' : '#' + (index + 1)} · Keyboard</div>
+                    </div>
+                `;
+                const wordEl = document.createElement('div');
+                wordEl.className = `entry-word ${correct ? 'correct' : 'incorrect'}`;
+                wordEl.style.cursor = 'default';
+                wordEl.textContent = `${expected || 'Word'} · ${correct ? 'Correct' : 'Incorrect'}`;
+                headerDiv.querySelector('.entry-info').appendChild(wordEl);
+                const compare = document.createElement('div');
+                compare.className = 'typed-compare';
+                const typedLine = document.createElement('div');
+                typedLine.className = `typed-line ${correct ? 'right' : 'wrong'}`;
+                const typedLabel = document.createElement('span');
+                typedLabel.textContent = 'Typed';
+                const typedValue = document.createElement('strong');
+                typedValue.textContent = typed || 'Not saved';
+                typedLine.appendChild(typedLabel);
+                typedLine.appendChild(typedValue);
+                const wordLine = document.createElement('div');
+                wordLine.className = 'typed-line right';
+                const wordLabel = document.createElement('span');
+                wordLabel.textContent = 'Word';
+                const wordValue = document.createElement('strong');
+                wordValue.textContent = expected;
+                wordLine.appendChild(wordLabel);
+                wordLine.appendChild(wordValue);
+                compare.appendChild(typedLine);
+                compare.appendChild(wordLine);
+                entryDiv.appendChild(headerDiv);
+                entryDiv.appendChild(compare);
+                container.appendChild(entryDiv);
+            });
+        }
+
+        function finishLoaded(data) {
+            document.getElementById('loading').style.display = 'none';
+            if (!data.length && !typingRows.length) {
+                showEmptyDay();
+                return;
+            }
+            if (data.length) displayEntries(data);
+            else {
+                rowsState = [];
+                document.getElementById('entriesContainer').innerHTML = '';
+                document.getElementById('noData').style.display = 'none';
+                document.getElementById('lastUpdated').style.display = 'none';
+            }
+            renderTyping();
+            updateScoreBar();
+        }
+
         function updateScoreBar() {
             const bar = document.getElementById('scoreBar');
             const summary = document.getElementById('scoreSummary');
             const saveBtn = document.getElementById('saveScores');
-            if (!rowsState.length) {
+            if (!rowsState.length && !typingRows.length) {
                 bar.style.display = 'none';
                 return;
             }
             const counts = { correct: 0, incorrect: 0, unverified: 0 };
             rowsState.forEach((row) => {
                 tallyTask(counts, row.savedTask || row.entry.task, row.parsed.status, row.entry.missed_words);
+            });
+            typingRows.forEach((item) => {
+                if (attemptCorrect(item)) counts.correct += 1;
+                else counts.incorrect += 1;
             });
             const correct = counts.correct;
             const incorrect = counts.incorrect;
@@ -707,6 +829,7 @@
             const unverifiedNote = unverified ? `, ${unverified} unverified` : '';
             bar.style.display = 'flex';
             summary.textContent = `${correct} correct, ${incorrect} incorrect${unverifiedNote}`;
+            saveBtn.style.display = rowsState.length ? '' : 'none';
             saveBtn.disabled = !dirty;
             saveBtn.textContent = dirty ? 'Save' : 'Saved';
         }
@@ -782,7 +905,11 @@
             if (parsedRows.length > 0) {
                 noDataEl.style.display = 'none';
             } else {
-                showEmptyDay();
+                rowsState = [];
+                noDataEl.style.display = typingRows.length ? 'none' : 'block';
+                if (!typingRows.length) {
+                    noDataEl.textContent = 'Rows were returned but no spelling OCR tasks could be parsed. Check browser console.';
+                }
                 return;
             }
 

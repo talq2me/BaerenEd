@@ -405,6 +405,7 @@ CREATE TABLE IF NOT EXISTS spelling_dictation_reviews (
     xtra_round INT,
     xtra_sent_round INT NOT NULL DEFAULT 0,
     jumble_scored BOOLEAN NOT NULL DEFAULT false,
+    jumble_attempts JSONB,
     PRIMARY KEY (profile, review_date, language)
 );
 
@@ -418,6 +419,8 @@ ALTER TABLE spelling_dictation_reviews
     ADD COLUMN IF NOT EXISTS xtra_sent_round INT NOT NULL DEFAULT 0;
 ALTER TABLE spelling_dictation_reviews
     ADD COLUMN IF NOT EXISTS jumble_scored BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE spelling_dictation_reviews
+    ADD COLUMN IF NOT EXISTS jumble_attempts JSONB;
 
 ALTER TABLE spelling_dictation_reviews ENABLE ROW LEVEL SECURITY;
 
