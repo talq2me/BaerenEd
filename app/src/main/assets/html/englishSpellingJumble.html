@@ -13,6 +13,10 @@
         .game-container { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center; box-sizing: border-box; }
         #starCount { font-size: 24px; color: #ffcc00; margin-bottom: 20px; }
         .word-display { font-size: 28px; margin: 20px 0; padding: 15px; background: #f0f8ff; border-radius: 10px; min-height: 60px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        #shownWord[hidden] { display: none !important; }
+        #shownWord { width: 100%; }
+        #shownWord .copy-word { font-size: 42px; font-weight: 800; color: #1b3a4b; line-height: 1.1; }
+        #shownWord .copy-label, #shownWord .copy-count { font-size: 18px; font-weight: 700; color: #3d4a57; }
         .letter-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; min-height: 80px; padding: 15px; background: #f5f5f5; border-radius: 10px; }
         .letter {
             background: #4CAF50;
@@ -92,6 +96,7 @@
         <h1>English Spelling Jumble</h1>
         <div id="starCount">⭐ 0 / 10</div>
         <div class="word-display" id="wordDisplay">
+            <div id="shownWord" hidden></div>
             <button class="button" id="playButton" onclick="playInstruction()">&#9654; Play</button>
             <button id="deleteBtn" class="button" onclick="handleDelete()">⌫ Delete</button>
         </div>
@@ -144,6 +149,8 @@
         let selectedLetterElements = [];
         let gameMode = 'hard';
         let isInPracticeMode = false;
+        let copyRound = false;
+        let copyFirstRecorded = false;
         let practiceCorrectAttempts = 0;
         let practiceSelectedLetters = [];
         let practiceSelectedLetterElements = [];
@@ -160,6 +167,7 @@
             const file = urlParams.get('file');
             const jsonData = urlParams.get('json') || urlParams.get('data');
             gameMode = ['easy', 'hard', 'extreme'].includes(mode) ? mode : 'hard';
+            copyRound = urlParams.get('xtra') === '1';
             return { file, jsonData }; // Return both file and jsonData
         }
 
@@ -277,6 +285,7 @@
             missedWords = [];
             typedAttempts = [];
             updateStarCount();
+            if (copyRound) document.querySelector('h1').textContent = 'Write each word 3 times';
             loadWord();
         }
 
@@ -295,6 +304,12 @@
             document.querySelector('.button-container').style.display = 'flex';
             document.getElementById('deleteBtn').style.display = 'inline-block';
             document.getElementById('submitBtn').style.display = 'inline-block';
+            clearShownWord();
+
+            if (copyRound) {
+                beginCopyWord();
+                return;
+            }
             
             const letterBank = document.getElementById('letterBank');
             const keyboardContainer = document.getElementById('keyboardContainer');
@@ -310,9 +325,96 @@
         }
 
         function playInstruction() {
+            if (copyRound) {
+                const n = practiceCorrectAttempts + 1;
+                readText(`Write the word ${currentWord.word}. Copy ${n} of 3.`, 'en-US', 0.8);
+                return;
+            }
             const { word, sentence } = currentWord;
             const textToRead = sentence ? `Spell the word: ${word}. ${sentence}` : `Spell the word: ${word}`;
             readText(textToRead, 'en-US', 0.8);
+        }
+
+        function clearShownWord() {
+            const shown = document.getElementById('shownWord');
+            if (!shown) return;
+            shown.replaceChildren();
+            shown.hidden = true;
+        }
+
+        function showCopyPrompt() {
+            const shown = document.getElementById('shownWord');
+            shown.hidden = false;
+            shown.replaceChildren();
+            const label = document.createElement('div');
+            label.className = 'copy-label';
+            label.textContent = 'Write this word';
+            const wordEl = document.createElement('div');
+            wordEl.className = 'copy-word';
+            wordEl.textContent = currentWord.word;
+            const count = document.createElement('div');
+            count.className = 'copy-count';
+            count.textContent = 'Copy ' + (practiceCorrectAttempts + 1) + ' of 3';
+            shown.append(label, wordEl, count);
+        }
+
+        function beginCopyWord() {
+            isInPracticeMode = true;
+            practiceCorrectAttempts = 0;
+            practiceSelectedLetters = [];
+            practiceSelectedLetterElements = [];
+            copyFirstRecorded = false;
+            showCopyPrompt();
+            const letterBank = document.getElementById('letterBank');
+            const keyboardContainer = document.getElementById('keyboardContainer');
+            if (gameMode === 'extreme') {
+                letterBank.style.display = 'none';
+                keyboardContainer.classList.remove('hidden');
+            } else {
+                letterBank.style.display = 'flex';
+                keyboardContainer.classList.add('hidden');
+                createLetterBank();
+            }
+            updateSpelledWord();
+            setTimeout(playInstruction, 500);
+        }
+
+        function resetCopyEntry() {
+            practiceSelectedLetters = [];
+            practiceSelectedLetterElements = [];
+            document.querySelectorAll('#letterBank .letter').forEach(el => el.classList.remove('used'));
+            updateSpelledWord();
+        }
+
+        function handleCopySubmit() {
+            const practiceInput = practiceSelectedLetters.join('');
+            if (!practiceInput) return;
+            const isCorrect = spellingAnswersMatch(practiceInput, currentWord.word);
+            if (!copyFirstRecorded) {
+                copyFirstRecorded = true;
+                typedAttempts.push({
+                    word: currentWord.word,
+                    typed: practiceInput,
+                    correct: isCorrect
+                });
+            }
+            resetCopyEntry();
+            const message = document.getElementById('messageContainer');
+            if (!isCorrect) {
+                message.innerHTML = '<span style="color:#c62828;font-weight:bold;">Look at the word and try again.</span>';
+                if (gameMode !== 'extreme') createLetterBank();
+                return;
+            }
+            practiceCorrectAttempts++;
+            message.innerHTML = `<span style="color:#4CAF50;font-weight:bold;">✓ Copy ${practiceCorrectAttempts} of 3</span>`;
+            if (practiceCorrectAttempts >= 3) {
+                correctCount++;
+                updateStarCount();
+                setTimeout(nextWord, 700);
+                return;
+            }
+            showCopyPrompt();
+            if (gameMode !== 'extreme') createLetterBank();
         }
 
         function createLetterBank() {
@@ -376,7 +478,7 @@
         }
 
         function handleSubmit() {
-            if (isInPracticeMode) return handlePracticeSubmit();
+            if (isInPracticeMode) return copyRound ? handleCopySubmit() : handlePracticeSubmit();
             const spelledWord = selectedLetters.join('');
             if (isFirstAttempt) {
                 typedAttempts.push({

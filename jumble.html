@@ -119,6 +119,7 @@
         const words = await extraWords();
         if (!words) return;
         gameQuery.set("json", JSON.stringify(words));
+        gameQuery.set("xtra", "1");
       } else if (!file) {
         showWait("No word list was selected.");
         return;
