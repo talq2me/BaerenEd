@@ -21,7 +21,10 @@ BEGIN
   VALUES (p_profile, p_task, p_image)
   ON CONFLICT (profile, task) DO UPDATE SET
     image = EXCLUDED.image,
-    capture_date_time = (NOW() AT TIME ZONE 'America/Toronto');
+    capture_date_time = (NOW() AT TIME ZONE 'America/Toronto'),
+    words_correct = CASE WHEN image_uploads.task LIKE 'readAloud_%' THEN NULL ELSE image_uploads.words_correct END,
+    words_total = CASE WHEN image_uploads.task LIKE 'readAloud_%' THEN NULL ELSE image_uploads.words_total END,
+    missed_words = CASE WHEN image_uploads.task LIKE 'readAloud_%' THEN NULL ELSE image_uploads.missed_words END;
 END;
 $$;
 GRANT EXECUTE ON FUNCTION af_upsert_image_upload(text, text, text) TO anon, authenticated, service_role;

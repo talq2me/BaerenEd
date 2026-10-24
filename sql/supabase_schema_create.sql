@@ -375,6 +375,9 @@ ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS reward_granted BOOLEAN DEFAUL
 ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS granted_amount NUMERIC(12,2);
 -- Words Grok marked wrong on a paper sheet. Null means the photo mark is the whole score.
 ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS missed_words JSONB;
+-- Read-aloud clips: how many passage words the child said, out of the passage total.
+ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS words_correct INT;
+ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS words_total INT;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE image_uploads ENABLE ROW LEVEL SECURITY;
@@ -394,6 +397,71 @@ CREATE POLICY "Allow all operations on image_uploads" ON image_uploads
 -- words is the extra-practice list Grok writes. Null means Grok did not write one.
 -- xtra_round is the round the child should write. xtra_sent_round is the last round sent to Grok.
 -- status becomes complete when the extra task is finished.
+-- One row per sentence a child may be asked to read aloud.
+CREATE TABLE IF NOT EXISTS reading_passages (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    profile TEXT NOT NULL CHECK (profile IN ('AM', 'BM', 'TE')),
+    language TEXT NOT NULL CHECK (language IN ('en', 'fr')),
+    text TEXT NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    enabled BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE INDEX IF NOT EXISTS idx_reading_passages_bank
+    ON reading_passages (profile, language, enabled, sort_order, id);
+
+-- Passages pinned for a profile, language, and Toronto date. Re-opening that day stays on this set.
+CREATE TABLE IF NOT EXISTS reading_days (
+    profile TEXT NOT NULL CHECK (profile IN ('AM', 'BM', 'TE')),
+    day DATE NOT NULL,
+    language TEXT NOT NULL CHECK (language IN ('en', 'fr')),
+    passage_ids BIGINT[] NOT NULL,
+    PRIMARY KEY (profile, day, language)
+);
+
+-- One Grok review per profile, language, and day. webhook_sent_at is Toronto time, like image_uploads.capture_date_time.
+CREATE TABLE IF NOT EXISTS reading_audio_reviews (
+    profile TEXT NOT NULL CHECK (profile IN ('AM', 'BM', 'TE')),
+    review_date DATE NOT NULL,
+    language TEXT NOT NULL CHECK (language IN ('en', 'fr')),
+    status TEXT NOT NULL DEFAULT 'incomplete',
+    webhook_sent BOOLEAN NOT NULL DEFAULT false,
+    webhook_sent_at TIMESTAMP(3),
+    PRIMARY KEY (profile, review_date, language)
+);
+
+ALTER TABLE reading_audio_reviews ADD COLUMN IF NOT EXISTS webhook_sent_at TIMESTAMP(3);
+
+ALTER TABLE reading_passages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reading_days ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reading_audio_reviews ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all operations on reading_passages" ON reading_passages;
+CREATE POLICY "Allow all operations on reading_passages" ON reading_passages
+    FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations on reading_days" ON reading_days;
+CREATE POLICY "Allow all operations on reading_days" ON reading_days
+    FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations on reading_audio_reviews" ON reading_audio_reviews;
+CREATE POLICY "Allow all operations on reading_audio_reviews" ON reading_audio_reviews
+    FOR ALL USING (true) WITH CHECK (true);
+
+INSERT INTO reading_passages (profile, language, text, sort_order)
+SELECT 'AM', 'en', 'There are two classes in line.', 1
+WHERE NOT EXISTS (
+    SELECT 1 FROM reading_passages
+    WHERE profile = 'AM' AND language = 'en' AND text = 'There are two classes in line.'
+);
+
+INSERT INTO reading_passages (profile, language, text, sort_order)
+SELECT 'AM', 'en', 'Does he have time to do the dishes?', 2
+WHERE NOT EXISTS (
+    SELECT 1 FROM reading_passages
+    WHERE profile = 'AM' AND language = 'en' AND text = 'Does he have time to do the dishes?'
+);
+
 CREATE TABLE IF NOT EXISTS spelling_dictation_reviews (
     profile TEXT NOT NULL,
     review_date DATE NOT NULL,

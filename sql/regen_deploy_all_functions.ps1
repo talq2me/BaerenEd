@@ -56,6 +56,16 @@ $files = @(
 
   "af_upsert_device.sql",
 
+  "af_reading_word_list.sql",
+
+  "af_reading_passages_today.sql",
+
+  "af_enqueue_reading_audio_review.sql",
+
+  "af_list_unscored_reading.sql",
+
+  "af_score_reading_audio.sql",
+
   "af_upsert_image_upload.sql",
 
   "af_grant_chore_reward.sql",

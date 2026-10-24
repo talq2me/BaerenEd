@@ -437,6 +437,13 @@
             color: #1d4ed8;
         }
 
+        .read-aloud-label {
+            margin: 10px 0 0;
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+
         .media-fold {
             margin-top: 8px;
         }
@@ -550,6 +557,14 @@
         }
 
         .modal.show { display: flex; }
+
+        .modal-sentence:empty { display: none; }
+
+        #recordingScore {
+            font-size: 1.05rem;
+            font-weight: 700;
+            padding-top: 0;
+        }
 
         .modal-sentence {
             width: min(640px, 96vw);
@@ -741,6 +756,7 @@
                 </div>
             </a>
             <div id="AM-recordings" class="sentence-reads" hidden></div>
+            <div id="AM-readaloud" class="sentence-reads" hidden></div>
             <div id="AM-media" class="media-fold" hidden></div>
             </div>
             <div class="kid-block">
@@ -792,6 +808,7 @@
                 </div>
             </a>
             <div id="BM-recordings" class="sentence-reads" hidden></div>
+            <div id="BM-readaloud" class="sentence-reads" hidden></div>
             <div id="BM-media" class="media-fold" hidden></div>
             </div>
         </div>
@@ -868,6 +885,7 @@
         <span class="modal-close" id="recordingModalClose">&times;</span>
         <div id="recordingLayout">
             <p class="modal-sentence" id="recordingSentence"></p>
+            <p class="modal-sentence" id="recordingScore"></p>
             <audio class="modal-content audio-player" id="recordingAudio" controls></audio>
         </div>
         <img class="modal-content photo" id="modalImage" alt="" style="display:none">
@@ -1149,6 +1167,8 @@
         const KID_PROFILES = ['AM', 'BM'];
         let kidSummaryLoad = null;
         let recordingsByProfile = { AM: [], BM: [] };
+        let readAloudByProfile = { AM: [], BM: [] };
+        let readAloudTextById = {};
         let choreMetaByProfile = { AM: {}, BM: {} };
         let photoChoresByProfile = { AM: {}, BM: {} };
         let openRecording = null;
@@ -1591,6 +1611,97 @@
             renderRecordings(profile);
         }
 
+        function parseReadAloudTask(task) {
+            const match = /^readAloud_(en|fr)_(\d+)_(\d{4}-\d{2}-\d{2})$/.exec(String(task || ''));
+            if (!match) return null;
+            return { language: match[1], passageId: Number(match[2]), date: match[3] };
+        }
+
+        function readAloudScoreText(row) {
+            if (row.words_correct == null || row.words_total == null) return 'Waiting for score';
+            const missed = Array.isArray(row.missed_words) ? row.missed_words.filter(Boolean) : [];
+            let text = row.words_correct + '/' + row.words_total + ' words';
+            if (missed.length) text += ' · missed ' + missed.join(', ');
+            return text;
+        }
+
+        function readAloudTitle(row) {
+            const parsed = parseReadAloudTask(row.task);
+            if (!parsed) return 'Read aloud';
+            return readAloudTextById[parsed.passageId] || 'Read aloud';
+        }
+
+        async function fetchTodayReadAloud(url, key) {
+            const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
+            const today = todayTorontoYmd();
+            const [clipRes, passageRes] = await Promise.all([
+                fetch(`${url}/rest/v1/image_uploads?profile=in.(AM,BM)&task=like.readAloud*&select=profile,task,image,words_correct,words_total,missed_words&order=task`, { headers }),
+                fetch(`${url}/rest/v1/reading_passages?profile=in.(AM,BM)&select=id,text`, { headers })
+            ]);
+            readAloudTextById = {};
+            if (passageRes.ok) {
+                const passages = await passageRes.json();
+                (Array.isArray(passages) ? passages : []).forEach(row => {
+                    if (row && row.id != null) readAloudTextById[row.id] = row.text || '';
+                });
+            }
+            if (!clipRes.ok) return [];
+            const rows = await clipRes.json();
+            return (Array.isArray(rows) ? rows : []).filter(row => {
+                const parsed = parseReadAloudTask(row.task);
+                return parsed && parsed.date === today && typeof row.image === 'string' && row.image.startsWith('data:audio');
+            });
+        }
+
+        function renderReadAloud(profile) {
+            const wrap = document.getElementById(profile + '-readaloud');
+            if (!wrap) return;
+            const rows = readAloudByProfile[profile] || [];
+            wrap.innerHTML = '';
+            if (!rows.length) {
+                wrap.hidden = true;
+                return;
+            }
+            wrap.hidden = false;
+            const label = document.createElement('p');
+            label.className = 'read-aloud-label';
+            label.textContent = 'Read aloud';
+            wrap.appendChild(label);
+            rows.forEach((row, idx) => {
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'sentence-read-card';
+                const title = readAloudTitle(row);
+                card.innerHTML = `
+                    <p class="sent">${String(title).replace(/</g, '&lt;')}</p>
+                    <div class="hint">▶ ${readAloudScoreText(row).replace(/</g, '&lt;')}</div>
+                `;
+                card.addEventListener('click', () => openReadAloudPlayer(profile, idx));
+                wrap.appendChild(card);
+            });
+        }
+
+        function clearReadAloud(profile) {
+            readAloudByProfile[profile] = [];
+            renderReadAloud(profile);
+        }
+
+        function openReadAloudPlayer(profile, idx) {
+            const row = (readAloudByProfile[profile] || [])[idx];
+            if (!row || !row.image) return;
+            const title = readAloudTitle(row);
+            openRecording = { profile, idx, row, title, rewardCash: 0, kind: 'audio' };
+            hidePlayerMedia();
+            document.getElementById('recordingLayout').style.display = '';
+            document.getElementById('recordingSentence').textContent = title;
+            const score = document.getElementById('recordingScore');
+            if (score) score.textContent = readAloudScoreText(row);
+            const audio = document.getElementById('recordingAudio');
+            audio.src = row.image;
+            showPlayerModal();
+            audio.play().catch(() => {});
+        }
+
         function hidePlayerMedia() {
             const layout = document.getElementById('recordingLayout');
             if (layout) layout.style.display = 'none';
@@ -1635,6 +1746,8 @@
             hidePlayerMedia();
             document.getElementById('recordingLayout').style.display = '';
             document.getElementById('recordingSentence').textContent = info.title;
+            const score = document.getElementById('recordingScore');
+            if (score) score.textContent = '';
             const audio = document.getElementById('recordingAudio');
             audio.src = row.image;
             showPlayerModal();
@@ -1788,6 +1901,7 @@
                 KID_PROFILES.forEach(profile => {
                     clearKidSummary(profile, 'Setup');
                     clearRecordings(profile);
+                    clearReadAloud(profile);
                     clearMedia(profile);
                 });
                 return;
@@ -1795,7 +1909,7 @@
 
             try {
                 const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
-                const [usersRes, photoRows, recordingMeta, assignmentLists, spellingLists] = await Promise.all([
+                const [usersRes, photoRows, recordingMeta, assignmentLists, spellingLists, readAloudRows] = await Promise.all([
                     fetch(`${url}/rest/v1/user_data?profile=in.(AM,BM)&select=profile,required_tasks,photo_chores,kid_bank_balance`, { headers }),
                     fetchTodayChorePhotos(url, key),
                     fetchTodayRecordingMeta(url, key),
@@ -1803,7 +1917,11 @@
                     Promise.all(KID_PROFILES.map(profile => SpellingOcrCounts.fetchToday(url, key, profile).catch((err) => {
                         console.warn('Spelling OCR scores unavailable', profile, err);
                         return [];
-                    })))
+                    }))),
+                    fetchTodayReadAloud(url, key).catch((err) => {
+                        console.warn('Read aloud scores unavailable', err);
+                        return [];
+                    })
                 ]);
                 if (!usersRes.ok) throw new Error(`user_data: ${usersRes.status}`);
                 const users = await usersRes.json();
@@ -1826,7 +1944,9 @@
                         const photos = photoRows.filter(row => row.profile === profile);
                         applyKidSummary(profile, summarizeProgress(userData, assignments, photos, spellingLists[i] || []));
                     }
+                    readAloudByProfile[profile] = (readAloudRows || []).filter(row => row.profile === profile);
                     renderRecordings(profile);
+                    renderReadAloud(profile);
                     if (mediaOpenByProfile[profile] && !visualsReady(profile)) {
                         await ensureVisualMedia(url, key, visualMetaByProfile[profile]);
                     }
@@ -1837,6 +1957,7 @@
                 KID_PROFILES.forEach(profile => {
                     clearKidSummary(profile, 'Error');
                     clearRecordings(profile);
+                    clearReadAloud(profile);
                     clearMedia(profile);
                 });
             }

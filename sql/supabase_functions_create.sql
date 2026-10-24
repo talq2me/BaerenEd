@@ -16,6 +16,7 @@ DROP FUNCTION IF EXISTS af_daily_reset(text);
 DROP FUNCTION IF EXISTS af_delete_behavior_log(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_upload_by_id(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_uploads_ilike(text, text);
+DROP FUNCTION IF EXISTS af_enqueue_reading_audio_review(text, text, date);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_ocr_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_paper_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_xtra_review(text, text, date, int);
@@ -42,6 +43,7 @@ DROP FUNCTION IF EXISTS af_get_user_last_updated(text);
 DROP FUNCTION IF EXISTS af_grant_chore_reward(text, text, numeric);
 DROP FUNCTION IF EXISTS af_insert_user_data_profile(text);
 DROP FUNCTION IF EXISTS af_list_reward_spinner();
+DROP FUNCTION IF EXISTS af_list_unscored_reading(text, text, date);
 DROP FUNCTION IF EXISTS af_list_unverified_spelling(text, text, date, text);
 DROP FUNCTION IF EXISTS af_log_behavior(text, text, text);
 DROP FUNCTION IF EXISTS af_mark_spelling_xtra_complete(text, text, date);
@@ -49,11 +51,15 @@ DROP FUNCTION IF EXISTS af_maybe_advance_spelling_pools(text);
 DROP FUNCTION IF EXISTS af_maybe_record_collector_card_day(text);
 DROP FUNCTION IF EXISTS af_payout_collector_cards(text, int);
 DROP FUNCTION IF EXISTS af_push_profile_config_to_github(text, jsonb, text, jsonb);
+DROP FUNCTION IF EXISTS af_reading_language(text);
+DROP FUNCTION IF EXISTS af_reading_passages_today(text, text, int);
+DROP FUNCTION IF EXISTS af_reading_word_list(text);
 DROP FUNCTION IF EXISTS af_resend_chore_photo(text, text);
 DROP FUNCTION IF EXISTS af_reward_time_add(TEXT, INTEGER);
 DROP FUNCTION IF EXISTS af_reward_time_expire(TEXT, BOOLEAN);
 DROP FUNCTION IF EXISTS af_reward_time_pause(TEXT);
 DROP FUNCTION IF EXISTS af_reward_time_use(TEXT);
+DROP FUNCTION IF EXISTS af_score_reading_audio(jsonb);
 DROP FUNCTION IF EXISTS af_score_spelling_jumble(text, text, date, text[], boolean, jsonb);
 DROP FUNCTION IF EXISTS af_score_spelling_photos(jsonb);
 DROP FUNCTION IF EXISTS af_set_spelling_xtra_words(text, text, date, text[]);
@@ -1929,6 +1935,579 @@ GRANT EXECUTE ON FUNCTION af_upsert_device(text, text, text, text, text, text, t
 
 
 -- -----------------------------------------------------------------------------
+-- FILE: af_reading_word_list.sql
+-- -----------------------------------------------------------------------------
+-- Call site: af_reading_passages_today, af_list_unscored_reading, af_score_reading_audio.
+-- A word is a whitespace token with punctuation trimmed from both ends.
+-- Case is folded. Apostrophes and accents inside a word stay.
+
+CREATE OR REPLACE FUNCTION af_reading_language(p_language text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  v text := lower(btrim(COALESCE(p_language, '')));
+BEGIN
+  IF v IN ('en', 'eng', 'english') THEN
+    RETURN 'en';
+  END IF;
+  IF v IN ('fr', 'fre', 'french') THEN
+    RETURN 'fr';
+  END IF;
+  RAISE EXCEPTION 'Invalid language: %', p_language;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_reading_language(text) TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION af_reading_word_list(p_text text)
+RETURNS text[]
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT COALESCE(
+    (
+      SELECT array_agg(word ORDER BY ord)
+      FROM (
+        SELECT ord,
+               regexp_replace(lower(token), '^[^[:alnum:]]+|[^[:alnum:]]+$', '', 'g') AS word
+        FROM regexp_split_to_table(COALESCE(p_text, ''), E'\\s+') WITH ORDINALITY AS s(token, ord)
+      ) cleaned
+      WHERE word <> ''
+    ),
+    ARRAY[]::text[]
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION af_reading_word_list(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_reading_passages_today.sql
+-- -----------------------------------------------------------------------------
+-- Call site: app/src/main/assets/html/readAloud.html when the game opens.
+-- Pins today's passages for this profile and language, then returns them.
+-- A second open on the same Toronto date returns the same set.
+-- Does not advance the cursor. af_enqueue_reading_audio_review does that
+-- after every passage for the day has a recording.
+
+CREATE OR REPLACE FUNCTION af_reading_passages_today(
+  p_profile text,
+  p_language text,
+  p_count int DEFAULT 2
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_language text := af_reading_language(p_language);
+  v_count int := GREATEST(COALESCE(p_count, 2), 1);
+  v_today date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  v_day text := to_char(v_today, 'YYYY-MM-DD');
+  v_key text := 'readAloud_' || v_language;
+  v_bank int;
+  v_cursor int := 0;
+  v_ids bigint[];
+  v_rows jsonb;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  SELECT passage_ids INTO v_ids
+  FROM reading_days
+  WHERE profile = v_profile
+    AND day = v_today
+    AND language = v_language;
+
+  IF v_ids IS NULL THEN
+    SELECT count(*) INTO v_bank
+    FROM reading_passages
+    WHERE profile = v_profile
+      AND language = v_language
+      AND enabled;
+
+    IF v_bank < 1 THEN
+      RETURN jsonb_build_object(
+        'day', v_day,
+        'language', v_language,
+        'passages', '[]'::jsonb
+      );
+    END IF;
+
+    v_count := LEAST(v_count, v_bank);
+
+    SELECT COALESCE((game_indices->>v_key)::int, 0)
+      INTO v_cursor
+    FROM user_data
+    WHERE profile = v_profile;
+
+    IF v_cursor IS NULL OR v_cursor < 0 THEN
+      v_cursor := 0;
+    END IF;
+    v_cursor := v_cursor % v_bank;
+
+    SELECT array_agg(picked.id ORDER BY picked.n)
+      INTO v_ids
+    FROM (
+      SELECT p.id, gs.n
+      FROM generate_series(0, v_count - 1) AS gs(n)
+      JOIN LATERAL (
+        SELECT id
+        FROM reading_passages
+        WHERE profile = v_profile
+          AND language = v_language
+          AND enabled
+        ORDER BY sort_order, id
+        OFFSET (v_cursor + gs.n) % v_bank
+        LIMIT 1
+      ) p ON true
+    ) picked;
+
+    INSERT INTO reading_days (profile, day, language, passage_ids)
+    VALUES (v_profile, v_today, v_language, v_ids)
+    ON CONFLICT (profile, day, language) DO NOTHING;
+
+    SELECT passage_ids INTO v_ids
+    FROM reading_days
+    WHERE profile = v_profile
+      AND day = v_today
+      AND language = v_language;
+  END IF;
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'id', p.id,
+           'text', p.text,
+           'words', to_jsonb(af_reading_word_list(p.text)),
+           'recorded', EXISTS (
+             SELECT 1
+             FROM image_uploads iu
+             WHERE iu.profile = v_profile
+               AND iu.task = 'readAloud_' || v_language || '_' || p.id || '_' || v_day
+               AND iu.image LIKE 'data:audio%'
+           )
+         ) ORDER BY u.ord), '[]'::jsonb)
+    INTO v_rows
+  FROM unnest(v_ids) WITH ORDINALITY AS u(pid, ord)
+  JOIN reading_passages p ON p.id = u.pid;
+
+  RETURN jsonb_build_object(
+    'day', v_day,
+    'language', v_language,
+    'passages', COALESCE(v_rows, '[]'::jsonb)
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_reading_passages_today(text, text, int) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_enqueue_reading_audio_review.sql
+-- -----------------------------------------------------------------------------
+-- Call site: readAloud.html after the last clip for the day is stored.
+-- Same ping as spelling OCR: POST to the Grok bot webhook with spelling_ocr_webhook_bearer.
+-- kind=readAloud tells the bot to score audio instead of photos.
+-- Body: {"profile","language","date","kind":"readAloud"}
+
+DROP FUNCTION IF EXISTS af_enqueue_reading_audio_review(text, text, date, boolean);
+
+CREATE OR REPLACE FUNCTION af_enqueue_reading_audio_review(
+  p_profile text,
+  p_language text,
+  p_date date DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_language text;
+  v_date date := COALESCE(p_date, (NOW() AT TIME ZONE 'America/Toronto')::date);
+  v_day text;
+  v_key text;
+  v_guard text;
+  v_ids bigint[];
+  v_tasks text[];
+  v_count int;
+  v_unscored int;
+  v_bank int;
+  v_cursor int;
+  v_next int;
+  v_token text;
+  v_body text;
+  v_claimed int;
+  v_status int;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  v_language := af_reading_language(p_language);
+  v_day := to_char(v_date, 'YYYY-MM-DD');
+  v_key := 'readAloud_' || v_language;
+  v_guard := '_readAloudAdvancedOn_' || v_language;
+
+  SELECT passage_ids INTO v_ids
+  FROM reading_days
+  WHERE profile = v_profile
+    AND day = v_date
+    AND language = v_language;
+
+  IF v_ids IS NULL OR cardinality(v_ids) < 1 THEN
+    RETURN;
+  END IF;
+
+  SELECT array_agg('readAloud_' || v_language || '_' || pid || '_' || v_day ORDER BY ord)
+    INTO v_tasks
+  FROM unnest(v_ids) WITH ORDINALITY AS u(pid, ord);
+
+  SELECT count(*) INTO v_count
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task = ANY (v_tasks);
+
+  IF v_count < cardinality(v_ids) THEN
+    RETURN;
+  END IF;
+
+  SELECT count(*) INTO v_bank
+  FROM reading_passages
+  WHERE profile = v_profile
+    AND language = v_language
+    AND enabled;
+
+  IF v_bank > 0 THEN
+    SELECT COALESCE((game_indices->>v_key)::int, 0)
+      INTO v_cursor
+    FROM user_data
+    WHERE profile = v_profile;
+
+    IF v_cursor IS NULL OR v_cursor < 0 THEN
+      v_cursor := 0;
+    END IF;
+    v_next := (v_cursor + cardinality(v_ids)) % v_bank;
+
+    UPDATE user_data
+    SET game_indices = jsonb_set(
+          jsonb_set(COALESCE(game_indices, '{}'::jsonb), ARRAY[v_key], to_jsonb(v_next), true),
+          ARRAY[v_guard], to_jsonb(v_day), true
+        ),
+        last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+    WHERE profile = v_profile
+      AND COALESCE(game_indices->>v_guard, '') IS DISTINCT FROM v_day;
+  END IF;
+
+  SELECT count(*) INTO v_unscored
+  FROM image_uploads
+  WHERE profile = v_profile
+    AND task = ANY (v_tasks)
+    AND words_correct IS NULL;
+
+  INSERT INTO reading_audio_reviews (profile, review_date, language, status, webhook_sent)
+  VALUES (v_profile, v_date, v_language, 'incomplete', false)
+  ON CONFLICT (profile, review_date, language) DO NOTHING;
+
+  IF v_unscored = 0 THEN
+    UPDATE reading_audio_reviews
+    SET status = 'complete'
+    WHERE profile = v_profile
+      AND review_date = v_date
+      AND language = v_language;
+    RETURN;
+  END IF;
+
+  UPDATE reading_audio_reviews r
+  SET webhook_sent = false,
+      webhook_sent_at = NULL,
+      status = 'incomplete'
+  WHERE r.profile = v_profile
+    AND r.review_date = v_date
+    AND r.language = v_language
+    AND r.webhook_sent = true
+    AND EXISTS (
+      SELECT 1
+      FROM image_uploads iu
+      WHERE iu.profile = v_profile
+        AND iu.task = ANY (v_tasks)
+        AND r.webhook_sent_at IS NOT NULL
+        AND iu.capture_date_time > r.webhook_sent_at
+    );
+
+  SELECT decrypted_secret INTO v_token
+  FROM vault.decrypted_secrets
+  WHERE name = 'spelling_ocr_webhook_bearer'
+  LIMIT 1;
+
+  IF v_token IS NULL OR btrim(v_token) = '' THEN
+    RAISE WARNING 'spelling_ocr_webhook_bearer not configured in Supabase Vault';
+    RETURN;
+  END IF;
+
+  UPDATE reading_audio_reviews
+  SET webhook_sent = true,
+      webhook_sent_at = (NOW() AT TIME ZONE 'America/Toronto'),
+      status = 'incomplete'
+  WHERE profile = v_profile
+    AND review_date = v_date
+    AND language = v_language
+    AND webhook_sent = false;
+
+  GET DIAGNOSTICS v_claimed = ROW_COUNT;
+  IF v_claimed = 0 THEN
+    RETURN;
+  END IF;
+
+  v_body := jsonb_build_object(
+    'profile', v_profile,
+    'language', v_language,
+    'date', v_day,
+    'kind', 'readAloud'
+  )::text;
+
+  BEGIN
+    SELECT r.status INTO v_status
+    FROM extensions.http((
+      'POST',
+      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
+        extensions.http_header('Content-Type', 'application/json')
+      ]::extensions.http_header[],
+      'application/json',
+      v_body
+    )::extensions.http_request) r;
+  EXCEPTION WHEN OTHERS THEN
+    UPDATE reading_audio_reviews
+    SET webhook_sent = false,
+        webhook_sent_at = NULL
+    WHERE profile = v_profile
+      AND review_date = v_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'reading audio webhook request failed: %', SQLERRM;
+    RETURN;
+  END;
+
+  IF v_status IS NULL OR v_status < 200 OR v_status >= 300 THEN
+    UPDATE reading_audio_reviews
+    SET webhook_sent = false,
+        webhook_sent_at = NULL
+    WHERE profile = v_profile
+      AND review_date = v_date
+      AND language = v_language
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'reading audio webhook returned status %', COALESCE(v_status, -1);
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_enqueue_reading_audio_review(text, text, date) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_list_unscored_reading.sql
+-- -----------------------------------------------------------------------------
+-- Call site: the Grok read-aloud automation.
+-- Returns today's unscored clips for one profile and language.
+-- audio is the data URL stored on image_uploads.
+-- words is the passage split on whitespace, with punctuation trimmed and case folded.
+-- A clip that was scored and then re-recorded comes back here because the new upload clears its score.
+
+CREATE OR REPLACE FUNCTION af_list_unscored_reading(
+  p_profile text,
+  p_language text,
+  p_date date DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_language text;
+  v_date date := COALESCE(p_date, (NOW() AT TIME ZONE 'America/Toronto')::date);
+  v_day text;
+  v_ids bigint[];
+  v_rows jsonb;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  v_language := af_reading_language(p_language);
+  v_day := to_char(v_date, 'YYYY-MM-DD');
+
+  SELECT passage_ids INTO v_ids
+  FROM reading_days
+  WHERE profile = v_profile
+    AND day = v_date
+    AND language = v_language;
+
+  IF v_ids IS NULL THEN
+    RETURN '[]'::jsonb;
+  END IF;
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'id', iu.id,
+           'passage_id', p.id,
+           'text', p.text,
+           'words', to_jsonb(af_reading_word_list(p.text)),
+           'language', v_language,
+           'date', v_day,
+           'audio', iu.image
+         ) ORDER BY u.ord), '[]'::jsonb)
+    INTO v_rows
+  FROM unnest(v_ids) WITH ORDINALITY AS u(pid, ord)
+  JOIN reading_passages p ON p.id = u.pid
+  JOIN image_uploads iu
+    ON iu.profile = v_profile
+   AND iu.task = 'readAloud_' || v_language || '_' || u.pid || '_' || v_day
+   AND iu.words_correct IS NULL;
+
+  RETURN COALESCE(v_rows, '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_list_unscored_reading(text, text, date) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_score_reading_audio.sql
+-- -----------------------------------------------------------------------------
+-- Call site: the Grok read-aloud automation, after it has listened to each clip.
+-- p_scores is a JSON array of:
+--   {"id": <image_uploads.id>, "words_correct": <int>, "missed_words": ["word", ...]}
+-- words_total is taken from the passage (whitespace tokens, punctuation trimmed).
+-- A sent words_total is ignored so the denominator stays the passage length.
+-- words_correct is how many of those passage words the child said.
+-- Extra words the child added do not change the total.
+-- missed_words lists the expected words that were omitted or said wrong.
+-- Returns how many clips were scored.
+
+CREATE OR REPLACE FUNCTION af_score_reading_audio(p_scores jsonb)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_item jsonb;
+  v_i int;
+  v_id bigint;
+  v_task text;
+  v_profile text;
+  v_text text;
+  v_passage_id bigint;
+  v_words text[];
+  v_total int;
+  v_correct int;
+  v_missed jsonb;
+  v_language text;
+  v_date date;
+  v_day text;
+  v_ids bigint[];
+  v_tasks text[];
+  v_unscored int;
+  v_have int;
+  v_updated int := 0;
+BEGIN
+  IF p_scores IS NULL OR jsonb_typeof(p_scores) <> 'array' THEN
+    RAISE EXCEPTION 'p_scores must be a JSON array';
+  END IF;
+
+  FOR v_i IN 0 .. jsonb_array_length(p_scores) - 1 LOOP
+    v_item := p_scores -> v_i;
+    IF NULLIF(btrim(v_item->>'id'), '') IS NULL THEN
+      RAISE EXCEPTION 'Each score needs an id';
+    END IF;
+    v_id := (v_item->>'id')::bigint;
+
+    SELECT iu.task, iu.profile
+      INTO v_task, v_profile
+    FROM image_uploads iu
+    WHERE iu.id = v_id;
+
+    IF v_task IS NULL OR v_task !~ '^readAloud_(en|fr)_[0-9]+_[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+      RAISE EXCEPTION 'Not a read-aloud clip: %', v_id;
+    END IF;
+
+    v_passage_id := (substring(v_task from 'readAloud_[a-z]+_([0-9]+)_'))::bigint;
+    SELECT p.text INTO v_text
+    FROM reading_passages p
+    WHERE p.id = v_passage_id;
+
+    v_words := af_reading_word_list(v_text);
+    v_total := COALESCE(array_length(v_words, 1), 0);
+    v_missed := v_item -> 'missed_words';
+    IF v_missed IS NULL OR jsonb_typeof(v_missed) <> 'array' THEN
+      v_missed := '[]'::jsonb;
+    END IF;
+
+    IF NULLIF(btrim(v_item->>'words_correct'), '') IS NULL THEN
+      v_correct := v_total - jsonb_array_length(v_missed);
+    ELSE
+      v_correct := (v_item->>'words_correct')::int;
+    END IF;
+    IF v_correct < 0 THEN
+      v_correct := 0;
+    END IF;
+    IF v_correct > v_total THEN
+      v_correct := v_total;
+    END IF;
+
+    UPDATE image_uploads
+    SET words_correct = v_correct,
+        words_total = v_total,
+        missed_words = v_missed
+    WHERE id = v_id;
+
+    v_updated := v_updated + 1;
+    v_language := substring(v_task from '^readAloud_(en|fr)_');
+    v_day := substring(v_task from '[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    v_date := v_day::date;
+
+    SELECT passage_ids INTO v_ids
+    FROM reading_days
+    WHERE profile = v_profile
+      AND day = v_date
+      AND language = v_language;
+
+    IF v_ids IS NOT NULL AND cardinality(v_ids) > 0 THEN
+      SELECT array_agg('readAloud_' || v_language || '_' || pid || '_' || v_day)
+        INTO v_tasks
+      FROM unnest(v_ids) AS pid;
+
+      SELECT count(*) FILTER (WHERE words_correct IS NULL), count(*)
+        INTO v_unscored, v_have
+      FROM image_uploads
+      WHERE profile = v_profile
+        AND task = ANY (v_tasks);
+
+      IF v_have >= cardinality(v_ids) AND v_unscored = 0 THEN
+        UPDATE reading_audio_reviews
+        SET status = 'complete'
+        WHERE profile = v_profile
+          AND review_date = v_date
+          AND language = v_language;
+      END IF;
+    END IF;
+  END LOOP;
+
+  RETURN v_updated;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_score_reading_audio(jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
 -- FILE: af_upsert_image_upload.sql
 -- -----------------------------------------------------------------------------
 -- Call sites (BaerenEd Android, this repo):
@@ -1954,7 +2533,10 @@ BEGIN
   VALUES (p_profile, p_task, p_image)
   ON CONFLICT (profile, task) DO UPDATE SET
     image = EXCLUDED.image,
-    capture_date_time = (NOW() AT TIME ZONE 'America/Toronto');
+    capture_date_time = (NOW() AT TIME ZONE 'America/Toronto'),
+    words_correct = CASE WHEN image_uploads.task LIKE 'readAloud_%' THEN NULL ELSE image_uploads.words_correct END,
+    words_total = CASE WHEN image_uploads.task LIKE 'readAloud_%' THEN NULL ELSE image_uploads.words_total END,
+    missed_words = CASE WHEN image_uploads.task LIKE 'readAloud_%' THEN NULL ELSE image_uploads.missed_words END;
 END;
 $$;
 GRANT EXECUTE ON FUNCTION af_upsert_image_upload(text, text, text) TO anon, authenticated, service_role;
