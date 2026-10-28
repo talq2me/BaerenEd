@@ -1,10 +1,12 @@
 [
-  {"word":"gagner","sentence":"Mon équipe veut gagner le match."},
-  {"word":"la ligne","sentence":"J'écris mon nom sur la ligne."},
-  {"word":"le cygne","sentence":"Le cygne blanc nage sur le lac."},
-  {"word":"l'agneau","sentence":"L'agneau dort près de sa maman."},
-  {"word":"la vignette","sentence":"Je colle la vignette dans mon cahier."},
-  {"word":"cogner","sentence":"Il ne faut pas cogner la porte trop fort."},
-  {"word":"soigner","sentence":"Le docteur va soigner mon bobo."},
-  {"word":"enseignant","sentence":"Mon enseignant lit une histoire à la classe."}
+  {"word":"la phrase","sentence":"J'écris la phrase dans mon cahier."},
+  {"word":"un éléphant","sentence":"Au zoo, je vois un éléphant gris."},
+  {"word":"le téléphone","sentence":"Maman parle au téléphone avec mamie."},
+  {"word":"le nénuphar","sentence":"La grenouille saute sur le nénuphar."},
+  {"word":"la photo","sentence":"Papa prend la photo de ma famille."},
+  {"word":"le cousin","sentence":"Le cousin de Léa vient jouer chez moi."},
+  {"word":"une maison","sentence":"J'habite dans une maison bleue."},
+  {"word":"le coussin","sentence":"Le chat dort sur le coussin."},
+  {"word":"le paysan","sentence":"Le paysan donne à manger aux vaches."},
+  {"word":"la musique","sentence":"J'aime danser quand j'écoute la musique."}
 ]
