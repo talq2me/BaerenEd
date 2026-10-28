@@ -100,7 +100,8 @@
     function speakCurrent() {
       const item = words[index];
       if (!item) return;
-      const line = (item.sentence ? item.sentence + ". " : "") + "Spell: " + item.word;
+      const blanked = blankSentence(item.word, item.sentence);
+      const line = (blanked ? blanked + ". " : "") + "Spell the word.";
       Baeren.speak(line, locale, 0.75);
     }
 
