@@ -2110,7 +2110,8 @@ GRANT EXECUTE ON FUNCTION af_reading_passages_today(text, text, int) TO anon, au
 -- FILE: af_enqueue_reading_audio_review.sql
 -- -----------------------------------------------------------------------------
 -- Call site: readAloud.html after the last clip for the day is stored.
--- Same ping as spelling OCR: POST to the Grok bot webhook with spelling_ocr_webhook_bearer.
+-- Authorization: Bearer token is Vault secret reading_audio_webhook_bearer (no "Bearer " prefix).
+-- Different webhook from spelling so the audio bot receives the ping.
 -- kind=readAloud tells the bot to score audio instead of photos.
 -- Body: {"profile","language","date","kind":"readAloud"}
 
@@ -2241,11 +2242,11 @@ BEGIN
 
   SELECT decrypted_secret INTO v_token
   FROM vault.decrypted_secrets
-  WHERE name = 'spelling_ocr_webhook_bearer'
+  WHERE name = 'reading_audio_webhook_bearer'
   LIMIT 1;
 
   IF v_token IS NULL OR btrim(v_token) = '' THEN
-    RAISE WARNING 'spelling_ocr_webhook_bearer not configured in Supabase Vault';
+    RAISE WARNING 'reading_audio_webhook_bearer not configured in Supabase Vault';
     RETURN;
   END IF;
 
@@ -2274,7 +2275,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      'https://api2.cursor.sh/automations/webhook/fea2ec63-4c7f-5c82-ad08-e8e14986505e',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')
