@@ -492,6 +492,12 @@ ALTER TABLE spelling_dictation_reviews
 
 ALTER TABLE spelling_dictation_reviews ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow all operations on spelling_dictation_reviews" ON spelling_dictation_reviews;
+CREATE POLICY "Allow all operations on spelling_dictation_reviews" ON spelling_dictation_reviews
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
 -- Web catalog. The tablet still reads GitHub JSON. sql/web_catalog_seed.sql copies the current lists.
 CREATE TABLE IF NOT EXISTS web_games (
     launch TEXT PRIMARY KEY
