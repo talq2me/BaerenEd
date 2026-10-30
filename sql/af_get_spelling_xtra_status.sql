@@ -128,26 +128,11 @@ BEGIN
     AND language = v_language;
 
   IF v_jumble THEN
-    IF v_words IS NULL OR jsonb_typeof(v_words) <> 'array' OR jsonb_array_length(v_words) = 0 THEN
-      RETURN jsonb_build_object(
-        'phase', 'perfect', 'language', v_language, 'label', v_label,
-        'message', '', 'round', NULL, 'expectedCount', NULL, 'words', '[]'::jsonb
-      );
-    END IF;
-    FOR v_i IN 0 .. jsonb_array_length(v_words) - 1 LOOP
-      v_practice := v_practice || jsonb_build_array(jsonb_build_object(
-        'word', v_words ->> v_i,
-        'round', v_round,
-        'copies', jsonb_build_array(
-          jsonb_build_object('n', 1, 'status', 'missing'),
-          jsonb_build_object('n', 2, 'status', 'missing'),
-          jsonb_build_object('n', 3, 'status', 'missing')
-        )
-      ));
-    END LOOP;
+    -- When jumble_scored is true, all incorrect words were already practiced 3 times within the jumble game.
+    -- No additional xtra practice is needed, regardless of whether there were incorrect words.
     RETURN jsonb_build_object(
-      'phase', 'practice', 'language', v_language, 'label', v_label,
-      'message', '', 'round', v_round, 'expectedCount', NULL, 'words', v_practice
+      'phase', 'perfect', 'language', v_language, 'label', v_label,
+      'message', '', 'round', NULL, 'expectedCount', NULL, 'words', '[]'::jsonb
     );
   END IF;
 

@@ -1,12 +1,12 @@
 [
-  {"word":"give","sentence":"I will give you a hug."},
-  {"word":"live","sentence":"I live on Main Street."},
-  {"word":"love","sentence":"I love my dog."},
-  {"word":"some","sentence":"Can I have some water?"},
-  {"word":"done","sentence":"My homework is done."},
-  {"word":"glasses","sentence":"I wear glasses to read."},
-  {"word":"dishes","sentence":"We wash the dishes after dinner."},
-  {"word":"boxes","sentence":"The boxes are in the garage."},
-  {"word":"lunches","sentence":"We pack our lunches for school."},
-  {"word":"lashes","sentence":"She has long lashes."}
+  {"word":"yelled","sentence":"He yelled my name across the playground."},
+  {"word":"pulled","sentence":"She pulled the wagon behind her."},
+  {"word":"fixed","sentence":"Dad fixed my broken toy."},
+  {"word":"picked","sentence":"We picked apples at the farm."},
+  {"word":"ended","sentence":"The movie ended at bedtime."},
+  {"word":"acting","sentence":"She is acting in the school play."},
+  {"word":"helping","sentence":"I am helping Mom bake cookies."},
+  {"word":"standing","sentence":"We are standing in line."},
+  {"word":"sinking","sentence":"The boat is sinking in the water."},
+  {"word":"thinking","sentence":"I am thinking about my answer."}
 ]

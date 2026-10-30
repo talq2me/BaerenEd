@@ -1,0 +1,79 @@
+{
+  "id": "ufli-chain-affix-ed-g1",
+  "concept": "affix-ed",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "fill",
+        "prompt": "Write the word fill.",
+        "correctChoices": [{"text": "f"}, {"text": "i"}, {"text": "l"}, {"text": "l"}],
+        "extraChoices": [{"text": "b"}, {"text": "e"}]
+      },
+      "steps": [
+        {
+          "from": "fill",
+          "to": "filled",
+          "prompt": "Say fill. Add ed at the end. Build filled.",
+          "correctChoices": [{"text": "f"}, {"text": "i"}, {"text": "l"}, {"text": "l"}, {"text": "e"}, {"text": "d"}],
+          "extraChoices": [{"text": "b"}, {"text": "k"}]
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "block",
+        "prompt": "Write the word block.",
+        "correctChoices": [{"text": "b"}, {"text": "l"}, {"text": "o"}, {"text": "c"}, {"text": "k"}],
+        "extraChoices": [{"text": "f"}, {"text": "a"}]
+      },
+      "steps": [
+        {
+          "from": "block",
+          "to": "blocked",
+          "prompt": "Say block. Add ed at the end. Build blocked.",
+          "correctChoices": [{"text": "b"}, {"text": "l"}, {"text": "o"}, {"text": "c"}, {"text": "k"}, {"text": "e"}, {"text": "d"}],
+          "extraChoices": [{"text": "f"}, {"text": "a"}]
+        }
+      ]
+    },
+    {
+      "id": "chain-3",
+      "seed": {
+        "word": "call",
+        "prompt": "Write the word call.",
+        "correctChoices": [{"text": "c"}, {"text": "a"}, {"text": "l"}, {"text": "l"}],
+        "extraChoices": [{"text": "w"}, {"text": "e"}]
+      },
+      "steps": [
+        {
+          "from": "call",
+          "to": "called",
+          "prompt": "Say call. Add ed at the end. Build called.",
+          "correctChoices": [{"text": "c"}, {"text": "a"}, {"text": "l"}, {"text": "l"}, {"text": "e"}, {"text": "d"}],
+          "extraChoices": [{"text": "w"}, {"text": "i"}]
+        }
+      ]
+    },
+    {
+      "id": "chain-4",
+      "seed": {
+        "word": "wish",
+        "prompt": "Write the word wish.",
+        "correctChoices": [{"text": "w"}, {"text": "i"}, {"text": "s"}, {"text": "h"}],
+        "extraChoices": [{"text": "f"}, {"text": "c"}]
+      },
+      "steps": [
+        {
+          "from": "wish",
+          "to": "wished",
+          "prompt": "Say wish. Add ed at the end. Build wished.",
+          "correctChoices": [{"text": "w"}, {"text": "i"}, {"text": "s"}, {"text": "h"}, {"text": "e"}, {"text": "d"}],
+          "extraChoices": [{"text": "f"}, {"text": "c"}]
+        }
+      ]
+    }
+  ]
+}

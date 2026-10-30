@@ -1,7 +1,7 @@
 [
   {
     "prompt": {
-      "text": "Build the irregular word: any.",
+      "text": "Build the irregular word: any. (Have they missed any of the shots?)",
       "lang": "eng",
       "displayText": true
     },
@@ -23,16 +23,16 @@
     ],
     "extraChoices": [
       {
-        "text": "u"
+        "text": "e"
       },
       {
-        "text": "e"
+        "text": "i"
       }
     ]
   },
   {
     "prompt": {
-      "text": "Build the irregular word: many. (Sentence: She fixed many of the kites.)",
+      "text": "Build the irregular word: many. (She fixed many of the kites.)",
       "lang": "eng",
       "displayText": true
     },
@@ -57,10 +57,10 @@
     ],
     "extraChoices": [
       {
-        "text": "i"
+        "text": "e"
       },
       {
-        "text": "e"
+        "text": "i"
       }
     ]
   }

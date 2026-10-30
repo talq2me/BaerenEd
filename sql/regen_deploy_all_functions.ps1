@@ -102,6 +102,8 @@ $files = @(
 
   "af_score_spelling_jumble.sql",
 
+  "af_enqueue_spelling_jumble_review.sql",
+
   "af_enqueue_spelling_xtra_review.sql",
 
   "af_mark_spelling_xtra_complete.sql",
