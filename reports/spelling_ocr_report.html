@@ -288,7 +288,8 @@
         function typingCounts(attempts) {
             const counts = { correct: 0, incorrect: 0 };
             (attempts || []).forEach((item) => {
-                if (item && (item.correct === true || item.correct === 'true')) counts.correct += 1;
+                if (!item || item.practice === true || item.practice === 'true' || item.extra === true || item.extra === 'true') return;
+                if (item.correct === true || item.correct === 'true') counts.correct += 1;
                 else counts.incorrect += 1;
             });
             return counts;

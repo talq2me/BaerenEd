@@ -1,10 +1,12 @@
 -- Call site: web/jumble.html when a spelling jumble used as OCR or extra copy finishes.
 -- Misses are known immediately, so this does not wait for Grok.
 -- An empty miss list means every word was right on the first try.
--- p_extra false replaces today's list from the main spelling jumble.
+-- p_extra false is the main jumble. Each miss is already rewritten correctly
+-- three times in that game, so this does not leave a practice list.
 -- p_extra true replaces the list with the words still missed on the extra jumble.
--- p_attempts is the first try for each word: {"word","typed","correct"}.
--- The spelling OCR report reads those rows through af_get_spelling_typing.
+-- p_attempts is every try: {"word","typed","correct","practice","copy"}.
+-- practice true is a rewrite after a miss. copy is 1, 2, or 3 for a correct rewrite.
+-- The keyboard report reads those rows through af_get_spelling_typing.
 
 DROP FUNCTION IF EXISTS af_score_spelling_jumble(text, text, date, text[], boolean);
 DROP FUNCTION IF EXISTS af_score_spelling_jumble(text, text, date, text[], boolean, jsonb);
@@ -67,7 +69,9 @@ BEGIN
           'word', v_word,
           'typed', v_typed,
           'correct', COALESCE((v_item->>'correct')::boolean, false),
-          'extra', COALESCE(p_extra, false)
+          'extra', COALESCE(p_extra, false),
+          'practice', COALESCE((v_item->>'practice')::boolean, false),
+          'copy', GREATEST(COALESCE((v_item->>'copy')::int, 0), 0)
         ));
       END IF;
     END LOOP;
@@ -98,10 +102,10 @@ BEGIN
 
   UPDATE spelling_dictation_reviews
   SET jumble_scored = true,
-      words = v_words,
+      words = CASE WHEN COALESCE(p_extra, false) THEN v_words ELSE '[]'::jsonb END,
       jumble_attempts = v_stored,
       xtra_round = CASE
-        WHEN jsonb_array_length(v_words) > 0 THEN COALESCE(xtra_round, 1)
+        WHEN COALESCE(p_extra, false) AND jsonb_array_length(v_words) > 0 THEN COALESCE(xtra_round, 1)
         ELSE xtra_round
       END,
       status = CASE
@@ -117,9 +121,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION af_score_spelling_jumble(text, text, date, text[], boolean, jsonb) TO anon, authenticated, service_role;
 
--- Report call site: reports/spelling_ocr_report.html and reports/spelling_ocr_detail.html.
+-- Report call site: reports/spelling_jumble_report.html and reports/spelling_ocr_detail.html.
 -- Returns {"eng":[...],"fr":[...]} for a profile and Toronto day.
--- Each item is {"word","typed","correct","extra"}.
+-- Each item is {"word","typed","correct","extra","practice","copy"}.
 -- Older keyboard sessions stored only the missed words, so those come back with an empty typed string.
 
 CREATE OR REPLACE FUNCTION af_get_spelling_typing(

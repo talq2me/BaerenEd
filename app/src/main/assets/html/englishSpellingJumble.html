@@ -552,12 +552,26 @@
 
             if (isCorrect) {
                 practiceCorrectAttempts++;
+                typedAttempts.push({
+                    word: currentWord.word,
+                    typed: practiceInput,
+                    correct: true,
+                    practice: true,
+                    copy: practiceCorrectAttempts
+                });
                 if (practiceCorrectAttempts >= 3) {
                     setTimeout(nextWord, 1500);
                 } else {
                     createPracticeLetterBank();
                 }
             } else {
+                typedAttempts.push({
+                    word: currentWord.word,
+                    typed: practiceInput,
+                    correct: false,
+                    practice: true,
+                    copy: 0
+                });
                 createPracticeLetterBank();
             }
         }

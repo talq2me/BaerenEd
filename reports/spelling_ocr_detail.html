@@ -742,9 +742,14 @@
             return item && (item.correct === true || item.correct === 'true');
         }
 
+        function isPracticeAttempt(item) {
+            return item && (item.practice === true || item.practice === 'true' || item.extra === true || item.extra === 'true');
+        }
+
         function renderTyping() {
             const container = document.getElementById('entriesContainer');
             typingRows.forEach((item, index) => {
+                if (isPracticeAttempt(item)) return;
                 const expected = String(item.word || '').trim();
                 const typed = String(item.typed || '').trim();
                 const correct = attemptCorrect(item);
@@ -819,6 +824,7 @@
                 tallyTask(counts, row.savedTask || row.entry.task, row.parsed.status, row.entry.missed_words);
             });
             typingRows.forEach((item) => {
+                if (isPracticeAttempt(item)) return;
                 if (attemptCorrect(item)) counts.correct += 1;
                 else counts.incorrect += 1;
             });

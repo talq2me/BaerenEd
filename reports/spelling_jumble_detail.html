@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard spelling</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(160deg, #5a7a9c 0%, #4a6a8a 100%);
+            min-height: 100vh;
+            padding: 12px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+            padding: 16px;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        .header, .toolbar, .score-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .header { margin-bottom: 12px; }
+        h1 { color: #222; font-size: 1.15em; }
+        .meta { color: #64748b; font-size: 0.82em; font-weight: 600; margin-top: 2px; }
+        .back-button, .toolbar button {
+            padding: 7px 10px;
+            background: #eef2f6;
+            color: #4a6a8a;
+            border: 1px solid #c5d0dc;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .toolbar { margin-bottom: 12px; }
+        .toolbar button:disabled { opacity: 0.45; cursor: default; }
+        .day-label { font-weight: 700; color: #1b3a4b; }
+        .score-bar {
+            background: #f4f7fb;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            font-weight: 700;
+            color: #1b3a4b;
+        }
+        .entry {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .entry-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .entry-num { color: #64748b; font-size: 0.78em; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+        .chip {
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.82em;
+            font-weight: 800;
+        }
+        .chip.ok { color: #166534; background: #dcfce7; }
+        .chip.bad { color: #991b1b; background: #fee2e2; }
+        .line { display: flex; align-items: baseline; gap: 12px; margin-top: 6px; }
+        .line span {
+            flex: 0 0 64px;
+            color: #64748b;
+            font-size: 0.72em;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .letters { font-size: 1.45em; font-weight: 800; letter-spacing: 0.03em; line-height: 1.2; }
+        .ch.ok { color: #2e7d32; }
+        .ch.bad { color: #c62828; }
+        .practice-note { margin-top: 8px; color: #166534; font-size: 0.88em; font-weight: 700; }
+        .also { margin-top: 4px; color: #991b1b; font-size: 0.88em; font-weight: 700; }
+        .empty, .loading { text-align: center; color: #64748b; padding: 28px 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Keyboard spelling</h1>
+                <div class="meta" id="subtitle"></div>
+            </div>
+            <a href="spelling_jumble_report.html" class="back-button">← Back</a>
+        </div>
+        <div class="toolbar">
+            <button type="button" id="prevDay">← Previous</button>
+            <div class="day-label" id="dayLabel"></div>
+            <button type="button" id="nextDay">Next →</button>
+        </div>
+        <div class="score-bar" id="scoreBar" hidden></div>
+        <div id="loading" class="loading">Loading…</div>
+        <div id="entries"></div>
+    </div>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const profile = params.get('profile') || 'AM';
+        const lang = params.get('lang') === 'fr' ? 'fr' : 'eng';
+        const languageName = lang === 'fr' ? 'French' : 'English';
+        document.getElementById('subtitle').textContent = `${profile} · ${languageName}`;
+
+        function torontoTodayYmd() {
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(new Date());
+        }
+
+        function addTorontoDays(ymd, deltaDays) {
+            const parts = ymd.split('-').map(Number);
+            const base = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 17, 0, 0));
+            base.setUTCDate(base.getUTCDate() + deltaDays);
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(base);
+        }
+
+        function formatTorontoLong(ymd) {
+            const parts = ymd.split('-').map(Number);
+            return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 17, 0, 0)).toLocaleDateString('en-US', {
+                timeZone: 'America/Toronto',
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        let selectedYmd = params.get('ymd');
+        if (!selectedYmd || !/^\d{4}-\d{2}-\d{2}$/.test(selectedYmd)) selectedYmd = torontoTodayYmd();
+
+        function isPractice(item) {
+            return item && (item.practice === true || item.practice === 'true');
+        }
+
+        function isCorrect(item) {
+            return item && (item.correct === true || item.correct === 'true');
+        }
+
+        function showChar(ch) {
+            return ch === ' ' ? '\u00a0' : ch;
+        }
+
+        function letterParts(typed, expected) {
+            const a = [...String(typed || '')];
+            const b = [...String(expected || '')];
+            const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+            for (let i = a.length - 1; i >= 0; i--) {
+                for (let j = b.length - 1; j >= 0; j--) {
+                    dp[i][j] = a[i].toLowerCase() === b[j].toLowerCase()
+                        ? dp[i + 1][j + 1] + 1
+                        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+                }
+            }
+            const typedParts = [];
+            const wordParts = [];
+            let i = 0;
+            let j = 0;
+            while (i < a.length && j < b.length) {
+                if (a[i].toLowerCase() === b[j].toLowerCase()) {
+                    typedParts.push({ ch: a[i], ok: true });
+                    wordParts.push({ ch: b[j], ok: true });
+                    i++;
+                    j++;
+                } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+                    typedParts.push({ ch: a[i], ok: false });
+                    i++;
+                } else {
+                    wordParts.push({ ch: b[j], ok: false });
+                    j++;
+                }
+            }
+            while (i < a.length) typedParts.push({ ch: a[i++], ok: false });
+            while (j < b.length) wordParts.push({ ch: b[j++], ok: false });
+            return { typedParts, wordParts };
+        }
+
+        function paintLetters(parent, parts) {
+            if (!parts.length) {
+                const mark = document.createElement('strong');
+                mark.className = 'ch bad';
+                mark.textContent = '—';
+                parent.appendChild(mark);
+                return;
+            }
+            parts.forEach((part) => {
+                const mark = document.createElement('strong');
+                mark.className = 'ch ' + (part.ok ? 'ok' : 'bad');
+                mark.textContent = showChar(part.ch);
+                parent.appendChild(mark);
+            });
+        }
+
+        function line(label, parts) {
+            const row = document.createElement('div');
+            row.className = 'line';
+            const name = document.createElement('span');
+            name.textContent = label;
+            const letters = document.createElement('div');
+            letters.className = 'letters';
+            paintLetters(letters, parts);
+            row.appendChild(name);
+            row.appendChild(letters);
+            return row;
+        }
+
+        function syncDay() {
+            const today = torontoTodayYmd();
+            document.getElementById('dayLabel').textContent = selectedYmd === today
+                ? `Today · ${formatTorontoLong(selectedYmd)}`
+                : formatTorontoLong(selectedYmd);
+            document.getElementById('nextDay').disabled = selectedYmd >= today;
+            const url = new URL(location.href);
+            url.searchParams.set('ymd', selectedYmd);
+            history.replaceState(null, '', url);
+        }
+
+        async function loadDay() {
+            syncDay();
+            const loading = document.getElementById('loading');
+            const entries = document.getElementById('entries');
+            const bar = document.getElementById('scoreBar');
+            loading.hidden = false;
+            loading.textContent = 'Loading…';
+            entries.innerHTML = '';
+            bar.hidden = true;
+            const supabaseUrl = localStorage.getItem('supabaseUrl');
+            const supabaseKey = localStorage.getItem('supabaseKey');
+            if (!supabaseUrl || !supabaseKey) {
+                loading.textContent = 'Set the Supabase URL and key on the main reports page.';
+                return;
+            }
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_get_spelling_typing`, {
+                    method: 'POST',
+                    headers: {
+                        apikey: supabaseKey,
+                        Authorization: `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ p_profile: profile, p_date: selectedYmd })
+                });
+                if (!response.ok) throw new Error(await response.text());
+                const body = await response.json();
+                const attempts = Array.isArray(body && body[lang]) ? body[lang] : [];
+                const tries = attempts.filter((item) => item && !isPractice(item) && item.extra !== true && item.extra !== 'true');
+                loading.hidden = true;
+                if (!tries.length) {
+                    entries.innerHTML = `<p class="empty">Nothing for ${formatTorontoLong(selectedYmd)}.</p>`;
+                    return;
+                }
+                const correct = tries.filter(isCorrect).length;
+                bar.hidden = false;
+                bar.textContent = `${correct} correct, ${tries.length - correct} incorrect`;
+                tries.forEach((item, index) => {
+                    const expected = String(item.word || '').trim();
+                    const typed = String(item.typed || '');
+                    const ok = isCorrect(item);
+                    const card = document.createElement('article');
+                    card.className = 'entry';
+                    const top = document.createElement('div');
+                    top.className = 'entry-top';
+                    const num = document.createElement('div');
+                    num.className = 'entry-num';
+                    num.textContent = `#${index + 1}`;
+                    const chip = document.createElement('div');
+                    chip.className = 'chip ' + (ok ? 'ok' : 'bad');
+                    chip.textContent = ok ? 'Correct' : 'Incorrect';
+                    top.appendChild(num);
+                    top.appendChild(chip);
+                    card.appendChild(top);
+                    const parts = letterParts(typed, expected);
+                    card.appendChild(line('Typed', parts.typedParts));
+                    card.appendChild(line('Word', parts.wordParts));
+                    const sameWord = attempts.filter((row) => row && String(row.word || '').trim().toLowerCase() === expected.toLowerCase());
+                    const rewrites = sameWord.filter((row) => isPractice(row) && isCorrect(row) && Number(row.copy) >= 1);
+                    const wrongRewrites = sameWord.filter((row) => isPractice(row) && !isCorrect(row) && String(row.typed || '').trim());
+                    if (!ok && rewrites.length >= 3) {
+                        const note = document.createElement('div');
+                        note.className = 'practice-note';
+                        note.textContent = 'Spelled correctly 3 times in the game.';
+                        card.appendChild(note);
+                    } else if (!ok && rewrites.length > 0) {
+                        const note = document.createElement('div');
+                        note.className = 'also';
+                        note.textContent = `Rewritten correctly ${rewrites.length} of 3 times.`;
+                        card.appendChild(note);
+                    }
+                    if (wrongRewrites.length) {
+                        const also = document.createElement('div');
+                        also.className = 'also';
+                        also.textContent = 'Also tried: ' + wrongRewrites.map((row) => row.typed).join(', ');
+                        card.appendChild(also);
+                    }
+                    entries.appendChild(card);
+                });
+            } catch (error) {
+                loading.hidden = false;
+                loading.textContent = error.message || String(error);
+            }
+        }
+
+        document.getElementById('prevDay').addEventListener('click', () => {
+            selectedYmd = addTorontoDays(selectedYmd, -1);
+            loadDay();
+        });
+        document.getElementById('nextDay').addEventListener('click', () => {
+            if (selectedYmd >= torontoTodayYmd()) return;
+            selectedYmd = addTorontoDays(selectedYmd, 1);
+            loadDay();
+        });
+        loadDay();
+    </script>
+</body>
+</html>
