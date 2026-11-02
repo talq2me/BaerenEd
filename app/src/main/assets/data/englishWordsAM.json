@@ -1,12 +1,12 @@
 [
-  {"word":"yelled","sentence":"He yelled my name across the playground."},
-  {"word":"pulled","sentence":"She pulled the wagon behind her."},
-  {"word":"fixed","sentence":"Dad fixed my broken toy."},
-  {"word":"picked","sentence":"We picked apples at the farm."},
-  {"word":"ended","sentence":"The movie ended at bedtime."},
-  {"word":"acting","sentence":"She is acting in the school play."},
-  {"word":"helping","sentence":"I am helping Mom bake cookies."},
-  {"word":"standing","sentence":"We are standing in line."},
-  {"word":"sinking","sentence":"The boat is sinking in the water."},
-  {"word":"thinking","sentence":"I am thinking about my answer."}
+  {"word":"open","sentence":"Please open the door for Grandma."},
+  {"word":"item","sentence":"I put one more item in the shopping cart."},
+  {"word":"music","sentence":"We dance when the music is loud."},
+  {"word":"secret","sentence":"My friend told me a secret at recess."},
+  {"word":"frozen","sentence":"The pond is frozen in the winter."},
+  {"word":"napkin","sentence":"I wipe my mouth with a napkin."},
+  {"word":"dentist","sentence":"The dentist checked my teeth today."},
+  {"word":"problem","sentence":"I solved the math problem by myself."},
+  {"word":"rocket","sentence":"The rocket zoomed up into the sky."},
+  {"word":"until","sentence":"We can play outside until dinner."}
 ]
