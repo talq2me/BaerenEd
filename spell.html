@@ -99,9 +99,16 @@
 
     function speakCurrent() {
       const item = words[index];
-      if (!item) return;
-      const blanked = blankSentence(item.word, item.sentence);
-      const line = (blanked ? blanked + ". " : "") + "Spell the word.";
+      if (!item || !item.word) return;
+      // The on-screen sentence stays blanked. Speech must use the real word.
+      const word = item.word;
+      const lead = french ? "Épelez le mot" : "Spell the word";
+      const again = word.charAt(0).toLocaleUpperCase(french ? "fr-FR" : "en-US") + word.slice(1);
+      const sentence = (item.sentence || "").trim();
+      const spokenSentence = sentence && /[.!?…]$/.test(sentence) ? sentence : (sentence ? sentence + "." : "");
+      const line = spokenSentence
+        ? lead + ": " + word + ". " + spokenSentence + " " + again + "."
+        : lead + ": " + word + ". " + again + ".";
       Baeren.speak(line, locale, 0.75);
     }
 
