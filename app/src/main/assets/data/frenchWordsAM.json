@@ -1,12 +1,12 @@
 [
-  {"word":"la phrase","sentence":"J'écris la phrase dans mon cahier."},
-  {"word":"un éléphant","sentence":"Au zoo, je vois un éléphant gris."},
-  {"word":"le téléphone","sentence":"Maman parle au téléphone avec mamie."},
-  {"word":"le nénuphar","sentence":"La grenouille saute sur le nénuphar."},
-  {"word":"la photo","sentence":"Papa prend la photo de ma famille."},
-  {"word":"le cousin","sentence":"Le cousin de Léa vient jouer chez moi."},
-  {"word":"une maison","sentence":"J'habite dans une maison bleue."},
-  {"word":"le coussin","sentence":"Le chat dort sur le coussin."},
-  {"word":"le paysan","sentence":"Le paysan donne à manger aux vaches."},
-  {"word":"la musique","sentence":"J'aime danser quand j'écoute la musique."}
+  {"word":"Les parents","sentence":"Les parents attendent les enfants devant l'école."},
+  {"word":"le vent","sentence":"J'entends le vent dans les arbres."},
+  {"word":"la santé","sentence":"Manger des fruits est bon pour la santé."},
+  {"word":"manger","sentence":"J'aime manger des pommes rouges."},
+  {"word":"mentir","sentence":"Il ne faut jamais mentir à ses amis."},
+  {"word":"le chant","sentence":"J'écoute le chant des oiseaux le matin."},
+  {"word":"doucement","sentence":"Le chat marche doucement dans la maison."},
+  {"word":"amusant","sentence":"Ce jeu de société est très amusant."},
+  {"word":"plaisir","sentence":"Je lis mon livre avec plaisir."},
+  {"word":"la chasse","sentence":"Le chat part à la chasse aux souris."}
 ]
