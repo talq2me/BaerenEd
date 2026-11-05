@@ -72,6 +72,8 @@
             max-width: 300px;
             box-sizing: border-box;
         }
+        .shift-key { flex: 1.6 1 0; max-width: 120px; background: #e7f3ff; }
+        .shift-key.shift-on { background: #2196F3; color: white; border-color: #1976d2; }
         .button, .green-button {
             font-family: inherit;
             border: none;
@@ -174,6 +176,7 @@
         /**
          * Normalize before compare: word JSON often uses U+2019 (') while the keyboard uses U+0027 (').
          * Same idea for hyphen/dash variants in compounds.
+         * Case stays as written, so a capital that belongs in the word is required.
          */
         function normalizeSpellingAnswer(s) {
             if (typeof s !== 'string') return '';
@@ -182,8 +185,7 @@
                 .replace(/[\u200B-\u200D\uFEFF]/g, '')
                 .replace(/[\u2018\u2019\u201A\u2032\u02BC\uFF07\u0060\u00B4]/g, "'")
                 .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, '-')
-                .replace(/\s+/g, ' ')
-                .toLowerCase();
+                .replace(/\s+/g, ' ');
         }
 
         function spellingAnswersMatch(typed, expected) {
@@ -298,6 +300,7 @@
             selectedLetterElements = [];
             isInPracticeMode = false;
             isFirstAttempt = true; // Reset for new word
+            clearShift();
             document.getElementById('spelledWord').textContent = '';
             document.getElementById('practiceContainer').classList.add('hidden');
             document.getElementById('messageContainer').innerHTML = '';
@@ -417,23 +420,62 @@
             if (gameMode !== 'extreme') createLetterBank();
         }
 
-        function createLetterBank() {
+        const ENGLISH_LETTER_POOL = 'abcdefghijklmnopqrstuvwxyz';
+
+        function englishSoundSwapLetters(word) {
+            const lower = (word || '').toLowerCase();
+            const extras = [];
+            const groups = [
+                { re: /tion|sion|cian/, letters: 'tscia' },
+                { re: /ance|ence/, letters: 'ae' },
+                { re: /ant|ent/, letters: 'ae' },
+                { re: /able|ible/, letters: 'ai' },
+                { re: /ei|ie/, letters: 'ei' },
+                { re: /ph/, letters: 'f' },
+                { re: /ck|c(?=[eiy])/, letters: 'ck' },
+                { re: /er|or|ar/, letters: 'eoa' },
+                { re: /ou|ow/, letters: 'ouw' },
+                { re: /ay|ey/, letters: 'ae' },
+                { re: /s(?=e\b)|ce\b/, letters: 'sc' }
+            ];
+            groups.forEach(group => {
+                if (group.re.test(lower)) extras.push(...group.letters.split(''));
+            });
+            return extras;
+        }
+
+        function extraJumbleLetters(word, minCount, maxCount) {
+            const targeted = englishSoundSwapLetters(word);
+            const extras = [...targeted];
+            const randoms = ENGLISH_LETTER_POOL.split('').sort(() => Math.random() - 0.5);
+            for (let i = 0; extras.length < maxCount && i < randoms.length; i++) {
+                extras.push(randoms[i]);
+            }
+            while (extras.length < minCount) extras.push(randoms[extras.length % randoms.length]);
+            if (extras.length > maxCount && extras.length > targeted.length) {
+                return targeted.concat(extras.slice(targeted.length, targeted.length + Math.max(0, maxCount - targeted.length)));
+            }
+            return extras;
+        }
+
+        function renderLetterBank(letterPool) {
             const letterBank = document.getElementById('letterBank');
             letterBank.innerHTML = '';
-            const letters = currentWord.word.split('');
-            let letterPool = letters;
-            if (gameMode === 'hard') {
-                const extra = 'abcdefghijklmnopqrstuvwxyz'.split('').sort(() => 0.5 - Math.random()).slice(0, 3);
-                letterPool = [...letters, ...extra];
-            }
-            const shuffledLetters = letterPool.sort(() => Math.random() - 0.5);
-            shuffledLetters.forEach(letter => {
+            letterPool.sort(() => Math.random() - 0.5).forEach(letter => {
                 const letterElement = document.createElement('div');
                 letterElement.className = 'letter';
-                letterElement.textContent = letter.toUpperCase();
+                letterElement.textContent = letter;
                 letterElement.onclick = () => handleLetterClick(letterElement, letter);
                 letterBank.appendChild(letterElement);
             });
+        }
+
+        function createLetterBank() {
+            const letters = currentWord.word.split('');
+            const extras = (gameMode === 'easy')
+                ? extraJumbleLetters(currentWord.word, 4, 6)
+                : extraJumbleLetters(currentWord.word, 8, 12);
+            renderLetterBank([...letters, ...extras]);
         }
 
         function handleLetterClick(element, letter) {
@@ -445,9 +487,41 @@
             updateSpelledWord();
         }
 
+        let shiftNext = false;
+
+        function isCasedLetter(letter) {
+            return letter.toLowerCase() !== letter.toUpperCase();
+        }
+
+        function paintShiftKeys() {
+            document.querySelectorAll('.keyboard-key[data-letter]').forEach(btn => {
+                const letter = btn.dataset.letter;
+                btn.textContent = shiftNext && isCasedLetter(letter) ? letter.toUpperCase() : letter;
+            });
+            const shiftBtn = document.getElementById('shiftKey');
+            if (shiftBtn) shiftBtn.classList.toggle('shift-on', shiftNext);
+        }
+
+        function toggleShift() {
+            shiftNext = !shiftNext;
+            paintShiftKeys();
+        }
+
+        function clearShift() {
+            if (!shiftNext) return;
+            shiftNext = false;
+            paintShiftKeys();
+        }
+
         function addLetter(letter) {
             const state = getSelectionState();
-            state.letters.push(letter);
+            let typed = letter;
+            if (shiftNext && isCasedLetter(letter)) {
+                typed = letter.toUpperCase();
+                shiftNext = false;
+                paintShiftKeys();
+            }
+            state.letters.push(typed);
             // Keyboard input has no letter-bank element to re-enable on delete.
             state.elements.push(null);
             updateSpelledWord();
@@ -474,7 +548,7 @@
 
         function updateSpelledWord() {
             const state = getSelectionState();
-            document.getElementById('spelledWord').textContent = state.letters.join('').toUpperCase();
+            document.getElementById('spelledWord').textContent = state.letters.join('');
         }
 
         function handleSubmit() {
@@ -514,7 +588,7 @@
             document.getElementById('submitBtn').style.display = 'inline-block';
             const practiceContainer = document.getElementById('practiceContainer');
             practiceContainer.classList.remove('hidden');
-            document.getElementById('correctWordDisplay').innerHTML = `<h4>Correct spelling: <strong>${currentWord.word.toUpperCase()}</strong></h4>`;
+            document.getElementById('correctWordDisplay').innerHTML = `<h4>Correct spelling: <strong>${currentWord.word}</strong></h4>`;
             document.getElementById('keyboardContainer').classList.add('hidden');
             document.getElementById('practiceAttempts').innerHTML = '';
             createPracticeLetterBank();
@@ -523,17 +597,9 @@
         }
 
         function createPracticeLetterBank() {
-            const letterBank = document.getElementById('letterBank');
-            letterBank.innerHTML = '';
             const letters = currentWord.word.split('');
-            const shuffledLetters = [...letters].sort(() => Math.random() - 0.5);
-            shuffledLetters.forEach(letter => {
-                const letterElement = document.createElement('div');
-                letterElement.className = 'letter';
-                letterElement.textContent = letter.toUpperCase();
-                letterElement.onclick = () => handleLetterClick(letterElement, letter);
-                letterBank.appendChild(letterElement);
-            });
+            const extras = extraJumbleLetters(currentWord.word, 5, 8);
+            renderLetterBank([...letters, ...extras]);
         }
 
         function handlePracticeSubmit() {
@@ -542,7 +608,7 @@
             const attemptsContainer = document.getElementById('practiceAttempts');
             const attemptDiv = document.createElement('div');
             attemptDiv.className = `practice-attempt ${isCorrect ? 'correct' : 'incorrect'}`;
-            attemptDiv.innerHTML = `Attempt: <strong>${practiceInput.toUpperCase()}</strong> - ${isCorrect ? '✓ Correct' : '✗ Incorrect'}`;
+            attemptDiv.innerHTML = `Attempt: <strong>${practiceInput}</strong> - ${isCorrect ? '✓ Correct' : '✗ Incorrect'}`;
             attemptsContainer.appendChild(attemptDiv);
 
             practiceSelectedLetters = [];
@@ -636,6 +702,7 @@
                 keys.forEach(key => {
                     const keyBtn = document.createElement('button');
                     keyBtn.className = 'keyboard-key';
+                    keyBtn.dataset.letter = key;
                     keyBtn.textContent = key;
                     keyBtn.onclick = () => addLetter(key);
                     rowDiv.appendChild(keyBtn);
@@ -647,11 +714,16 @@
             // Add space bar row
             const spaceRowDiv = document.createElement('div');
             spaceRowDiv.className = 'keyboard-row';
+            const shiftBtn = document.createElement('button');
+            shiftBtn.id = 'shiftKey';
+            shiftBtn.className = 'keyboard-key shift-key';
+            shiftBtn.textContent = 'Shift';
+            shiftBtn.onclick = () => toggleShift();
             const spaceBtn = document.createElement('button');
             spaceBtn.className = 'keyboard-key space-key';
             spaceBtn.textContent = 'Space';
             spaceBtn.onclick = () => addLetter(' ');
-            spaceRowDiv.appendChild(spaceBtn);
+            spaceRowDiv.append(shiftBtn, spaceBtn);
             keyboardContainer.appendChild(spaceRowDiv);
         }
 

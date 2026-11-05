@@ -11,7 +11,7 @@
         .word-display { font-size: 28px; margin: 20px 0; padding: 15px; background: #f0f8ff; border-radius: 10px; min-height: 60px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
         #shownWord[hidden] { display: none !important; }
         #shownWord { width: 100%; }
-        #shownWord .copy-word { font-size: 42px; font-weight: 800; color: #1b3a4b; line-height: 1.1; }
+        #shownWord .copy-word { font-size: 42px; font-weight: 800; color: #1b3a4b; line-height: 1.4; }
         #shownWord .copy-label, #shownWord .copy-count { font-size: 18px; font-weight: 700; color: #3d4a57; }
         .letter-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; min-height: 80px; padding: 15px; background: #f5f5f5; border-radius: 10px; }
         .letter {
@@ -20,7 +20,7 @@
         }
         .letter:hover { background: #45a049; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
         .letter.used { background: #ccc; cursor: not-allowed; opacity: 0.6; }
-        .spelled-word { font-size: 32px; font-weight: bold; color: #2196F3; margin: 10px 0; min-height: 50px; }
+        .spelled-word { font-size: 32px; font-weight: bold; color: #2196F3; margin: 10px 0; min-height: 50px; line-height: 1.4; }
         .button-container { margin: 20px 0; display: flex; justify-content: center; gap: 10px; }
         .practice-container { margin: 20px 0; padding: 20px; background: #fff3cd; border-radius: 10px; border: 2px solid #ffeaa7; }
         .practice-attempt { margin: 10px 0; padding: 10px; border-radius: 5px; font-size: 20px; }
@@ -31,13 +31,15 @@
         .keyboard-row { display: flex; justify-content: center; gap: 8px; margin: 8px 0; flex-wrap: nowrap; }
         .keyboard-key {
             background: #ffffff; border: 2px solid #dee2e6; border-radius: 10px; padding: 18px 14px; font-size: 20px; font-weight: bold; cursor: pointer; 
-            transition: all 0.2s ease; min-width: 50px; min-height: 50px; text-align: center; line-height: 1;
+            transition: all 0.2s ease; min-width: 50px; min-height: 50px; text-align: center; line-height: 1.3;
             flex: 1 1 0; /* Equal width buttons */
             display: flex; align-items: center; justify-content: center;
         }
         .keyboard-key:hover { background: #e9ecef; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         .keyboard-key:active { background: #dee2e6; transform: translateY(0); }
         .accent-key { background: #fff3cd; border-color: #ffeaa7; }
+        .shift-key { flex: 1.6 1 0; max-width: 120px; background: #e7f3ff; }
+        .shift-key.shift-on { background: #2196F3; color: white; border-color: #1976d2; }
         .space-key { 
             flex: 3 1 0; /* Space key takes 3x the width of a regular key */
             max-width: 300px;
@@ -133,6 +135,7 @@
         /**
          * Normalize before compare: word JSON often uses U+2019 (') while the keyboard uses U+0027 (').
          * Same idea for hyphen/dash variants in compounds (e.g. rendez-vous).
+         * Case stays as written, so a capital that belongs in the word is required.
          */
         function normalizeSpellingAnswer(s) {
             if (typeof s !== 'string') return '';
@@ -141,8 +144,7 @@
                 .replace(/[\u200B-\u200D\uFEFF]/g, '')
                 .replace(/[\u2018\u2019\u201A\u2032\u02BC\uFF07\u0060\u00B4]/g, "'")
                 .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, '-')
-                .replace(/\s+/g, ' ')
-                .toLowerCase();
+                .replace(/\s+/g, ' ');
         }
 
         function spellingAnswersMatch(typed, expected) {
@@ -257,6 +259,7 @@
             selectedLetterElements = [];
             isInPracticeMode = false;
             isFirstAttempt = true; // Reset for new word
+            clearShift();
             document.getElementById('spelledWord').textContent = '';
             document.getElementById('practiceContainer').classList.add('hidden');
             document.getElementById('messageContainer').innerHTML = '';
@@ -376,23 +379,61 @@
             }
         }
 
-        function createLetterBank() {
+        const FRENCH_LETTER_POOL = 'abcdefghijklmnopqrstuvwxyzéèêëàâùûçîïô';
+
+        function frenchSoundSwapLetters(word) {
+            const lower = (word || '').toLowerCase();
+            const extras = [];
+            const groups = [
+                { re: /ant|ent|ans|ens|ins/, letters: 'aeinst' },
+                { re: /ain|ein|aim/, letters: 'aeimn' },
+                { re: /(?:^|[^a-zà-ü])(?:an|en)(?:[^a-zà-ü]|$)/, letters: 'aeins' },
+                { re: /on|om|ont/, letters: 'omnt' },
+                { re: /eau|au/, letters: 'eauô' },
+                { re: /é|er|ez/, letters: 'éeraizt' },
+                { re: /è|ê|ai|ei/, letters: 'èêaiey' },
+                { re: /ç|ss/, letters: 'çcs' },
+                { re: /ph/, letters: 'f' },
+                { re: /tion|sion/, letters: 'ts' }
+            ];
+            groups.forEach(group => {
+                if (group.re.test(lower)) extras.push(...group.letters.split(''));
+            });
+            return extras;
+        }
+
+        function extraJumbleLetters(word, minCount, maxCount) {
+            const targeted = frenchSoundSwapLetters(word);
+            const extras = [...targeted];
+            const randoms = FRENCH_LETTER_POOL.split('').sort(() => Math.random() - 0.5);
+            for (let i = 0; extras.length < maxCount && i < randoms.length; i++) {
+                extras.push(randoms[i]);
+            }
+            while (extras.length < minCount) extras.push(randoms[extras.length % randoms.length]);
+            if (extras.length > maxCount && extras.length > targeted.length) {
+                return targeted.concat(extras.slice(targeted.length, targeted.length + Math.max(0, maxCount - targeted.length)));
+            }
+            return extras;
+        }
+
+        function renderLetterBank(letterPool) {
             const letterBank = document.getElementById('letterBank');
             letterBank.innerHTML = '';
-            const letters = currentWord.word.split('');
-            let letterPool = letters;
-            if (gameMode === 'hard') {
-                const extra = 'abcdefghijklmnopqrstuvwxyzéèàùçû'.split('').sort(() => 0.5 - Math.random()).slice(0, 3);
-                letterPool = [...letters, ...extra];
-            }
-            const shuffledLetters = letterPool.sort(() => Math.random() - 0.5);
-            shuffledLetters.forEach(letter => {
+            letterPool.sort(() => Math.random() - 0.5).forEach(letter => {
                 const letterElement = document.createElement('div');
                 letterElement.className = 'letter';
-                letterElement.textContent = letter.toUpperCase();
+                letterElement.textContent = letter;
                 letterElement.onclick = () => handleLetterClick(letterElement, letter);
                 letterBank.appendChild(letterElement);
             });
+        }
+
+        function createLetterBank() {
+            const letters = currentWord.word.split('');
+            const extras = (gameMode === 'easy')
+                ? extraJumbleLetters(currentWord.word, 4, 6)
+                : extraJumbleLetters(currentWord.word, 8, 12);
+            renderLetterBank([...letters, ...extras]);
         }
 
         function handleLetterClick(element, letter) {
@@ -404,9 +445,41 @@
             updateSpelledWord();
         }
 
+        let shiftNext = false;
+
+        function isCasedLetter(letter) {
+            return letter.toLowerCase() !== letter.toUpperCase();
+        }
+
+        function paintShiftKeys() {
+            document.querySelectorAll('.keyboard-key[data-letter]').forEach(btn => {
+                const letter = btn.dataset.letter;
+                btn.textContent = shiftNext && isCasedLetter(letter) ? letter.toUpperCase() : letter;
+            });
+            const shiftBtn = document.getElementById('shiftKey');
+            if (shiftBtn) shiftBtn.classList.toggle('shift-on', shiftNext);
+        }
+
+        function toggleShift() {
+            shiftNext = !shiftNext;
+            paintShiftKeys();
+        }
+
+        function clearShift() {
+            if (!shiftNext) return;
+            shiftNext = false;
+            paintShiftKeys();
+        }
+
         function addLetter(letter) {
             const state = getSelectionState();
-            state.letters.push(letter);
+            let typed = letter;
+            if (shiftNext && isCasedLetter(letter)) {
+                typed = letter.toUpperCase();
+                shiftNext = false;
+                paintShiftKeys();
+            }
+            state.letters.push(typed);
             // Keyboard input has no letter-bank element to re-enable on delete.
             state.elements.push(null);
             updateSpelledWord();
@@ -433,7 +506,7 @@
 
         function updateSpelledWord() {
             const state = getSelectionState();
-            document.getElementById('spelledWord').textContent = state.letters.join('').toUpperCase();
+            document.getElementById('spelledWord').textContent = state.letters.join('');
         }
 
         function handleSubmit() {
@@ -473,7 +546,7 @@
             document.getElementById('submitBtn').style.display = 'inline-block';
             const practiceContainer = document.getElementById('practiceContainer');
             practiceContainer.classList.remove('hidden');
-            document.getElementById('correctWordDisplay').innerHTML = `<h4>Correct spelling: <strong>${currentWord.word.toUpperCase()}</strong></h4>`;
+            document.getElementById('correctWordDisplay').innerHTML = `<h4>Correct spelling: <strong>${currentWord.word}</strong></h4>`;
             document.getElementById('keyboardContainer').classList.add('hidden');
             document.getElementById('practiceAttempts').innerHTML = '';
             createPracticeLetterBank();
@@ -482,17 +555,9 @@
         }
 
         function createPracticeLetterBank() {
-            const letterBank = document.getElementById('letterBank');
-            letterBank.innerHTML = '';
             const letters = currentWord.word.split('');
-            const shuffledLetters = [...letters].sort(() => Math.random() - 0.5);
-            shuffledLetters.forEach(letter => {
-                const letterElement = document.createElement('div');
-                letterElement.className = 'letter';
-                letterElement.textContent = letter.toUpperCase();
-                letterElement.onclick = () => handleLetterClick(letterElement, letter);
-                letterBank.appendChild(letterElement);
-            });
+            const extras = extraJumbleLetters(currentWord.word, 5, 8);
+            renderLetterBank([...letters, ...extras]);
         }
 
         function handlePracticeSubmit() {
@@ -501,7 +566,7 @@
             const attemptsContainer = document.getElementById('practiceAttempts');
             const attemptDiv = document.createElement('div');
             attemptDiv.className = `practice-attempt ${isCorrect ? 'correct' : 'incorrect'}`;
-            attemptDiv.innerHTML = `Attempt: <strong>${practiceInput.toUpperCase()}</strong> - ${isCorrect ? '✓ Correct' : '✗ Incorrect'}`;
+            attemptDiv.innerHTML = `Attempt: <strong>${practiceInput}</strong> - ${isCorrect ? '✓ Correct' : '✗ Incorrect'}`;
             attemptsContainer.appendChild(attemptDiv);
 
             practiceSelectedLetters = [];
@@ -598,6 +663,7 @@
                 keys.forEach(key => {
                     const keyBtn = document.createElement('button');
                     keyBtn.className = 'keyboard-key';
+                    keyBtn.dataset.letter = key;
                     if ('àâçéèêëîïôûù'.includes(key)) keyBtn.classList.add('accent-key');
                     keyBtn.textContent = key;
                     keyBtn.onclick = () => addLetter(key);
@@ -610,11 +676,16 @@
             // Add space bar row
             const spaceRowDiv = document.createElement('div');
             spaceRowDiv.className = 'keyboard-row';
+            const shiftBtn = document.createElement('button');
+            shiftBtn.id = 'shiftKey';
+            shiftBtn.className = 'keyboard-key shift-key';
+            shiftBtn.textContent = 'Maj';
+            shiftBtn.onclick = () => toggleShift();
             const spaceBtn = document.createElement('button');
             spaceBtn.className = 'keyboard-key space-key';
             spaceBtn.textContent = 'Space';
             spaceBtn.onclick = () => addLetter(' ');
-            spaceRowDiv.appendChild(spaceBtn);
+            spaceRowDiv.append(shiftBtn, spaceBtn);
             keyboardContainer.appendChild(spaceRowDiv);
         }
 
