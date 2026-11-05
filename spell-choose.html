@@ -19,8 +19,8 @@
   <main class="quiz" id="ask">
     <p class="prompt">How do you want to write your spelling?</p>
     <div class="pick">
-      <button type="button" id="screenBtn">On the screen</button>
-      <button type="button" id="paperBtn">On paper</button>
+      <button type="button" id="screenBtn" disabled>On the screen</button>
+      <button type="button" id="paperBtn" disabled>On paper</button>
       <button type="button" id="jumbleBtn">Keyboard</button>
     </div>
   </main>
@@ -49,8 +49,6 @@
       SpellMode.go(next, mode, params);
     }
 
-    document.getElementById("screenBtn").addEventListener("click", function () { choose("screen"); });
-    document.getElementById("paperBtn").addEventListener("click", function () { choose("paper"); });
     document.getElementById("jumbleBtn").addEventListener("click", function () { choose("jumble"); });
   </script>
 </body>
