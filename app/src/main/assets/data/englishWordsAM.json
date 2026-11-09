@@ -1,12 +1,12 @@
 [
-  {"word":"open","sentence":"Please open the door for Grandma."},
-  {"word":"item","sentence":"I put one more item in the shopping cart."},
-  {"word":"music","sentence":"We dance when the music is loud."},
-  {"word":"secret","sentence":"My friend told me a secret at recess."},
-  {"word":"frozen","sentence":"The pond is frozen in the winter."},
-  {"word":"napkin","sentence":"I wipe my mouth with a napkin."},
-  {"word":"dentist","sentence":"The dentist checked my teeth today."},
-  {"word":"problem","sentence":"I solved the math problem by myself."},
-  {"word":"rocket","sentence":"The rocket zoomed up into the sky."},
-  {"word":"until","sentence":"We can play outside until dinner."}
+{"word":"smart","sentence":"My dog is very smart."},
+{"word":"garden","sentence":"We grow carrots in our garden."},
+{"word":"under","sentence":"The cat is under the bed."},
+{"word":"purse","sentence":"Mom put her keys in her purse."},
+{"word":"work","sentence":"Dad goes to work in the morning."},
+{"word":"word","sentence":"Can you spell this word?"},
+{"word":"store","sentence":"We buy milk at the store."},
+{"word":"herd","sentence":"A herd of cows is in the field."},
+{"word":"curl","sentence":"My hair has a curl in it."},
+{"word":"shirt","sentence":"I have a red shirt."}
 ]
