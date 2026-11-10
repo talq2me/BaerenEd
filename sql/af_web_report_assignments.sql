@@ -2,8 +2,8 @@
 --   reports/daily_progress_report.html — today's required and practice lists.
 --   reports/index.html — home progress counts and chore titles.
 --   reports/schedule.html — week grid.
--- All web assignments for one profile, including ones that are off. Checklist is not included.
--- The tablet still reads the GitHub JSON configs.
+--   reports/schedule_editor.html — weekly schedule editor.
+-- All web assignments for one profile, including checklist and disabled rows.
 
 CREATE OR REPLACE FUNCTION af_web_report_assignments(p_profile text)
 RETURNS jsonb
@@ -46,11 +46,12 @@ BEGIN
         'chromePage', a.chrome_page,
         'videoSequence', a.video_sequence,
         'video', a.video,
-        'description', a.description
+        'description', a.description,
+        'verifyKind', a.verify_kind,
+        'verifyParams', COALESCE(a.verify_params, '{}'::jsonb)
       ) AS item
     FROM web_assignments a
     WHERE a.profile = v_profile
-      AND a.section <> 'checklist'
   ) listed;
 
   RETURN COALESCE(v_rows, '[]'::jsonb);

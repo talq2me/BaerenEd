@@ -330,6 +330,23 @@
         }
         .add-row input { flex: 1; min-width: 140px; padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
         .hint { font-size: 0.85rem; color: #777; margin-bottom: 10px; }
+        .site-check-fields {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 8px;
+            align-items: center;
+            width: 100%;
+            flex-basis: 100%;
+            margin-top: 2px;
+        }
+        .site-check-fields input[type="text"] {
+            padding: 3px 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.72rem;
+        }
+        .site-check-fields .verify-kind { width: 7.5rem; }
+        .site-check-fields .verify-params { flex: 1; min-width: 5rem; }
     </style>
 </head>
 <body>
@@ -406,6 +423,18 @@
             <div class="card">
                 <button type="button" class="card-toggle" aria-expanded="false">
                     <svg class="card-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h2>Checklist / site-verify tasks</h2>
+                </button>
+                <div class="card-body">
+                    <p class="hint">Same on/off and day controls as required tasks. Set <strong>Site kind</strong> (e.g. rallye_lecture) for Grok to verify on external sites; leave blank for normal checklist items.</p>
+                    <div class="week-grid" id="checklistWeek"></div>
+                    <div id="checklistList" style="margin-top:12px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <button type="button" class="card-toggle" aria-expanded="false">
+                    <svg class="card-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
                     <h2>Practice tasks config</h2>
                 </button>
                 <div class="card-body">
@@ -415,6 +444,16 @@
             </div>
         </div>
     </div>
+
+    <datalist id="verifyKindList">
+        <option value="rallye_lecture"></option>
+        <option value="anton"></option>
+        <option value="motoufo"></option>
+        <option value="xtramath"></option>
+        <option value="boukili"></option>
+        <option value="beaver_contest"></option>
+        <option value="northstar_math"></option>
+    </datalist>
 
     <div class="modal-overlay" id="daysModal">
         <div class="modal">
@@ -526,7 +565,7 @@
 
         let profile = 'AM';
         /** Task definitions loaded from web_assignments. */
-        let assignmentTasks = { required: [], practice: [] };
+        let assignmentTasks = { required: [], practice: [], checklist: [] };
         let dbRow = {
             required_tasks: {},
             practice_tasks: {},
@@ -708,6 +747,10 @@
             let url = cfg.url || data.url || null;
             if (chore && url) url = setRewardCashOnUrl(url, parseRewardCash(entry));
             const questions = data.totalQuestions ?? cfg.totalQuestions;
+            let verifyParams = cfg.verifyParams || data.verifyParams || null;
+            if (typeof verifyParams === 'string' && verifyParams.trim()) {
+                try { verifyParams = JSON.parse(verifyParams); } catch (_) { verifyParams = null; }
+            }
             return {
                 section: bucket === 'practice' ? 'optional' : (bucket === 'checklist' ? 'checklist' : 'required'),
                 title: entry.title,
@@ -718,13 +761,15 @@
                 total_questions: questions == null ? null : questions,
                 url: url,
                 web_game: cfg.webGame === true || data.webGame === true || chore,
-                description: cfg.description || data.description || null
+                description: cfg.description || data.description || null,
+                verify_kind: (cfg.verifyKind || data.verifyKind || '').trim() || null,
+                verify_params: verifyParams
             };
         }
 
         function webRowsFromCatalog() {
             const rows = [];
-            ['required', 'practice'].forEach(function (bucket) {
+            ['required', 'practice', 'checklist'].forEach(function (bucket) {
                 (catalog[bucket] || []).forEach(function (entry) {
                     if (!entry.title) return;
                     rows.push(webScheduleRow(bucket, entry));
@@ -979,7 +1024,11 @@
             catalog.checklist.push({
                 key,
                 title: label,
-                config: it,
+                config: {
+                    ...it,
+                    verifyKind: it.verifyKind || '',
+                    verifyParams: it.verifyParams || null
+                },
                 data: mergeChecklistItem(label, it, dbChecklist)
             });
         }
@@ -993,9 +1042,16 @@
             for (const t of assignmentTasks.practice || []) {
                 pushCatalogEntry('practice', 'practice', t, dbRow.practice_tasks);
             }
+            for (const t of assignmentTasks.checklist || []) {
+                pushChecklistCatalogEntry(
+                    { label: t.title, stars: t.stars, displayDays: t.displayDays, scheduleKey: t.scheduleKey },
+                    dbRow.checklist_items
+                );
+            }
 
             dedupeCatalogBucket('required');
             dedupeCatalogBucket('practice');
+            dedupeCatalogBucket('checklist');
 
             const sortOnFirst = (a, b) => {
                 const ao = isScheduleOn(a.data) ? 0 : 1;
@@ -1005,6 +1061,7 @@
             };
             catalog.required.sort(sortOnFirst);
             catalog.practice.sort(sortOnFirst);
+            catalog.checklist.sort(sortOnFirst);
         }
 
         function syncCatalogToDb() {
@@ -1023,6 +1080,21 @@
             }
             mergeBucket(catalog.required, dbRow.required_tasks);
             mergeBucket(catalog.practice, dbRow.practice_tasks);
+            function mergeChecklistBucket(entries, map) {
+                entries.forEach(entry => {
+                    const prev = map[entry.title] || {};
+                    const data = entry.data || {};
+                    const next = { ...prev, ...data };
+                    ['displayDays', 'showdays', 'hidedays'].forEach(k => {
+                        if (data[k] === undefined || data[k] === null || data[k] === '') delete next[k];
+                    });
+                    if (data.disable === undefined || data.disable === null) delete next.disable;
+                    else next.disable = data.disable;
+                    if (data.stars != null) next.stars = data.stars;
+                    map[entry.title] = next;
+                });
+            }
+            mergeChecklistBucket(catalog.checklist, dbRow.checklist_items);
         }
 
         function getOrderedWeekDays() {
@@ -1085,6 +1157,18 @@
                 const deleteBtn = bucket === 'checklist'
                     ? `<button type="button" class="icon-btn danger" data-action="delete" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Delete from database">🗑</button>`
                     : '';
+                const verifyKind = entry.config?.verifyKind || entry.data?.verifyKind || '';
+                let verifyParamsStr = '';
+                const vp = entry.config?.verifyParams ?? entry.data?.verifyParams;
+                if (vp != null && vp !== '') {
+                    verifyParamsStr = typeof vp === 'string' ? vp : JSON.stringify(vp);
+                }
+                const siteFields = `
+                    <div class="site-check-fields">
+                        <span class="field">Site</span>
+                        <input type="text" class="verify-kind" list="verifyKindList" placeholder="kind" value="${escapeAttr(verifyKind)}" data-field="verifyKind" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="EduSiteChecker verify_kind">
+                        <input type="text" class="verify-params" placeholder='{"min_books":2}' value="${escapeAttr(verifyParamsStr)}" data-field="verifyParams" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="verify_params JSON">
+                    </div>`;
                 row.innerHTML = `
                     <div class="name">${escapeHtml(entry.title)}</div>
                     <div class="controls">
@@ -1098,6 +1182,7 @@
                         ${qBlock}
                         ${deleteBtn}
                     </div>
+                    ${siteFields}
                 `;
                 el.appendChild(row);
             });
@@ -1167,6 +1252,26 @@
                 entry.data.rewardCash = isNaN(n) ? 0 : n;
                 if (entry.config?.url) {
                     entry.config.url = setRewardCashOnUrl(entry.config.url, entry.data.rewardCash);
+                }
+            } else if (field === 'verifyKind') {
+                const kind = String(value || '').trim();
+                entry.data.verifyKind = kind;
+                if (!entry.config) entry.config = {};
+                entry.config.verifyKind = kind;
+            } else if (field === 'verifyParams') {
+                const raw = String(value || '').trim();
+                if (!entry.config) entry.config = {};
+                if (!raw) {
+                    delete entry.data.verifyParams;
+                    delete entry.config.verifyParams;
+                    return;
+                }
+                try {
+                    entry.data.verifyParams = JSON.parse(raw);
+                    entry.config.verifyParams = entry.data.verifyParams;
+                } catch (_) {
+                    entry.data.verifyParams = raw;
+                    entry.config.verifyParams = raw;
                 }
             }
         }
@@ -1240,8 +1345,10 @@
             buildCatalog();
             renderWeekGrid('requiredWeek', catalog.required);
             renderWeekGrid('practiceWeek', catalog.practice);
+            renderWeekGrid('checklistWeek', catalog.checklist);
             renderTaskList('requiredList', catalog.required.filter(e => !isChoreEntry(e)), 'required');
             renderTaskList('requiredChoresList', catalog.required.filter(e => isChoreEntry(e)), 'required');
+            renderTaskList('checklistList', catalog.checklist, 'checklist');
             renderTaskList('practiceList', catalog.practice, 'practice');
         }
 
@@ -1266,6 +1373,8 @@
             if (row.description) next.description = row.description;
             if (row.stars != null) next.stars = row.stars;
             if (row.totalQuestions != null) next.totalQuestions = row.totalQuestions;
+            if (row.verifyKind) next.verifyKind = row.verifyKind;
+            if (row.verifyParams) next.verifyParams = row.verifyParams;
             delete next.showdays;
             delete next.hidedays;
             if (row.displayDays) next.displayDays = row.displayDays;
@@ -1288,8 +1397,12 @@
             catalog = { required: [], practice: [], checklist: [] };
             assignmentTasks = { required: [], practice: [] };
             (Array.isArray(rows) ? rows : []).forEach(row => {
-                if (!row || (row.section !== 'required' && row.section !== 'optional')) return;
-                const bucket = row.section === 'optional' ? 'practice' : 'required';
+                if (!row || !row.section) return;
+                let bucket;
+                if (row.section === 'optional') bucket = 'practice';
+                else if (row.section === 'checklist') bucket = 'checklist';
+                else if (row.section === 'required') bucket = 'required';
+                else return;
                 const task = {
                     title: row.title,
                     launch: row.launch,
@@ -1298,10 +1411,13 @@
                     stars: row.stars,
                     totalQuestions: row.totalQuestions,
                     description: row.description,
-                    displayDays: row.displayDays || ''
+                    displayDays: row.displayDays || '',
+                    verifyKind: row.verifyKind || '',
+                    verifyParams: row.verifyParams || null
                 };
                 task.scheduleKey = taskScheduleKey(task, bucket);
                 assignmentTasks[bucket].push(task);
+                if (bucket === 'checklist') return;
                 const map = bucket === 'practice' ? dbRow.practice_tasks : dbRow.required_tasks;
                 map[row.title] = seedTaskFromWeb(map[row.title], row);
             });
@@ -1374,6 +1490,7 @@
                     body: JSON.stringify({
                         required_tasks: dbRow.required_tasks,
                         practice_tasks: dbRow.practice_tasks,
+                        checklist_items: dbRow.checklist_items,
                         last_updated: nowEST()
                     })
                 });
@@ -1382,7 +1499,7 @@
                     throw new Error(`${res.status} ${t}`);
                 }
 
-                await saveWebSchedule(profile, webRowsFromCatalog(), false);
+                await saveWebSchedule(profile, webRowsFromCatalog(), true);
 
                 const otherNotes = await savePendingChoresToOtherProfiles();
                 pendingChoreAdds = [];

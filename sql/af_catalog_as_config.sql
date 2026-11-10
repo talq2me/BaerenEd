@@ -47,7 +47,20 @@ AS $$
       jsonb_build_object('id', 'bonus', 'tasks', COALESCE((
         SELECT jsonb_agg(task ORDER BY sort_order) FROM tasks WHERE section_id = 'bonus'
       ), '[]'::jsonb)),
-      jsonb_build_object('id', 'checklist', 'items', '[]'::jsonb)
+      jsonb_build_object('id', 'checklist', 'items', COALESCE((
+        SELECT jsonb_agg(
+          jsonb_strip_nulls(jsonb_build_object(
+            'label', a.title,
+            'stars', a.stars,
+            'displayDays', a.display_days
+          ))
+          ORDER BY a.sort_order
+        )
+        FROM web_assignments a
+        WHERE a.profile = upper(trim(p_profile))
+          AND a.section = 'checklist'
+          AND a.enabled
+      ), '[]'::jsonb))
     )
   );
 $$;

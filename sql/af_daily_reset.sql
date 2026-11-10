@@ -42,6 +42,7 @@ BEGIN
     PERFORM af_update_tasks_from_config_required(p_profile);
     PERFORM af_update_tasks_from_config_practice(p_profile);
     PERFORM af_update_tasks_from_config_bonus(p_profile);
+    PERFORM af_update_tasks_from_config_checklist(p_profile);
   END IF;
 END;
 $$;

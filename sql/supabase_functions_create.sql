@@ -12,15 +12,17 @@
 
 -- Drop existing function signatures first
 DROP FUNCTION IF EXISTS af_catalog_as_config(text);
+DROP FUNCTION IF EXISTS af_confirm_edu_site_check_batch(text, jsonb, boolean);
+DROP FUNCTION IF EXISTS af_confirm_edu_site_check_item(text, text, boolean, boolean, text);
 DROP FUNCTION IF EXISTS af_daily_reset(text);
 DROP FUNCTION IF EXISTS af_delete_behavior_log(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_upload_by_id(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_uploads_ilike(text, text);
 DROP FUNCTION IF EXISTS af_enqueue_reading_audio_review(text, text, date);
+DROP FUNCTION IF EXISTS af_enqueue_spelling_jumble_review(text, text, date);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_ocr_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_paper_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_xtra_review(text, text, date, int);
-DROP FUNCTION IF EXISTS af_enqueue_spelling_jumble_review(text, text, date);
 DROP FUNCTION IF EXISTS af_get_battle_hub_counts(text);
 DROP FUNCTION IF EXISTS af_get_behavior_log(text, timestamp, timestamp);
 DROP FUNCTION IF EXISTS af_get_current_required_tasks(text);
@@ -43,12 +45,14 @@ DROP FUNCTION IF EXISTS af_get_user_last_reset(text);
 DROP FUNCTION IF EXISTS af_get_user_last_updated(text);
 DROP FUNCTION IF EXISTS af_grant_chore_reward(text, text, numeric);
 DROP FUNCTION IF EXISTS af_insert_user_data_profile(text);
+DROP FUNCTION IF EXISTS af_list_edu_site_check_tasks(text, date);
 DROP FUNCTION IF EXISTS af_list_reward_spinner();
 DROP FUNCTION IF EXISTS af_list_unscored_reading(text, text, date);
 DROP FUNCTION IF EXISTS af_list_unverified_spelling(text, text, date, text);
 DROP FUNCTION IF EXISTS af_log_behavior(text, text, text);
 DROP FUNCTION IF EXISTS af_mark_spelling_xtra_complete(text, text, date);
 DROP FUNCTION IF EXISTS af_maybe_advance_spelling_pools(text);
+DROP FUNCTION IF EXISTS af_maybe_enqueue_edu_site_checker(text);
 DROP FUNCTION IF EXISTS af_maybe_record_collector_card_day(text);
 DROP FUNCTION IF EXISTS af_payout_collector_cards(text, int);
 DROP FUNCTION IF EXISTS af_push_profile_config_to_github(text, jsonb, text, jsonb);
@@ -74,6 +78,7 @@ DROP FUNCTION IF EXISTS af_update_tasks_bonus(text, text, int, int, int, int, in
 DROP FUNCTION IF EXISTS af_update_tasks_checklist_items(text, text, boolean);
 DROP FUNCTION IF EXISTS af_update_tasks_chores(text, int, boolean);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_bonus(text, jsonb);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_checklist(text);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_practice(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_required(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_photo_chores(text, text);
@@ -85,6 +90,7 @@ DROP FUNCTION IF EXISTS af_upsert_settings_row(text, text, boolean, boolean, int
 DROP FUNCTION IF EXISTS af_upsert_user_data_columns(text, jsonb);
 DROP FUNCTION IF EXISTS af_web_add_assignment(text, text, text, text, text, int, int, text, boolean);
 DROP FUNCTION IF EXISTS af_web_battle_state(text);
+DROP FUNCTION IF EXISTS af_web_edu_site_verification(text);
 DROP FUNCTION IF EXISTS af_web_finish_battle(text, int);
 DROP FUNCTION IF EXISTS af_web_list_tasks(text);
 DROP FUNCTION IF EXISTS af_web_remove_assignment(text, text, text);
@@ -174,7 +180,20 @@ AS $$
       jsonb_build_object('id', 'bonus', 'tasks', COALESCE((
         SELECT jsonb_agg(task ORDER BY sort_order) FROM tasks WHERE section_id = 'bonus'
       ), '[]'::jsonb)),
-      jsonb_build_object('id', 'checklist', 'items', '[]'::jsonb)
+      jsonb_build_object('id', 'checklist', 'items', COALESCE((
+        SELECT jsonb_agg(
+          jsonb_strip_nulls(jsonb_build_object(
+            'label', a.title,
+            'stars', a.stars,
+            'displayDays', a.display_days
+          ))
+          ORDER BY a.sort_order
+        )
+        FROM web_assignments a
+        WHERE a.profile = upper(trim(p_profile))
+          AND a.section = 'checklist'
+          AND a.enabled
+      ), '[]'::jsonb))
     )
   );
 $$;
@@ -639,6 +658,61 @@ GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_required(text, jsonb) TO a
 
 
 -- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_checklist.sql
+-- -----------------------------------------------------------------------------
+-- Merge enabled checklist rows from web_assignments into user_data.checklist_items (preserves done per label).
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_checklist(p_profile text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  existing jsonb;
+  merged jsonb;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO existing
+  FROM user_data
+  WHERE profile = v_profile;
+
+  SELECT COALESCE(
+    jsonb_object_agg(
+      a.title,
+      jsonb_strip_nulls(jsonb_build_object(
+        'done', COALESCE((existing->a.title->>'done')::boolean, false),
+        'stars', a.stars,
+        'displayDays', a.display_days,
+        'verification_status', existing->a.title->'verification_status',
+        'verification_note', existing->a.title->'verification_note',
+        'verified_at', existing->a.title->'verified_at'
+      ))
+    ),
+    '{}'::jsonb
+  )
+  INTO merged
+  FROM web_assignments a
+  WHERE a.profile = v_profile
+    AND a.section = 'checklist'
+    AND a.enabled;
+
+  UPDATE user_data
+  SET
+    checklist_items = COALESCE(merged, '{}'::jsonb),
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = v_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_checklist(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
 -- FILE: af_daily_reset.sql
 -- -----------------------------------------------------------------------------
 -- Call sites (BaerenEd Android, this repo):
@@ -685,6 +759,7 @@ BEGIN
     PERFORM af_update_tasks_from_config_required(p_profile);
     PERFORM af_update_tasks_from_config_practice(p_profile);
     PERFORM af_update_tasks_from_config_bonus(p_profile);
+    PERFORM af_update_tasks_from_config_checklist(p_profile);
   END IF;
 END;
 $$;
@@ -3169,6 +3244,523 @@ GRANT EXECUTE ON FUNCTION af_get_required_progress_today(text) TO anon, authenti
 
 
 -- -----------------------------------------------------------------------------
+-- FILE: af_list_edu_site_check_tasks.sql
+-- -----------------------------------------------------------------------------
+-- Call site: EduSiteChecker Cursor Automation after webhook ping.
+-- POST /rest/v1/rpc/af_list_edu_site_check_tasks {"p_profile":"AM","p_date":"2026-11-10"}
+-- Returns visible-today required/checklist rows that have verify_kind in web_assignments (see display_days / hidedays on the assignment).
+-- After the daily webhook, only rows the kid already marked done/complete are included — that is the set to verify.
+
+DROP FUNCTION IF EXISTS af_list_edu_site_check_tasks(text, date);
+
+CREATE OR REPLACE FUNCTION af_list_edu_site_check_tasks(
+  p_profile text,
+  p_date date DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH v_date AS (
+    SELECT COALESCE(
+      p_date,
+      (NOW() AT TIME ZONE 'America/Toronto')::date
+    ) AS d
+  ),
+  rows AS (
+    SELECT
+      t.task_name,
+      t.is_checklist,
+      lower(t.completion_status) AS completion_status,
+      wa.section,
+      wa.verify_kind,
+      wa.verify_params,
+      COALESCE(
+        CASE
+          WHEN t.is_checklist THEN ud.checklist_items->t.task_name->>'verification_status'
+          ELSE ud.required_tasks->t.task_name->>'verification_status'
+        END,
+        'pending'
+      ) AS verification_status
+    FROM af_get_tasks_required(p_profile) AS t
+    CROSS JOIN v_date
+    LEFT JOIN user_data ud ON ud.profile = p_profile
+    INNER JOIN web_assignments wa
+      ON wa.profile = p_profile
+      AND wa.title = t.task_name
+      AND wa.section = CASE WHEN t.is_checklist THEN 'checklist' ELSE 'required' END
+      AND wa.enabled
+    WHERE btrim(COALESCE(wa.verify_kind, '')) <> ''
+      AND lower(t.completion_status) IN ('complete', 'done')
+  )
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'task_name', r.task_name,
+        'is_checklist', r.is_checklist,
+        'section', r.section,
+        'verify_kind', r.verify_kind,
+        'verify_params', COALESCE(r.verify_params, '{}'::jsonb),
+        'verification_status', r.verification_status
+      )
+      ORDER BY r.is_checklist, r.task_name
+    ),
+    '[]'::jsonb
+  )
+  FROM rows r;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_list_edu_site_check_tasks(text, date) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_confirm_edu_site_check_item.sql
+-- -----------------------------------------------------------------------------
+-- Call site: EduSiteChecker automation after checking a site.
+-- POST .../rpc/af_confirm_edu_site_check_item
+--   {"p_profile":"AM","p_task_name":"Read 2 Rallye books","p_is_checklist":true,"p_success":true,"p_note":"2 books today"}
+
+DROP FUNCTION IF EXISTS af_confirm_edu_site_check_item(text, text, boolean, boolean, text);
+
+CREATE OR REPLACE FUNCTION af_confirm_edu_site_check_item(
+  p_profile text,
+  p_task_name text,
+  p_is_checklist boolean,
+  p_success boolean,
+  p_note text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_status text := CASE WHEN p_success THEN 'verified' ELSE 'failed' END;
+  v_now timestamptz := (NOW() AT TIME ZONE 'America/Toronto');
+  v_date date := v_now::date;
+  cur jsonb;
+  patch jsonb;
+  v_pending int;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF btrim(COALESCE(p_task_name, '')) = '' THEN
+    RAISE EXCEPTION 'task_name required';
+  END IF;
+
+  IF p_is_checklist THEN
+    SELECT COALESCE(checklist_items, '{}'::jsonb) INTO cur FROM user_data WHERE profile = v_profile;
+    patch := COALESCE(cur->p_task_name, '{}'::jsonb) || jsonb_build_object(
+      'verification_status', v_status,
+      'verified_at', v_now,
+      'verification_note', NULLIF(btrim(COALESCE(p_note, '')), '')
+    );
+    UPDATE user_data
+    SET
+      checklist_items = jsonb_set(cur, ARRAY[p_task_name], patch, true),
+      last_updated = v_now
+    WHERE profile = v_profile;
+  ELSE
+    SELECT COALESCE(required_tasks, '{}'::jsonb) INTO cur FROM user_data WHERE profile = v_profile;
+    patch := COALESCE(cur->p_task_name, '{}'::jsonb) || jsonb_build_object(
+      'verification_status', v_status,
+      'verified_at', v_now,
+      'verification_note', NULLIF(btrim(COALESCE(p_note, '')), '')
+    );
+    UPDATE user_data
+    SET
+      required_tasks = jsonb_set(cur, ARRAY[p_task_name], patch, true),
+      last_updated = v_now
+    WHERE profile = v_profile;
+  END IF;
+
+  SELECT count(*)::int INTO v_pending
+  FROM jsonb_array_elements(af_list_edu_site_check_tasks(v_profile, v_date)) AS e(elem)
+  WHERE COALESCE(e.elem->>'verification_status', 'pending') <> 'verified';
+
+  UPDATE edu_site_checker_runs
+  SET status = CASE WHEN COALESCE(v_pending, 0) > 0 THEN 'incomplete' ELSE 'complete' END
+  WHERE profile = v_profile
+    AND check_date = v_date;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_confirm_edu_site_check_item(text, text, boolean, boolean, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_confirm_edu_site_check_batch.sql
+-- -----------------------------------------------------------------------------
+-- Call site: EduSiteChecker automation — one POST after checking all sites for the day.
+-- Body example:
+-- {
+--   "p_profile": "AM",
+--   "p_results": [
+--     {"task_name":"Read 2 Rallye books","is_checklist":true,"success":true,"note":null},
+--     {"task_name":"Anton fractions","is_checklist":false,"success":false,"note":"0 exercises today"}
+--   ],
+--   "p_clear_marked_on_fail": true
+-- }
+-- When p_clear_marked_on_fail is true (default): failed checklist items get done=false;
+-- failed required tasks get status=incomplete so the app shows what still needs work.
+
+DROP FUNCTION IF EXISTS af_confirm_edu_site_check_batch(text, jsonb, boolean);
+
+CREATE OR REPLACE FUNCTION af_confirm_edu_site_check_batch(
+  p_profile text,
+  p_results jsonb,
+  p_clear_marked_on_fail boolean DEFAULT true
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_now timestamptz := (NOW() AT TIME ZONE 'America/Toronto');
+  v_date date := v_now::date;
+  elem jsonb;
+  v_name text;
+  v_is_checklist boolean;
+  v_success boolean;
+  v_note text;
+  v_status text;
+  req jsonb;
+  chk jsonb;
+  patch jsonb;
+  v_verified int := 0;
+  v_failed int := 0;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF p_results IS NULL OR jsonb_typeof(p_results) <> 'array' THEN
+    RAISE EXCEPTION 'p_results must be a JSON array';
+  END IF;
+
+  SELECT COALESCE(required_tasks, '{}'::jsonb),
+         COALESCE(checklist_items, '{}'::jsonb)
+    INTO req, chk
+  FROM user_data
+  WHERE profile = v_profile
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Unknown profile: %', v_profile;
+  END IF;
+
+  FOR elem IN SELECT value FROM jsonb_array_elements(p_results)
+  LOOP
+    v_name := btrim(elem->>'task_name');
+    IF v_name = '' THEN
+      CONTINUE;
+    END IF;
+    v_is_checklist := COALESCE((elem->>'is_checklist')::boolean, false);
+    v_success := COALESCE((elem->>'success')::boolean, false);
+    v_note := NULLIF(btrim(COALESCE(elem->>'note', '')), '');
+    v_status := CASE WHEN v_success THEN 'verified' ELSE 'failed' END;
+
+    IF v_is_checklist THEN
+      patch := COALESCE(chk->v_name, '{}'::jsonb) || jsonb_build_object(
+        'verification_status', v_status,
+        'verified_at', v_now,
+        'verification_note', v_note
+      );
+      IF NOT v_success AND COALESCE(p_clear_marked_on_fail, true) THEN
+        patch := patch || jsonb_build_object('done', false);
+      END IF;
+      chk := jsonb_set(chk, ARRAY[v_name], patch, true);
+    ELSE
+      patch := COALESCE(req->v_name, '{}'::jsonb) || jsonb_build_object(
+        'verification_status', v_status,
+        'verified_at', v_now,
+        'verification_note', v_note
+      );
+      IF NOT v_success AND COALESCE(p_clear_marked_on_fail, true) THEN
+        patch := patch || jsonb_build_object('status', 'incomplete');
+      END IF;
+      req := jsonb_set(req, ARRAY[v_name], patch, true);
+    END IF;
+
+    IF v_success THEN
+      v_verified := v_verified + 1;
+    ELSE
+      v_failed := v_failed + 1;
+    END IF;
+  END LOOP;
+
+  UPDATE user_data
+  SET
+    required_tasks = req,
+    checklist_items = chk,
+    last_updated = v_now
+  WHERE profile = v_profile;
+
+  UPDATE edu_site_checker_runs
+  SET status = CASE
+    WHEN EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(af_list_edu_site_check_tasks(v_profile, v_date)) AS e(item)
+      WHERE COALESCE(item->>'verification_status', 'pending') <> 'verified'
+    ) THEN 'incomplete'
+    ELSE 'complete'
+  END
+  WHERE profile = v_profile
+    AND check_date = v_date;
+
+  RETURN jsonb_build_object(
+    'verified', v_verified,
+    'failed', v_failed,
+    'profile', v_profile,
+    'date', to_char(v_date, 'YYYY-MM-DD')
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_confirm_edu_site_check_batch(text, jsonb, boolean) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_maybe_enqueue_edu_site_checker.sql
+-- -----------------------------------------------------------------------------
+-- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
+-- Fires EduSiteChecker Bot Webhook up to twice per profile per Toronto day when all visible required work is marked done/complete.
+-- Vault secret: edu_site_checker_webhook_bearer (crsr_ token only, no "Bearer " prefix).
+
+CREATE OR REPLACE FUNCTION af_maybe_enqueue_edu_site_checker(p_profile text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_date date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  v_day text;
+  v_progress jsonb;
+  v_task_count int;
+  v_token text;
+  v_body text;
+  v_claimed int;
+  v_status int;
+  v_send_count int;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RETURN;
+  END IF;
+
+  v_progress := af_get_required_progress_today(v_profile);
+  IF NOT COALESCE((v_progress->>'all_done')::boolean, false) THEN
+    RETURN;
+  END IF;
+
+  SELECT count(*)::int INTO v_task_count
+  FROM af_get_tasks_required(v_profile) AS t
+  WHERE NOT t.is_checklist OR COALESCE(t.berry_value, 0) > 0;
+
+  IF COALESCE(v_task_count, 0) < 1 THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO edu_site_checker_runs (profile, check_date, status, webhook_sent, webhook_send_count)
+  VALUES (v_profile, v_date, 'incomplete', false, 0)
+  ON CONFLICT (profile, check_date) DO NOTHING;
+
+  SELECT webhook_send_count INTO v_send_count
+  FROM edu_site_checker_runs
+  WHERE profile = v_profile
+    AND check_date = v_date;
+
+  IF COALESCE(v_send_count, 0) >= 2 THEN
+    RETURN;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM edu_site_checker_runs
+    WHERE profile = v_profile
+      AND check_date = v_date
+      AND status = 'complete'
+  ) THEN
+    RETURN;
+  END IF;
+
+  SELECT decrypted_secret INTO v_token
+  FROM vault.decrypted_secrets
+  WHERE name = 'edu_site_checker_webhook_bearer'
+  LIMIT 1;
+
+  IF v_token IS NULL OR btrim(v_token) = '' THEN
+    RAISE WARNING 'edu_site_checker_webhook_bearer not configured in Supabase Vault';
+    RETURN;
+  END IF;
+
+  UPDATE edu_site_checker_runs
+  SET
+    webhook_sent = true,
+    webhook_sent_at = (NOW() AT TIME ZONE 'America/Toronto'),
+    webhook_send_count = webhook_send_count + 1
+  WHERE profile = v_profile
+    AND check_date = v_date
+    AND webhook_send_count < 2
+    AND status IS DISTINCT FROM 'complete';
+
+  GET DIAGNOSTICS v_claimed = ROW_COUNT;
+  IF v_claimed = 0 THEN
+    RETURN;
+  END IF;
+
+  v_day := to_char(v_date, 'YYYY-MM-DD');
+  v_body := jsonb_build_object(
+    'profile', v_profile,
+    'date', v_day,
+    'kind', 'edu_site_check'
+  )::text;
+
+  BEGIN
+    SELECT r.status INTO v_status
+    FROM extensions.http((
+      'POST',
+      'https://api2.cursor.sh/automations/webhook/70a32960-ae8b-5234-b797-bddcebfd118d',
+      ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
+        extensions.http_header('Content-Type', 'application/json')
+      ]::extensions.http_header[],
+      'application/json',
+      v_body
+    )::extensions.http_request) r;
+  EXCEPTION WHEN OTHERS THEN
+    UPDATE edu_site_checker_runs
+    SET
+      webhook_sent = false,
+      webhook_sent_at = NULL,
+      webhook_send_count = GREATEST(webhook_send_count - 1, 0)
+    WHERE profile = v_profile
+      AND check_date = v_date
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'EduSiteChecker webhook request failed: %', SQLERRM;
+    RETURN;
+  END;
+
+  IF v_status IS NULL OR v_status < 200 OR v_status >= 300 THEN
+    UPDATE edu_site_checker_runs
+    SET
+      webhook_sent = false,
+      webhook_sent_at = NULL,
+      webhook_send_count = GREATEST(webhook_send_count - 1, 0)
+    WHERE profile = v_profile
+      AND check_date = v_date
+      AND status IS DISTINCT FROM 'complete';
+    RAISE WARNING 'EduSiteChecker webhook returned status %', COALESCE(v_status, -1);
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_maybe_enqueue_edu_site_checker(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_web_edu_site_verification.sql
+-- -----------------------------------------------------------------------------
+-- Parent reports: today's site-check tasks and verification_status from user_data (no Grok calls).
+
+DROP FUNCTION IF EXISTS af_web_edu_site_verification(text);
+
+CREATE OR REPLACE FUNCTION af_web_edu_site_verification(p_profile text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH rows AS (
+    SELECT
+      t.task_name,
+      t.is_checklist,
+      lower(t.completion_status) AS completion_status,
+      wa.section,
+      wa.verify_kind,
+      COALESCE(
+        CASE
+          WHEN t.is_checklist THEN ud.checklist_items->t.task_name->>'verification_status'
+          ELSE ud.required_tasks->t.task_name->>'verification_status'
+        END,
+        'none'
+      ) AS verification_status,
+      COALESCE(
+        CASE
+          WHEN t.is_checklist THEN ud.checklist_items->t.task_name->>'verification_note'
+          ELSE ud.required_tasks->t.task_name->>'verification_note'
+        END,
+        ''
+      ) AS verification_note,
+      r.status AS run_status,
+      COALESCE(r.webhook_send_count, 0) AS webhook_send_count
+    FROM af_get_tasks_required(p_profile) AS t
+    LEFT JOIN user_data ud ON ud.profile = p_profile
+    INNER JOIN web_assignments wa
+      ON wa.profile = upper(btrim(p_profile))
+      AND wa.title = t.task_name
+      AND wa.section = CASE WHEN t.is_checklist THEN 'checklist' ELSE 'required' END
+      AND wa.enabled
+    LEFT JOIN edu_site_checker_runs r
+      ON r.profile = upper(btrim(p_profile))
+      AND r.check_date = (NOW() AT TIME ZONE 'America/Toronto')::date
+    WHERE btrim(COALESCE(wa.verify_kind, '')) <> ''
+  ),
+  agg AS (
+    SELECT
+      count(*)::int AS need_verify,
+      count(*) FILTER (WHERE verification_status = 'verified')::int AS verified,
+      count(*) FILTER (WHERE verification_status = 'failed')::int AS failed,
+      count(*) FILTER (WHERE verification_status IN ('pending', 'none'))::int AS pending,
+      max(run_status) AS run_status,
+      max(webhook_send_count) AS webhook_send_count
+    FROM rows
+  )
+  SELECT jsonb_build_object(
+    'summary', (
+      SELECT jsonb_build_object(
+        'need_verify', a.need_verify,
+        'verified', a.verified,
+        'failed', a.failed,
+        'pending', a.pending,
+        'all_verified', a.need_verify > 0 AND a.verified = a.need_verify,
+        'run_status', a.run_status,
+        'webhook_send_count', COALESCE(a.webhook_send_count, 0)
+      )
+      FROM agg a
+    ),
+    'tasks', COALESCE(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'title', r.task_name,
+            'is_checklist', r.is_checklist,
+            'section', r.section,
+            'verify_kind', r.verify_kind,
+            'completion_status', r.completion_status,
+            'verification_status', r.verification_status,
+            'verification_note', NULLIF(btrim(r.verification_note), '')
+          )
+          ORDER BY r.is_checklist, r.task_name
+        )
+        FROM rows r
+      ),
+      '[]'::jsonb
+    )
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION af_web_edu_site_verification(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
 -- FILE: af_maybe_advance_spelling_pools.sql
 -- -----------------------------------------------------------------------------
 -- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
@@ -4520,6 +5112,69 @@ $$;
 
 GRANT EXECUTE ON FUNCTION af_score_spelling_jumble(text, text, date, text[], boolean, jsonb) TO anon, authenticated, service_role;
 
+-- Report call site: reports/spelling_jumble_report.html and reports/spelling_ocr_detail.html.
+-- Returns {"eng":[...],"fr":[...]} for a profile and Toronto day.
+-- Each item is {"word","typed","correct","extra","practice","copy"}.
+-- Older keyboard sessions stored only the missed words, so those come back with an empty typed string.
+
+CREATE OR REPLACE FUNCTION af_get_spelling_typing(
+  p_profile text,
+  p_date date
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(trim(p_profile));
+  v_result jsonb := '{}'::jsonb;
+  v_row record;
+  v_attempts jsonb;
+BEGIN
+  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF p_date IS NULL THEN
+    p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  END IF;
+
+  FOR v_row IN
+    SELECT language, jumble_attempts, words
+    FROM spelling_dictation_reviews
+    WHERE profile = v_profile
+      AND review_date = p_date
+      AND COALESCE(jumble_scored, false)
+  LOOP
+    v_attempts := NULL;
+    IF v_row.jumble_attempts IS NOT NULL
+       AND jsonb_typeof(v_row.jumble_attempts) = 'array'
+       AND jsonb_array_length(v_row.jumble_attempts) > 0 THEN
+      v_attempts := v_row.jumble_attempts;
+    ELSIF v_row.words IS NOT NULL
+       AND jsonb_typeof(v_row.words) = 'array'
+       AND jsonb_array_length(v_row.words) > 0 THEN
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'word', item,
+        'typed', '',
+        'correct', false,
+        'extra', false
+      )), '[]'::jsonb)
+        INTO v_attempts
+      FROM jsonb_array_elements_text(v_row.words) AS item;
+    END IF;
+    IF v_attempts IS NOT NULL THEN
+      v_result := v_result || jsonb_build_object(v_row.language, v_attempts);
+    END IF;
+  END LOOP;
+
+  RETURN v_result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_get_spelling_typing(text, date) TO anon, authenticated, service_role;
+
 
 -- -----------------------------------------------------------------------------
 -- FILE: af_enqueue_spelling_jumble_review.sql
@@ -4648,70 +5303,6 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_enqueue_spelling_jumble_review(text, text, date) TO anon, authenticated, service_role;
-
-
--- Report call site: reports/spelling_ocr_report.html and reports/spelling_ocr_detail.html.
--- Returns {"eng":[...],"fr":[...]} for a profile and Toronto day.
--- Each item is {"word","typed","correct","extra","practice","copy"}.
--- Older keyboard sessions stored only the missed words, so those come back with an empty typed string.
-
-CREATE OR REPLACE FUNCTION af_get_spelling_typing(
-  p_profile text,
-  p_date date
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_profile text := upper(trim(p_profile));
-  v_result jsonb := '{}'::jsonb;
-  v_row record;
-  v_attempts jsonb;
-BEGIN
-  IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
-    RAISE EXCEPTION 'Invalid profile: %', p_profile;
-  END IF;
-  IF p_date IS NULL THEN
-    p_date := (NOW() AT TIME ZONE 'America/Toronto')::date;
-  END IF;
-
-  FOR v_row IN
-    SELECT language, jumble_attempts, words
-    FROM spelling_dictation_reviews
-    WHERE profile = v_profile
-      AND review_date = p_date
-      AND COALESCE(jumble_scored, false)
-  LOOP
-    v_attempts := NULL;
-    IF v_row.jumble_attempts IS NOT NULL
-       AND jsonb_typeof(v_row.jumble_attempts) = 'array'
-       AND jsonb_array_length(v_row.jumble_attempts) > 0 THEN
-      v_attempts := v_row.jumble_attempts;
-    ELSIF v_row.words IS NOT NULL
-       AND jsonb_typeof(v_row.words) = 'array'
-       AND jsonb_array_length(v_row.words) > 0 THEN
-      SELECT COALESCE(jsonb_agg(jsonb_build_object(
-        'word', item,
-        'typed', '',
-        'correct', false,
-        'extra', false
-      )), '[]'::jsonb)
-        INTO v_attempts
-      FROM jsonb_array_elements_text(v_row.words) AS item;
-    END IF;
-    IF v_attempts IS NOT NULL THEN
-      v_result := v_result || jsonb_build_object(v_row.language, v_attempts);
-    END IF;
-  END LOOP;
-
-  RETURN v_result;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION af_get_spelling_typing(text, date) TO anon, authenticated, service_role;
 
 
 -- -----------------------------------------------------------------------------
@@ -5286,6 +5877,7 @@ BEGIN
   IF normalized_section = 'required' THEN
     PERFORM af_maybe_advance_spelling_pools(p_profile);
     PERFORM af_maybe_record_collector_card_day(p_profile);
+    PERFORM af_maybe_enqueue_edu_site_checker(p_profile);
   END IF;
 
   RETURN earned_stars;
@@ -5351,6 +5943,7 @@ BEGIN
   IF p_done AND NOT old_done THEN
     PERFORM af_maybe_advance_spelling_pools(p_profile);
     PERFORM af_maybe_record_collector_card_day(p_profile);
+    PERFORM af_maybe_enqueue_edu_site_checker(p_profile);
   END IF;
 END;
 $$;
@@ -6291,8 +6884,8 @@ GRANT EXECUTE ON FUNCTION af_web_list_tasks(text) TO anon, authenticated, servic
 --   reports/daily_progress_report.html — today's required and practice lists.
 --   reports/index.html — home progress counts and chore titles.
 --   reports/schedule.html — week grid.
--- All web assignments for one profile, including ones that are off. Checklist is not included.
--- The tablet still reads the GitHub JSON configs.
+--   reports/schedule_editor.html — weekly schedule editor.
+-- All web assignments for one profile, including checklist and disabled rows.
 
 CREATE OR REPLACE FUNCTION af_web_report_assignments(p_profile text)
 RETURNS jsonb
@@ -6335,11 +6928,12 @@ BEGIN
         'chromePage', a.chrome_page,
         'videoSequence', a.video_sequence,
         'video', a.video,
-        'description', a.description
+        'description', a.description,
+        'verifyKind', a.verify_kind,
+        'verifyParams', COALESCE(a.verify_params, '{}'::jsonb)
       ) AS item
     FROM web_assignments a
     WHERE a.profile = v_profile
-      AND a.section <> 'checklist'
   ) listed;
 
   RETURN COALESCE(v_rows, '[]'::jsonb);
@@ -6354,7 +6948,7 @@ GRANT EXECUTE ON FUNCTION af_web_report_assignments(text) TO anon, authenticated
 -- -----------------------------------------------------------------------------
 -- Call site: reports/schedule_editor.html on main.
 -- Updates web_assignments for the web home list.
--- Does not write user_data or the GitHub config the tablet editor uses.
+-- Syncs checklist into user_data when rows include checklist section.
 
 CREATE OR REPLACE FUNCTION af_web_save_schedule(
   p_profile text,
@@ -6373,6 +6967,7 @@ DECLARE
   v_section text;
   v_n int;
   v_updated boolean;
+  v_checklist_saved boolean := false;
 BEGIN
   IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
     RAISE EXCEPTION 'Invalid profile: %', p_profile;
@@ -6393,20 +6988,27 @@ BEGIN
       total_questions int,
       url text,
       web_game boolean,
-      description text
+      description text,
+      verify_kind text,
+      verify_params jsonb
     )
   LOOP
     v_section := lower(trim(r.section));
-    IF v_section IS NULL OR v_section NOT IN ('required', 'optional') THEN
+    IF v_section IS NULL OR v_section NOT IN ('required', 'optional', 'checklist') THEN
       CONTINUE;
     END IF;
     IF r.title IS NULL OR btrim(r.title) = '' THEN
       CONTINUE;
     END IF;
 
-    v_launch := nullif(btrim(r.launch), '');
-    IF v_launch IS NOT NULL THEN
-      INSERT INTO web_games (launch) VALUES (v_launch) ON CONFLICT DO NOTHING;
+    IF v_section = 'checklist' THEN
+      v_checklist_saved := true;
+      v_launch := NULL;
+    ELSE
+      v_launch := nullif(btrim(r.launch), '');
+      IF v_launch IS NOT NULL THEN
+        INSERT INTO web_games (launch) VALUES (v_launch) ON CONFLICT DO NOTHING;
+      END IF;
     END IF;
 
     v_updated := false;
@@ -6418,15 +7020,21 @@ BEGIN
         total_questions = r.total_questions,
         url = COALESCE(nullif(btrim(r.url), ''), url),
         web_game = COALESCE(r.web_game, web_game),
-        description = COALESCE(nullif(btrim(r.description), ''), description)
+        description = COALESCE(nullif(btrim(r.description), ''), description),
+        verify_kind = nullif(btrim(r.verify_kind), ''),
+        verify_params = COALESCE(r.verify_params, verify_params)
     WHERE profile = v_profile
       AND section = v_section
       AND title = r.title
-      AND launch IS NOT DISTINCT FROM v_launch;
+      AND (
+        v_section = 'checklist'
+        OR launch IS NOT DISTINCT FROM v_launch
+      );
     GET DIAGNOSTICS v_n = ROW_COUNT;
     IF v_n > 0 THEN
       v_updated := true;
-    ELSIF v_launch IS NOT NULL
+    ELSIF v_section <> 'checklist'
+      AND v_launch IS NOT NULL
       AND (
         SELECT count(*)
         FROM web_assignments
@@ -6443,7 +7051,9 @@ BEGIN
           url = COALESCE(nullif(btrim(r.url), ''), url),
           web_game = COALESCE(r.web_game, web_game),
           description = COALESCE(nullif(btrim(r.description), ''), description),
-          launch = v_launch
+          launch = v_launch,
+          verify_kind = nullif(btrim(r.verify_kind), ''),
+          verify_params = COALESCE(r.verify_params, verify_params)
       WHERE profile = v_profile
         AND section = v_section
         AND title = r.title;
@@ -6454,7 +7064,7 @@ BEGIN
     IF NOT v_updated THEN
       INSERT INTO web_assignments (
         profile, section, launch, title, enabled, sort_order, stars, url,
-        web_game, total_questions, display_days, description
+        web_game, total_questions, display_days, description, verify_kind, verify_params
       )
       VALUES (
         v_profile,
@@ -6472,8 +7082,13 @@ BEGIN
         COALESCE(r.web_game, false),
         r.total_questions,
         nullif(btrim(r.display_days), ''),
-        nullif(btrim(r.description), '')
+        nullif(btrim(r.description), ''),
+        nullif(btrim(r.verify_kind), ''),
+        r.verify_params
       );
+      IF v_section = 'checklist' THEN
+        v_checklist_saved := true;
+      END IF;
     END IF;
   END LOOP;
 
@@ -6487,6 +7102,15 @@ BEGIN
         WHERE lower(trim(x.section)) = 'checklist'
           AND x.title = a.title
       );
+    v_checklist_saved := true;
+  END IF;
+
+  IF v_checklist_saved OR EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(p_rows) AS x(section text)
+    WHERE lower(trim(x.section)) = 'checklist'
+  ) THEN
+    PERFORM af_update_tasks_from_config_checklist(v_profile);
   END IF;
 END;
 $$;

@@ -683,6 +683,34 @@
             .page-header h1 { font-size: 1.4em; }
             .kid-button { font-size: 0.95em; padding: 14px 12px; }
         }
+        .site-verify-line {
+            font-size: 0.78em;
+            margin-top: 8px;
+            color: #64748b;
+            line-height: 1.35;
+        }
+        .site-verify-line.all-verified {
+            color: #2e7d32;
+            font-weight: 600;
+        }
+        .site-verify-line.has-failed {
+            color: #c62828;
+            font-weight: 600;
+        }
+        .site-check-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.1em;
+            height: 1.1em;
+            border-radius: 50%;
+            background: #e8f5e9;
+            color: #2e7d32;
+            font-size: 0.85em;
+            font-weight: 700;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -735,6 +763,7 @@
                 <div class="progress-bar">
                     <div class="progress-fill" id="AM-progressFill" style="width: 0%">–</div>
                 </div>
+                <div class="site-verify-line" id="AM-siteVerify" hidden></div>
                 <div class="summary-label chores">Chores</div>
                 <div class="metrics-grid">
                     <div class="metric">
@@ -787,6 +816,7 @@
                 <div class="progress-bar">
                     <div class="progress-fill" id="BM-progressFill" style="width: 0%">–</div>
                 </div>
+                <div class="site-verify-line" id="BM-siteVerify" hidden></div>
                 <div class="summary-label chores">Chores</div>
                 <div class="metrics-grid">
                     <div class="metric">
@@ -1224,6 +1254,52 @@
             return days.toLowerCase().split(',').map(part => part.trim()).includes(dayToken);
         }
 
+        function summarizeSiteVerification(userData, assignments) {
+            const todayToken = torontoDayToken();
+            let need = 0;
+            let verified = 0;
+            let failed = 0;
+            (assignments || []).forEach(function (row) {
+                if (!row || row.enabled === false || !row.verifyKind) return;
+                if (!shownOnDay(row.displayDays, todayToken)) return;
+                if (row.section === 'optional') return;
+                need++;
+                const stored = row.section === 'checklist'
+                    ? (userData.checklist_items || {})[row.title]
+                    : (userData.required_tasks || {})[row.title];
+                const vs = (stored && stored.verification_status) || 'none';
+                if (vs === 'verified') verified++;
+                else if (vs === 'failed') failed++;
+            });
+            return { need, verified, failed, allVerified: need > 0 && verified === need };
+        }
+
+        function formatSiteVerifyLine(summary) {
+            if (!summary || summary.need < 1) return { text: '', show: false };
+            if (summary.allVerified) {
+                return {
+                    text: '<span class="site-check-icon" aria-hidden="true">✓</span> External sites verified by Grok',
+                    show: true,
+                    className: 'all-verified'
+                };
+            }
+            if (summary.failed > 0) {
+                return {
+                    text: `⚠ Site checks: ${summary.verified}/${summary.need} verified (${summary.failed} need work)`,
+                    show: true,
+                    className: 'has-failed'
+                };
+            }
+            if (summary.verified > 0) {
+                return {
+                    text: `Site checks: ${summary.verified}/${summary.need} verified`,
+                    show: true,
+                    className: ''
+                };
+            }
+            return { text: `Site checks: 0/${summary.need} (pending Grok)`, show: true, className: '' };
+        }
+
         function kidCanSee(row) {
             if (!row || row.enabled === false) return false;
             if (WEB_SKIP[row.launch] || row.chromePage || row.videoSequence) return false;
@@ -1344,7 +1420,22 @@
             };
         }
 
-        function applyKidSummary(profile, summary) {
+        function applyKidSiteVerify(profile, userData, assignments) {
+            const el = document.getElementById(profile + '-siteVerify');
+            if (!el) return;
+            const line = formatSiteVerifyLine(summarizeSiteVerification(userData, assignments));
+            if (!line.show) {
+                el.hidden = true;
+                el.textContent = '';
+                el.className = 'site-verify-line';
+                return;
+            }
+            el.hidden = false;
+            el.className = 'site-verify-line' + (line.className ? ' ' + line.className : '');
+            el.innerHTML = line.text;
+        }
+
+        function applyKidSummary(profile, summary, userData, assignments) {
             const set = (id, value) => {
                 const el = document.getElementById(profile + '-' + id);
                 if (el) el.textContent = value;
@@ -1363,9 +1454,14 @@
                 fill.style.background = '';
                 fill.textContent = summary.completionRate + '%';
             }
+            if (userData && assignments) {
+                applyKidSiteVerify(profile, userData, assignments);
+            }
         }
 
         function clearKidSummary(profile, message) {
+            const sv = document.getElementById(profile + '-siteVerify');
+            if (sv) { sv.hidden = true; sv.textContent = ''; }
             applyKidSummary(profile, {
                 requiredComplete: '–',
                 requiredIncomplete: '–',
@@ -1911,7 +2007,7 @@
             try {
                 const headers = { 'apikey': key, 'Authorization': `Bearer ${key}` };
                 const [usersRes, photoRows, recordingMeta, assignmentLists, spellingLists, readAloudRows] = await Promise.all([
-                    fetch(`${url}/rest/v1/user_data?profile=in.(AM,BM)&select=profile,required_tasks,photo_chores,kid_bank_balance`, { headers }),
+                    fetch(`${url}/rest/v1/user_data?profile=in.(AM,BM)&select=profile,required_tasks,checklist_items,photo_chores,kid_bank_balance`, { headers }),
                     fetchTodayChorePhotos(url, key),
                     fetchTodayRecordingMeta(url, key),
                     Promise.all(KID_PROFILES.map(profile => fetchWebAssignments(url, key, profile))),
@@ -1943,7 +2039,7 @@
                         clearKidSummary(profile, 'No data');
                     } else {
                         const photos = photoRows.filter(row => row.profile === profile);
-                        applyKidSummary(profile, summarizeProgress(userData, assignments, photos, spellingLists[i] || []));
+                        applyKidSummary(profile, summarizeProgress(userData, assignments, photos, spellingLists[i] || []), userData, assignments);
                     }
                     readAloudByProfile[profile] = (readAloudRows || []).filter(row => row.profile === profile);
                     renderRecordings(profile);

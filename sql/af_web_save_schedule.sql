@@ -1,6 +1,6 @@
 -- Call site: reports/schedule_editor.html on main.
 -- Updates web_assignments for the web home list.
--- Does not write user_data or the GitHub config the tablet editor uses.
+-- Syncs checklist into user_data when rows include checklist section.
 
 CREATE OR REPLACE FUNCTION af_web_save_schedule(
   p_profile text,
@@ -19,6 +19,7 @@ DECLARE
   v_section text;
   v_n int;
   v_updated boolean;
+  v_checklist_saved boolean := false;
 BEGIN
   IF v_profile IS NULL OR v_profile = '' OR v_profile NOT IN ('AM', 'BM', 'TE') THEN
     RAISE EXCEPTION 'Invalid profile: %', p_profile;
@@ -39,20 +40,27 @@ BEGIN
       total_questions int,
       url text,
       web_game boolean,
-      description text
+      description text,
+      verify_kind text,
+      verify_params jsonb
     )
   LOOP
     v_section := lower(trim(r.section));
-    IF v_section IS NULL OR v_section NOT IN ('required', 'optional') THEN
+    IF v_section IS NULL OR v_section NOT IN ('required', 'optional', 'checklist') THEN
       CONTINUE;
     END IF;
     IF r.title IS NULL OR btrim(r.title) = '' THEN
       CONTINUE;
     END IF;
 
-    v_launch := nullif(btrim(r.launch), '');
-    IF v_launch IS NOT NULL THEN
-      INSERT INTO web_games (launch) VALUES (v_launch) ON CONFLICT DO NOTHING;
+    IF v_section = 'checklist' THEN
+      v_checklist_saved := true;
+      v_launch := NULL;
+    ELSE
+      v_launch := nullif(btrim(r.launch), '');
+      IF v_launch IS NOT NULL THEN
+        INSERT INTO web_games (launch) VALUES (v_launch) ON CONFLICT DO NOTHING;
+      END IF;
     END IF;
 
     v_updated := false;
@@ -64,15 +72,21 @@ BEGIN
         total_questions = r.total_questions,
         url = COALESCE(nullif(btrim(r.url), ''), url),
         web_game = COALESCE(r.web_game, web_game),
-        description = COALESCE(nullif(btrim(r.description), ''), description)
+        description = COALESCE(nullif(btrim(r.description), ''), description),
+        verify_kind = nullif(btrim(r.verify_kind), ''),
+        verify_params = COALESCE(r.verify_params, verify_params)
     WHERE profile = v_profile
       AND section = v_section
       AND title = r.title
-      AND launch IS NOT DISTINCT FROM v_launch;
+      AND (
+        v_section = 'checklist'
+        OR launch IS NOT DISTINCT FROM v_launch
+      );
     GET DIAGNOSTICS v_n = ROW_COUNT;
     IF v_n > 0 THEN
       v_updated := true;
-    ELSIF v_launch IS NOT NULL
+    ELSIF v_section <> 'checklist'
+      AND v_launch IS NOT NULL
       AND (
         SELECT count(*)
         FROM web_assignments
@@ -89,7 +103,9 @@ BEGIN
           url = COALESCE(nullif(btrim(r.url), ''), url),
           web_game = COALESCE(r.web_game, web_game),
           description = COALESCE(nullif(btrim(r.description), ''), description),
-          launch = v_launch
+          launch = v_launch,
+          verify_kind = nullif(btrim(r.verify_kind), ''),
+          verify_params = COALESCE(r.verify_params, verify_params)
       WHERE profile = v_profile
         AND section = v_section
         AND title = r.title;
@@ -100,7 +116,7 @@ BEGIN
     IF NOT v_updated THEN
       INSERT INTO web_assignments (
         profile, section, launch, title, enabled, sort_order, stars, url,
-        web_game, total_questions, display_days, description
+        web_game, total_questions, display_days, description, verify_kind, verify_params
       )
       VALUES (
         v_profile,
@@ -118,8 +134,13 @@ BEGIN
         COALESCE(r.web_game, false),
         r.total_questions,
         nullif(btrim(r.display_days), ''),
-        nullif(btrim(r.description), '')
+        nullif(btrim(r.description), ''),
+        nullif(btrim(r.verify_kind), ''),
+        r.verify_params
       );
+      IF v_section = 'checklist' THEN
+        v_checklist_saved := true;
+      END IF;
     END IF;
   END LOOP;
 
@@ -133,6 +154,15 @@ BEGIN
         WHERE lower(trim(x.section)) = 'checklist'
           AND x.title = a.title
       );
+    v_checklist_saved := true;
+  END IF;
+
+  IF v_checklist_saved OR EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(p_rows) AS x(section text)
+    WHERE lower(trim(x.section)) = 'checklist'
+  ) THEN
+    PERFORM af_update_tasks_from_config_checklist(v_profile);
   END IF;
 END;
 $$;

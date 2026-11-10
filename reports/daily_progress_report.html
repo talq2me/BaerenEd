@@ -170,6 +170,42 @@
             flex: 0 0 auto;
         }
 
+        .site-check-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.15em;
+            height: 1.15em;
+            border-radius: 50%;
+            background: #e8f5e9;
+            color: #2e7d32;
+            font-size: 0.75em;
+            font-weight: 700;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .site-check-icon.failed {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .site-verify-banner {
+            font-size: 0.82em;
+            margin: 0 0 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #f8fafc;
+            color: #475569;
+        }
+        .site-verify-banner.all-verified {
+            background: #e8f5e9;
+            color: #2e7d32;
+            font-weight: 600;
+        }
+        .site-verify-banner.has-failed {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
         .loading {
             text-align: center;
             padding: 24px;
@@ -381,6 +417,7 @@
         <div id="error" class="error" style="display: none;"></div>
 
         <div id="reportContent" style="display: none;">
+            <div id="siteVerifyBanner" class="site-verify-banner" style="display:none;"></div>
             <div class="section collapsible open">
                 <button type="button" class="section-toggle" aria-expanded="true">
                     <svg class="section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
@@ -390,6 +427,16 @@
                     <ul class="task-list" id="requiredTasks"></ul>
                 </div>
                 <div id="chorePhotos" class="chore-photos"></div>
+            </div>
+
+            <div class="section collapsible" id="checklistSection" style="display:none;">
+                <button type="button" class="section-toggle" aria-expanded="false">
+                    <svg class="section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    <h3>Checklist <span class="section-count" id="checklistCount"></span></h3>
+                </button>
+                <div class="section-body">
+                    <ul class="task-list" id="checklistTasks"></ul>
+                </div>
             </div>
 
             <div class="section collapsible">
@@ -972,6 +1019,62 @@
             }
         });
 
+        function verifyKindForAssignment(title, section) {
+            const row = (reportAssignments || []).find(function (r) {
+                return r && r.title === title && r.section === section;
+            });
+            return row && row.verifyKind ? String(row.verifyKind).trim() : '';
+        }
+
+        function siteVerifyMark(verifyKind, stored) {
+            if (!verifyKind) return '';
+            const vs = stored && stored.verification_status;
+            const note = stored && stored.verification_note ? String(stored.verification_note) : '';
+            if (vs === 'verified') {
+                return '<span class="site-check-icon" title="Grok verified this site">✓</span>';
+            }
+            if (vs === 'failed') {
+                return '<span class="site-check-icon failed" title="' + note.replace(/"/g, '&quot;') + '">!</span>';
+            }
+            return '';
+        }
+
+        function renderSiteVerifyBanner(userData) {
+            const banner = document.getElementById('siteVerifyBanner');
+            if (!banner) return;
+            const todayToken = torontoDayToken();
+            let need = 0;
+            let verified = 0;
+            let failed = 0;
+            (reportAssignments || []).forEach(function (row) {
+                if (!row || row.enabled === false || !row.verifyKind) return;
+                if (!shownOnDay(row.displayDays, todayToken)) return;
+                if (row.section === 'optional') return;
+                need++;
+                const stored = row.section === 'checklist'
+                    ? (userData.checklist_items || {})[row.title]
+                    : (userData.required_tasks || {})[row.title];
+                const vs = (stored && stored.verification_status) || 'none';
+                if (vs === 'verified') verified++;
+                else if (vs === 'failed') failed++;
+            });
+            if (need < 1) {
+                banner.style.display = 'none';
+                return;
+            }
+            banner.style.display = 'block';
+            banner.className = 'site-verify-banner';
+            if (verified === need) {
+                banner.classList.add('all-verified');
+                banner.innerHTML = '<span class="site-check-icon">✓</span> All external site checks verified today';
+            } else if (failed > 0) {
+                banner.classList.add('has-failed');
+                banner.textContent = `Site checks: ${verified}/${need} verified — ${failed} still need work`;
+            } else {
+                banner.textContent = `Site checks: ${verified}/${need} verified (reads from database, not Grok)`;
+            }
+        }
+
         // Display the report
         function displayReport(userData) {
             document.getElementById('loading').style.display = 'none';
@@ -985,6 +1088,7 @@
                 day: 'numeric'
             }) : 'Today';
             document.getElementById('reportDate').textContent = lastReset;
+            renderSiteVerifyBanner(userData);
 
             // Parse JSONB data
             const allRequiredTasks = userData.required_tasks || {};
@@ -1040,9 +1144,10 @@
                     
                     const taskName = taskKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                     const answerInfo = (!isChore && questions > 0 && answers.show) ? `   ${correct} ✅   ${incorrect} ❌` : '';
+                    const siteMark = siteVerifyMark(verifyKindForAssignment(taskKey, 'required'), task);
                     
                     li.innerHTML = `
-                        <span class="task-name">${taskName} ${isComplete ? '✓' : ''}</span>
+                        <span class="task-name">${taskName} ${isComplete ? '✓' : ''}${siteMark}</span>
                         <span class="task-info">${answerInfo}</span>
                     `;
                     requiredTasksList.appendChild(li);
@@ -1058,6 +1163,35 @@
             }
 
             renderChorePhotos(photoChoresToday);
+
+            const checklistToday = [];
+            (reportAssignments || []).forEach(function (row) {
+                if (!row || row.section !== 'checklist' || row.enabled === false) return;
+                if (!shownOnDay(row.displayDays, todayToken)) return;
+                checklistToday.push(row);
+            });
+            const checklistSection = document.getElementById('checklistSection');
+            const checklistList = document.getElementById('checklistTasks');
+            const checklistCountEl = document.getElementById('checklistCount');
+            if (checklistToday.length > 0 && checklistSection && checklistList) {
+                checklistSection.style.display = '';
+                if (checklistCountEl) checklistCountEl.textContent = `(${checklistToday.length})`;
+                checklistList.innerHTML = '';
+                const checklistData = userData.checklist_items || {};
+                checklistToday.forEach(function (row) {
+                    const stored = checklistData[row.title] || {};
+                    const done = stored.done === true;
+                    const li = document.createElement('li');
+                    li.className = 'task-item' + (done ? '' : ' incomplete');
+                    const siteMark = siteVerifyMark(row.verifyKind, stored);
+                    const note = stored.verification_note && stored.verification_status === 'failed'
+                        ? ` — ${stored.verification_note}` : '';
+                    li.innerHTML = `<span class="task-name">${row.title}${done ? ' ✓' : ''}${siteMark}${note}</span>`;
+                    checklistList.appendChild(li);
+                });
+            } else if (checklistSection) {
+                checklistSection.style.display = 'none';
+            }
 
             // Display practice tasks
             const practiceTasksList = document.getElementById('practiceTasks');

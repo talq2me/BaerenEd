@@ -16,6 +16,8 @@ $files = @(
 
   "af_update_tasks_from_config_required.sql",
 
+  "af_update_tasks_from_config_checklist.sql",
+
   "af_daily_reset.sql",
 
   "af_get_current_required_tasks.sql",
@@ -85,6 +87,16 @@ $files = @(
   "af_update_tasks_bonus.sql",
 
   "af_get_required_progress_today.sql",
+
+  "af_list_edu_site_check_tasks.sql",
+
+  "af_confirm_edu_site_check_item.sql",
+
+  "af_confirm_edu_site_check_batch.sql",
+
+  "af_maybe_enqueue_edu_site_checker.sql",
+
+  "af_web_edu_site_verification.sql",
 
   "af_maybe_advance_spelling_pools.sql",
 
