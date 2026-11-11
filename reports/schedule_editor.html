@@ -332,12 +332,34 @@
         .hint { font-size: 0.85rem; color: #777; margin-bottom: 10px; }
         .site-check-fields {
             display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+            flex-basis: 100%;
+            margin-top: 6px;
+            padding: 8px 10px;
+            background: #f3f6fb;
+            border: 1px solid #e0e6f0;
+            border-radius: 8px;
+        }
+        .site-check-fields .site-field-row {
+            display: flex;
             flex-wrap: wrap;
             gap: 4px 8px;
             align-items: center;
+        }
+        .site-check-fields .site-field-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #445;
+            min-width: 5.5rem;
+        }
+        .site-check-fields .site-field-help {
+            font-size: 0.7rem;
+            color: #778;
+            line-height: 1.35;
             width: 100%;
-            flex-basis: 100%;
-            margin-top: 2px;
+            margin: 0;
         }
         .site-check-fields input[type="text"] {
             padding: 3px 5px;
@@ -345,8 +367,16 @@
             border-radius: 5px;
             font-size: 0.72rem;
         }
-        .site-check-fields .verify-kind { width: 7.5rem; }
-        .site-check-fields .verify-params { flex: 1; min-width: 5rem; }
+        .site-check-fields .verify-kind { width: 9rem; }
+        .site-check-fields .verify-params { flex: 1; min-width: 8rem; }
+        .hint-list {
+            margin: 0 0 10px;
+            padding-left: 1.1rem;
+            font-size: 0.82rem;
+            color: #666;
+            line-height: 1.4;
+        }
+        .hint-list li { margin-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -426,7 +456,11 @@
                     <h2>Checklist / site-verify tasks</h2>
                 </button>
                 <div class="card-body">
-                    <p class="hint">Same on/off and day controls as required tasks. <strong>Site kind</strong> is only for EduSiteChecker (e.g. rallye_lecture) — leave blank for chores/habits that are not verified on a website. Optional JSON params (e.g. <code>{"min_books":2}</code>) only when the bot needs them; leave the params box empty otherwise.</p>
+                    <p class="hint">Same on/off and day controls as required tasks. Use the fields under each checklist item only when Grok should verify an external site.</p>
+                    <ul class="hint-list">
+                        <li><strong>Site kind</strong> — only for Grok EduSiteChecker (examples: <code>rallye_lecture</code>, <code>xtramath</code>, <code>anton</code>, <code>motoufo</code>, <code>boukili</code>). Leave empty for normal checklist/chores — no site check; the task behaves as before.</li>
+                        <li><strong>Params JSON</strong> — optional extras for the bot (example: <code>{"min_books":2}</code>). Leave empty if you don’t need rules. Do not put <code>{}</code>; an empty box means no params.</li>
+                    </ul>
                     <div class="week-grid" id="checklistWeek"></div>
                     <div id="checklistList" style="margin-top:12px;"></div>
                     <div class="add-row">
@@ -1184,9 +1218,16 @@
                     }
                     siteFields = `
                     <div class="site-check-fields">
-                        <span class="field" title="Leave empty = no Grok site check">Site kind</span>
-                        <input type="text" class="verify-kind" list="verifyKindList" placeholder="(optional)" value="${escapeAttr(verifyKind)}" data-field="verifyKind" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}">
-                        <input type="text" class="verify-params" placeholder="optional JSON" value="${escapeAttr(verifyParamsStr)}" data-field="verifyParams" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Optional; e.g. min_books">
+                        <div class="site-field-row">
+                            <span class="site-field-label">Site kind</span>
+                            <input type="text" class="verify-kind" list="verifyKindList" placeholder="e.g. rallye_lecture" value="${escapeAttr(verifyKind)}" data-field="verifyKind" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Leave empty = no Grok site check">
+                        </div>
+                        <p class="site-field-help">Only for Grok EduSiteChecker. Leave empty for normal checklist items — no website verification.</p>
+                        <div class="site-field-row">
+                            <span class="site-field-label">Params JSON</span>
+                            <input type="text" class="verify-params" placeholder='e.g. {"min_books":2}' value="${escapeAttr(verifyParamsStr)}" data-field="verifyParams" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Optional bot rules; leave empty if none">
+                        </div>
+                        <p class="site-field-help">Optional bot rules. Leave empty if you do not need them — do not enter {}.</p>
                     </div>`;
                 }
                 row.innerHTML = `
