@@ -426,9 +426,13 @@
                     <h2>Checklist / site-verify tasks</h2>
                 </button>
                 <div class="card-body">
-                    <p class="hint">Same on/off and day controls as required tasks. Set <strong>Site kind</strong> (e.g. rallye_lecture) for Grok to verify on external sites; leave blank for normal checklist items.</p>
+                    <p class="hint">Same on/off and day controls as required tasks. <strong>Site kind</strong> is only for EduSiteChecker (e.g. rallye_lecture) — leave blank for chores/habits that are not verified on a website. Optional JSON params (e.g. <code>{"min_books":2}</code>) only when the bot needs them; leave the params box empty otherwise.</p>
                     <div class="week-grid" id="checklistWeek"></div>
                     <div id="checklistList" style="margin-top:12px;"></div>
+                    <div class="add-row">
+                        <input type="text" id="newChecklistTitle" placeholder="New checklist title (e.g. Read 2 Rallye books)">
+                        <button type="button" class="icon-btn" id="addChecklistBtn">+ Add checklist item</button>
+                    </div>
                 </div>
             </div>
 
@@ -763,7 +767,9 @@
                 web_game: cfg.webGame === true || data.webGame === true || chore,
                 description: cfg.description || data.description || null,
                 verify_kind: (cfg.verifyKind || data.verifyKind || '').trim() || null,
-                verify_params: verifyParams
+                verify_params: (verifyParams && typeof verifyParams === 'object' && Object.keys(verifyParams).length === 0)
+                    ? null
+                    : verifyParams
             };
         }
 
@@ -1044,7 +1050,14 @@
             }
             for (const t of assignmentTasks.checklist || []) {
                 pushChecklistCatalogEntry(
-                    { label: t.title, stars: t.stars, displayDays: t.displayDays, scheduleKey: t.scheduleKey },
+                    {
+                        label: t.title,
+                        stars: t.stars,
+                        displayDays: t.displayDays,
+                        verifyKind: t.verifyKind,
+                        verifyParams: t.verifyParams,
+                        scheduleKey: t.scheduleKey
+                    },
                     dbRow.checklist_items
                 );
             }
@@ -1157,18 +1170,25 @@
                 const deleteBtn = bucket === 'checklist'
                     ? `<button type="button" class="icon-btn danger" data-action="delete" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Delete from database">🗑</button>`
                     : '';
-                const verifyKind = entry.config?.verifyKind || entry.data?.verifyKind || '';
-                let verifyParamsStr = '';
-                const vp = entry.config?.verifyParams ?? entry.data?.verifyParams;
-                if (vp != null && vp !== '') {
-                    verifyParamsStr = typeof vp === 'string' ? vp : JSON.stringify(vp);
-                }
-                const siteFields = `
+                let siteFields = '';
+                if (bucket === 'checklist') {
+                    const verifyKind = entry.config?.verifyKind || entry.data?.verifyKind || '';
+                    let verifyParamsStr = '';
+                    const vp = entry.config?.verifyParams ?? entry.data?.verifyParams;
+                    if (vp != null && vp !== '') {
+                        if (typeof vp === 'object' && Object.keys(vp).length === 0) {
+                            verifyParamsStr = '';
+                        } else {
+                            verifyParamsStr = typeof vp === 'string' ? vp : JSON.stringify(vp);
+                        }
+                    }
+                    siteFields = `
                     <div class="site-check-fields">
-                        <span class="field">Site</span>
-                        <input type="text" class="verify-kind" list="verifyKindList" placeholder="kind" value="${escapeAttr(verifyKind)}" data-field="verifyKind" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="EduSiteChecker verify_kind">
-                        <input type="text" class="verify-params" placeholder='{"min_books":2}' value="${escapeAttr(verifyParamsStr)}" data-field="verifyParams" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="verify_params JSON">
+                        <span class="field" title="Leave empty = no Grok site check">Site kind</span>
+                        <input type="text" class="verify-kind" list="verifyKindList" placeholder="(optional)" value="${escapeAttr(verifyKind)}" data-field="verifyKind" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}">
+                        <input type="text" class="verify-params" placeholder="optional JSON" value="${escapeAttr(verifyParamsStr)}" data-field="verifyParams" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Optional; e.g. min_books">
                     </div>`;
+                }
                 row.innerHTML = `
                     <div class="name">${escapeHtml(entry.title)}</div>
                     <div class="controls">
@@ -1395,7 +1415,7 @@
                 checklist_items: userRow.checklist_items || {}
             };
             catalog = { required: [], practice: [], checklist: [] };
-            assignmentTasks = { required: [], practice: [] };
+            assignmentTasks = { required: [], practice: [], checklist: [] };
             (Array.isArray(rows) ? rows : []).forEach(row => {
                 if (!row || !row.section) return;
                 let bucket;
@@ -1752,6 +1772,32 @@
             if (e.target && e.target.id && e.target.id.startsWith('addChoreDay_') && !e.target.checked) {
                 document.getElementById('addChoreAllWeek').checked = false;
             }
+        });
+
+        document.getElementById('addChecklistBtn').addEventListener('click', function () {
+            const titleInput = document.getElementById('newChecklistTitle');
+            const title = (titleInput && titleInput.value || '').trim();
+            if (!title) {
+                alert('Enter a checklist title first.');
+                return;
+            }
+            if (!assignmentTasks.checklist) assignmentTasks.checklist = [];
+            if (assignmentTasks.checklist.some(t => t.title === title) || catalog.checklist.some(e => e.title === title)) {
+                alert('That checklist item already exists.');
+                return;
+            }
+            const task = {
+                title: title,
+                stars: 1,
+                displayDays: '',
+                verifyKind: '',
+                verifyParams: null,
+                scheduleKey: taskScheduleKey({ title: title }, 'checklist')
+            };
+            assignmentTasks.checklist.push(task);
+            dbRow.checklist_items[title] = { done: false, stars: 1 };
+            if (titleInput) titleInput.value = '';
+            refreshUI();
         });
 
         profile = localStorage.getItem('scheduleEditorProfile') || 'AM';
