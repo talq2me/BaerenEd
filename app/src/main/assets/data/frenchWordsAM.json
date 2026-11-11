@@ -1,12 +1,10 @@
 [
-  {"word":"Les parents","sentence":"Les parents attendent les enfants devant l'école."},
-  {"word":"le vent","sentence":"J'entends le vent dans les arbres."},
-  {"word":"la santé","sentence":"Manger des fruits est bon pour la santé."},
-  {"word":"manger","sentence":"J'aime manger des pommes rouges."},
-  {"word":"mentir","sentence":"Il ne faut jamais mentir à ses amis."},
-  {"word":"le chant","sentence":"J'écoute le chant des oiseaux le matin."},
-  {"word":"doucement","sentence":"Le chat marche doucement dans la maison."},
-  {"word":"amusant","sentence":"Ce jeu de société est très amusant."},
-  {"word":"plaisir","sentence":"Je lis mon livre avec plaisir."},
-  {"word":"la chasse","sentence":"Le chat part à la chasse aux souris."}
+  {"word":"la ceinture","sentence":"J'attache la ceinture dans la voiture."},
+  {"word":"la teinte","sentence":"Le ciel du soir a la teinte rose."},
+  {"word":"peindre","sentence":"J'aime peindre un grand soleil."},
+  {"word":"plein","sentence":"Mon verre est plein de jus."},
+  {"word":"serein","sentence":"Le lac est calme et serein."},
+  {"word":"la peinture","sentence":"J'utilise la peinture bleue pour mon dessin."},
+  {"word":"le rein","sentence":"Boire de l'eau aide le rein."},
+  {"word":"feindre","sentence":"Mon frère aime feindre d'être un lion."}
 ]
