@@ -1,12 +1,118 @@
-[
-{"word":"smart","sentence":"My dog is very smart."},
-{"word":"garden","sentence":"We grow carrots in our garden."},
-{"word":"under","sentence":"The cat is under the bed."},
-{"word":"purse","sentence":"Mom put her keys in her purse."},
-{"word":"work","sentence":"Dad goes to work in the morning."},
-{"word":"word","sentence":"Can you spell this word?"},
-{"word":"score","sentence":"Our team got the best score."},
-{"word":"herd","sentence":"A herd of cows is in the field."},
-{"word":"curl","sentence":"My hair has a curl in it."},
-{"word":"shirt","sentence":"I have a red shirt."}
-]
+{
+  "start_date": "2026-11-09",
+  "lang": "en",
+  "words": [
+    {
+      "word": "smart",
+      "sentence": "My dog is very smart.",
+      "syllables": [
+        "smart"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/smart.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/smart__sentence.ogg"
+      }
+    },
+    {
+      "word": "garden",
+      "sentence": "We grow carrots in our garden.",
+      "syllables": [
+        "gar",
+        "den"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/garden.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/garden__sentence.ogg"
+      }
+    },
+    {
+      "word": "under",
+      "sentence": "The cat is under the bed.",
+      "syllables": [
+        "un",
+        "der"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/under.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/under__sentence.ogg"
+      }
+    },
+    {
+      "word": "purse",
+      "sentence": "Mom put her keys in her purse.",
+      "syllables": [
+        "purse"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/purse.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/purse__sentence.ogg"
+      }
+    },
+    {
+      "word": "work",
+      "sentence": "Dad goes to work in the morning.",
+      "syllables": [
+        "work"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/work.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/work__sentence.ogg"
+      }
+    },
+    {
+      "word": "word",
+      "sentence": "Can you spell this word?",
+      "syllables": [
+        "word"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/word.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/word__sentence.ogg"
+      }
+    },
+    {
+      "word": "score",
+      "sentence": "Our team got the best score.",
+      "syllables": [
+        "score"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/score.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/score__sentence.ogg"
+      }
+    },
+    {
+      "word": "herd",
+      "sentence": "A herd of cows is in the field.",
+      "syllables": [
+        "herd"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/herd.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/herd__sentence.ogg"
+      }
+    },
+    {
+      "word": "curl",
+      "sentence": "My hair has a curl in it.",
+      "syllables": [
+        "curl"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/curl.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/curl__sentence.ogg"
+      }
+    },
+    {
+      "word": "shirt",
+      "sentence": "I have a red shirt.",
+      "syllables": [
+        "shirt"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/shirt.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/shirt__sentence.ogg"
+      }
+    }
+  ]
+}
