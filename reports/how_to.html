@@ -230,6 +230,14 @@
                 Update the school word files (<code>frenchWordsAM.json</code>, <code>englishWordsBM.json</code>, etc.)
                 each week for Jumble and OCR. The rotating-pool games are configured separately in the schedule URLs.
             </p>
+            <p>
+                Optional <code>audio</code> on each word entry points at pre-generated OGG clips in the Supabase
+                <code>spelling-audio</code> bucket. Games preload those clips and fall back to device TTS when missing.
+            </p>
+            <div class="param-block">
+                <p><code>"audio": { "word": "https://…/spelling-audio/fr/AM/la_ceinture.ogg", "sentence": "https://…/la_ceinture__sentence.ogg" }</code></p>
+                <p>Paths: <code>spelling-audio/{fr|en}/{AM|BM|TE}/{slug}.ogg</code> and <code>{slug}__sentence.ogg</code>.</p>
+            </div>
 
             <h3>URL parameters (rotating-pool games)</h3>
             <p>Each rotating-pool task URL includes query parameters like:</p>

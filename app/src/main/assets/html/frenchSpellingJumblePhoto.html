@@ -152,6 +152,7 @@
         <input type="file" id="cameraInput" accept="image/*" capture="environment">
     </div>
 
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingAudio.js"></script>
     <script>
         function readText(text, lang, rate = 1.0, onEndCallback = null) {
             if (window.Android && typeof window.Android.readText === 'function') {
@@ -297,7 +298,11 @@
         function playWord(wordObj) {
             const { word, sentence } = wordObj;
             const textToRead = sentence ? `Épelez le mot: ${word}. ${sentence}` : `Épelez le mot: ${word}`;
-            readText(textToRead, 'fr-FR', 0.8);
+            if (window.SpellingAudio) {
+                SpellingAudio.speakEntryPrompt(wordObj, readText, 'fr-FR', textToRead, 0.8);
+            } else {
+                readText(textToRead, 'fr-FR', 0.8);
+            }
         }
 
         // Callback functions for camera - must be on window object

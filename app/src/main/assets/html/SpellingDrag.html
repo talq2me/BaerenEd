@@ -171,6 +171,7 @@
     </div>
 
     <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingPool.js"></script>
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingAudio.js"></script>
     <script>
         const GITHUB_DATA = 'https://talq2me.github.io/BaerenEd/app/src/main/assets/data';
 
@@ -569,28 +570,49 @@
             });
         }
 
+        function speakWordClipOrTts(rate, onEnd) {
+            if (window.SpellingAudio && SpellingAudio.hasWord()) {
+                const clipRate = rate != null && rate < 0.5 ? 0.7 : 1;
+                SpellingAudio.playOrSpeak(['word'], (cb) => readText(currentEntry.word, ttsLang, rate, cb), onEnd, { rate: clipRate });
+            } else {
+                readText(currentEntry.word, ttsLang, rate, onEnd);
+            }
+        }
+
         function speakRoundIntro(done) {
             const w = currentEntry.word;
-            const steps = [];
-
-            if (roundType === 'syllables') {
-                steps.push({ text: strings.hereIsWord, rate: TTS_NORMAL });
-                steps.push({ text: w, rate: TTS_NORMAL });
-                steps.push({ text: w, rate: TTS_SLOW });
-                steps.push({ text: strings.spellPrompt, rate: TTS_NORMAL });
-                steps.push({ text: w, rate: TTS_SLOW });
-            } else if (roundType === 'letters') {
-                steps.push({ text: strings.again(w), rate: TTS_NORMAL });
-                steps.push({ text: w, rate: TTS_SLOW });
-            } else {
-                steps.push({ text: strings.lastTime(w), rate: TTS_NORMAL });
-                steps.push({ text: w, rate: TTS_SLOW });
-            }
-
-            speakSteps(steps, () => {
+            const finish = () => {
                 setInteractionLocked(false);
                 if (done) done();
-            });
+            };
+
+            const afterPreload = () => {
+                if (roundType === 'syllables') {
+                    readText(strings.hereIsWord, ttsLang, TTS_NORMAL, () => {
+                        speakWordClipOrTts(TTS_NORMAL, () => {
+                            speakWordClipOrTts(TTS_SLOW, () => {
+                                readText(strings.spellPrompt, ttsLang, TTS_NORMAL, () => {
+                                    speakWordClipOrTts(TTS_SLOW, finish);
+                                });
+                            });
+                        });
+                    });
+                } else if (roundType === 'letters') {
+                    readText(strings.again(w), ttsLang, TTS_NORMAL, () => {
+                        speakWordClipOrTts(TTS_SLOW, finish);
+                    });
+                } else {
+                    readText(strings.lastTime(w), ttsLang, TTS_NORMAL, () => {
+                        speakWordClipOrTts(TTS_SLOW, finish);
+                    });
+                }
+            };
+
+            if (window.SpellingAudio) {
+                SpellingAudio.ensurePreloaded(currentEntry).then(afterPreload);
+            } else {
+                afterPreload();
+            }
         }
 
         function startRound() {
@@ -690,7 +712,12 @@
             document.getElementById('replayBtn').onclick = () => {
                 if (!currentEntry) return;
                 setInteractionLocked(true);
-                readText(currentEntry.word, ttsLang, TTS_SLOW, () => setInteractionLocked(false));
+                const unlock = () => setInteractionLocked(false);
+                if (window.SpellingAudio) {
+                    SpellingAudio.speakEntryWord(currentEntry, readText, ttsLang, TTS_SLOW, unlock, { rate: 0.7 });
+                } else {
+                    readText(currentEntry.word, ttsLang, TTS_SLOW, unlock);
+                }
             };
             document.getElementById('deleteBtn').onclick = deleteLastPlacement;
 

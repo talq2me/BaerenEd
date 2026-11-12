@@ -313,6 +313,7 @@
     </div>
 
     <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingPool.js"></script>
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingAudio.js"></script>
     <script>
         function readText(text, lang, rate = 0.8, onEndCallback = null) {
             if (window.Android && typeof window.Android.readText === 'function') {
@@ -455,7 +456,11 @@
                 // English instructions
                 textToRead = sentence ? `Pick letters from the conveyor to spell: ${word}. ${sentence}` : `Pick letters from the conveyor to spell: ${word}`;
             }
-            readText(textToRead, ttsLanguage, 0.8);
+            if (window.SpellingAudio) {
+                SpellingAudio.speakEntryPrompt(currentWord, readText, ttsLanguage, textToRead, 0.8);
+            } else {
+                readText(textToRead, ttsLanguage, 0.8);
+            }
         }
 
         function createAssemblyLine() {

@@ -112,11 +112,15 @@
         if (!entry) {
             return { word: '', sentence: '' };
         }
-        return {
+        const out = {
             word: entry.word || '',
             sentence: entry.sentence || '',
             syllables: entry.syllables
         };
+        if (entry.audio && typeof entry.audio === 'object') {
+            out.audio = entry.audio;
+        }
+        return out;
     }
 
     function detectTtsLang(cfg, parsedLang) {

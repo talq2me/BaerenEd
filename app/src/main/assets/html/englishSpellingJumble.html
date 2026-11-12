@@ -117,6 +117,7 @@
         </div>
     </div>
 
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingAudio.js"></script>
     <script>
         function readText(text, lang, rate = 1.0, onEndCallback = null) {
             if (window.Android && typeof window.Android.readText === 'function') {
@@ -335,7 +336,11 @@
             }
             const { word, sentence } = currentWord;
             const textToRead = sentence ? `Spell the word: ${word}. ${sentence}` : `Spell the word: ${word}`;
-            readText(textToRead, 'en-US', 0.8);
+            if (window.SpellingAudio) {
+                SpellingAudio.speakEntryPrompt(currentWord, readText, 'en-US', textToRead, 0.8);
+            } else {
+                readText(textToRead, 'en-US', 0.8);
+            }
         }
 
         function clearShownWord() {
