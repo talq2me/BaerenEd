@@ -37,18 +37,23 @@
     function parseWords(raw) {
         const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (data && Array.isArray(data.words)) {
-            return { words: data.words, lang: data.lang || null };
+            return {
+                words: data.words,
+                lang: data.lang || null,
+                startDate: data.start_date || data.startDate || null
+            };
         }
         if (Array.isArray(data) && data.length && data[0] && data[0].word) {
-            return { words: data, lang: null };
+            return { words: data, lang: null, startDate: null };
         }
         if (Array.isArray(data)) {
             return {
                 words: data.map((w) => (typeof w === 'string' ? { word: w } : w)),
-                lang: null
+                lang: null,
+                startDate: null
             };
         }
-        return { words: [], lang: null };
+        return { words: [], lang: null, startDate: null };
     }
 
     async function loadJson(fileName) {

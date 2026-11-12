@@ -290,6 +290,9 @@
         }
 
         function parseWordList(data) {
+            if (data && Array.isArray(data.words)) {
+                return parseWordList(data.words);
+            }
             if (Array.isArray(data) && data.length > 0 && data[0].word) {
                 return data;
             }

@@ -231,13 +231,25 @@
                 each week for Jumble and OCR. The rotating-pool games are configured separately in the schedule URLs.
             </p>
             <p>
-                Optional <code>audio</code> on each word entry points at pre-generated OGG clips in the Supabase
-                <code>spelling-audio</code> bucket. Games preload those clips and fall back to device TTS when missing.
+                School lists are an object with <code>start_date</code>, <code>lang</code>, and <code>words</code>.
+                Optional <code>audio</code> on each entry points at OGG clips in the Supabase <code>spelling-audio</code> bucket
+                (games preload clips and fall back to device TTS). Optional <code>syllables</code> enable early-week jumble scaffolding.
             </p>
             <div class="param-block">
-                <p><code>"audio": { "word": "https://…/spelling-audio/fr/AM/la_ceinture.ogg", "sentence": "https://…/la_ceinture__sentence.ogg" }</code></p>
-                <p>Paths: <code>spelling-audio/{fr|en}/{AM|BM|TE}/{slug}.ogg</code> and <code>{slug}__sentence.ogg</code>.</p>
+                <p><code>{ "start_date": "2026-11-13", "lang": "fr", "words": [ { "word", "sentence", "syllables", "audio" } ] }</code></p>
+                <p><code>syllables.join("")</code> must equal <code>word</code> (case-insensitive). Include spaces in the array when the word has spaces.</p>
+                <p><code>audio</code>: <code>{ "word": "https://…/spelling-audio/fr/AM/la_ceinture.ogg", "sentence": "https://…/la_ceinture__sentence.ogg" }</code></p>
             </div>
+            <h3>Jumble early-week rounds</h3>
+            <p>
+                For the first days after <code>start_date</code> (Toronto calendar), Fr/Eng Spelling Jumble runs 3 rounds per word
+                when syllables exist: (1) syllables with word shown, (2) letters with word shown, (3) blind dictée
+                (hard letter-bank or extreme keyboard). After that window, jumble is blind-only as before.
+            </p>
+            <ul>
+                <li><strong>AM English</strong> — 2 scaffold days</li>
+                <li><strong>All other school lists</strong> — 3 scaffold days</li>
+            </ul>
 
             <h3>URL parameters (rotating-pool games)</h3>
             <p>Each rotating-pool task URL includes query parameters like:</p>
@@ -261,8 +273,8 @@
                 <li><strong>Star 3</strong> — spell from memory (word hidden, audio only)</li>
             </ol>
             <p>
-                School word files (<code>frenchWordsBM.json</code>, etc.) do not include syllables, so Drag skips round 1
-                and only does letters → blind (2 stars max). To get the syllable round on school words, the JSON would need syllable data (as in the <code>spellingDrag*</code> files).
+                School word files should include <code>syllables</code> so Drag and early-week Jumble can run the syllable round.
+                Without valid syllables, Drag skips to letters → blind (2 stars max).
             </p>
 
             <h3>Switch rotating-pool games to School Mode</h3>

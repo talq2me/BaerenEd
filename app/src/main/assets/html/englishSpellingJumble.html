@@ -35,9 +35,13 @@
             align-items: center;
             justify-content: center;
         }
+        .letter.chunk {
+            border-radius: 12px; width: auto; min-width: 50px; padding: 0 12px; font-size: 20px;
+        }
         .letter:hover { background: #45a049; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
         .letter.dragging { opacity: 0.5; transform: rotate(5deg); }
         .letter.used { background: #ccc; cursor: not-allowed; opacity: 0.6; }
+        #roundLabel { font-size: 18px; font-weight: 700; color: #3d4a57; margin: 0 0 8px; min-height: 1.2em; }
         .spelled-word { font-size: 32px; font-weight: bold; color: #2196F3; margin: 10px 0; min-height: 50px; }
         .button-container { margin: 20px 0; display: flex; justify-content: center; gap: 10px; }
         .practice-container { margin: 20px 0; padding: 20px; background: #fff3cd; border-radius: 10px; border: 2px solid #ffeaa7; }
@@ -97,6 +101,7 @@
     <div class="game-container">
         <h1>English Spelling Jumble</h1>
         <div id="starCount">⭐ 0 / 10</div>
+        <div id="roundLabel"></div>
         <div class="word-display" id="wordDisplay">
             <div id="shownWord" hidden></div>
             <button class="button" id="playButton" onclick="playInstruction()">&#9654; Play</button>
@@ -117,6 +122,8 @@
         </div>
     </div>
 
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingPool.js"></script>
+    <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingJumbleScaffold.js"></script>
     <script src="https://talq2me.github.io/BaerenEd/app/src/main/assets/html/spellingAudio.js"></script>
     <script>
         function readText(text, lang, rate = 1.0, onEndCallback = null) {
@@ -157,6 +164,14 @@
         let practiceCorrectAttempts = 0;
         let practiceSelectedLetters = [];
         let practiceSelectedLetterElements = [];
+        let listStartDate = null;
+        let listLang = 'en';
+        let listFileName = '';
+        let scaffoldActive = false;
+        let wordRounds = ['blind'];
+        let wordRoundIndex = 0;
+        /** @type {'syllables'|'letters'|'blind'} */
+        let currentRoundType = 'blind';
 
         function getSelectionState() {
             return isInPracticeMode
@@ -171,7 +186,47 @@
             const jsonData = urlParams.get('json') || urlParams.get('data');
             gameMode = ['easy', 'hard', 'extreme'].includes(mode) ? mode : 'hard';
             copyRound = urlParams.get('xtra') === '1';
-            return { file, jsonData }; // Return both file and jsonData
+            listFileName = file || '';
+            return { file, jsonData };
+        }
+
+        function refreshScaffoldFlag() {
+            if (!window.SpellingJumbleScaffold) {
+                scaffoldActive = false;
+                return;
+            }
+            const days = SpellingJumbleScaffold.scaffoldDayCount(listFileName, listLang);
+            scaffoldActive = !copyRound && SpellingJumbleScaffold.isScaffoldActive(listStartDate, days);
+        }
+
+        function currentRound() {
+            return wordRounds[wordRoundIndex] || 'blind';
+        }
+
+        function updateRoundLabel() {
+            const el = document.getElementById('roundLabel');
+            if (!el) return;
+            if (copyRound || !scaffoldActive || wordRounds.length <= 1) {
+                el.textContent = '';
+                return;
+            }
+            const labels = {
+                syllables: 'Round 1: syllables (word visible)',
+                letters: 'Round 2: letters (word visible)',
+                blind: 'Round 3: dictation (word hidden)'
+            };
+            el.textContent = labels[currentRoundType] || `Round ${wordRoundIndex + 1} / ${wordRounds.length}`;
+        }
+
+        function showModelWord(text) {
+            const shown = document.getElementById('shownWord');
+            if (!shown) return;
+            shown.hidden = false;
+            shown.replaceChildren();
+            const wordEl = document.createElement('div');
+            wordEl.className = 'copy-word';
+            wordEl.textContent = text || '';
+            shown.appendChild(wordEl);
         }
 
         /**
@@ -208,16 +263,20 @@
         }
 
         function applyWordList(data) {
-            let list = null;
-            if (Array.isArray(data) && data.length > 0 && data[0].word) {
-                list = data;
-            } else if (Array.isArray(data) && data.length > 0) {
-                list = data.map(w => (typeof w === 'string' ? { word: w, sentence: '' } : w));
+            const parsed = window.SpellingJumbleScaffold
+                ? SpellingJumbleScaffold.parseList(data)
+                : { words: Array.isArray(data) ? data : [], lang: null, startDate: null };
+            let list = parsed.words || [];
+            if (list.length && typeof list[0] === 'string') {
+                list = list.map(w => ({ word: w, sentence: '' }));
             }
-            if (!list || !list.length) {
+            if (!list.length || !list[0] || !list[0].word) {
                 return false;
             }
             words = list;
+            listStartDate = parsed.startDate || null;
+            listLang = parsed.lang || 'en';
+            refreshScaffoldFlag();
             startGame();
             return true;
         }
@@ -294,13 +353,20 @@
 
         let isFirstAttempt = true;
 
-        function loadWord() {
-            if (currentWordIndex >= maxQuestions) return endGame();
-            currentWord = words[currentWordIndex];
+        function beginWordRounds() {
+            wordRounds = window.SpellingJumbleScaffold
+                ? SpellingJumbleScaffold.roundsForEntry(currentWord, scaffoldActive)
+                : ['blind'];
+            wordRoundIndex = 0;
+            startCurrentRound();
+        }
+
+        function startCurrentRound() {
+            currentRoundType = currentRound();
             selectedLetters = [];
             selectedLetterElements = [];
             isInPracticeMode = false;
-            isFirstAttempt = true; // Reset for new word
+            isFirstAttempt = true;
             clearShift();
             document.getElementById('spelledWord').textContent = '';
             document.getElementById('practiceContainer').classList.add('hidden');
@@ -309,15 +375,15 @@
             document.getElementById('deleteBtn').style.display = 'inline-block';
             document.getElementById('submitBtn').style.display = 'inline-block';
             clearShownWord();
+            updateRoundLabel();
 
-            if (copyRound) {
-                beginCopyWord();
-                return;
-            }
-            
+            const showWord = currentRoundType === 'syllables' || currentRoundType === 'letters';
+            if (showWord) showModelWord(currentWord.word);
+
             const letterBank = document.getElementById('letterBank');
             const keyboardContainer = document.getElementById('keyboardContainer');
-            if (gameMode === 'extreme') {
+            const useExtremeKeyboard = gameMode === 'extreme' && currentRoundType === 'blind';
+            if (useExtremeKeyboard) {
                 letterBank.style.display = 'none';
                 keyboardContainer.classList.remove('hidden');
             } else {
@@ -328,6 +394,29 @@
             setTimeout(playInstruction, 500);
         }
 
+        function loadWord() {
+            if (currentWordIndex >= maxQuestions) return endGame();
+            currentWord = words[currentWordIndex];
+            if (copyRound) {
+                selectedLetters = [];
+                selectedLetterElements = [];
+                isInPracticeMode = false;
+                isFirstAttempt = true;
+                clearShift();
+                document.getElementById('spelledWord').textContent = '';
+                document.getElementById('practiceContainer').classList.add('hidden');
+                document.getElementById('messageContainer').innerHTML = '';
+                document.querySelector('.button-container').style.display = 'flex';
+                document.getElementById('deleteBtn').style.display = 'inline-block';
+                document.getElementById('submitBtn').style.display = 'inline-block';
+                clearShownWord();
+                updateRoundLabel();
+                beginCopyWord();
+                return;
+            }
+            beginWordRounds();
+        }
+
         function playInstruction() {
             if (copyRound) {
                 const n = practiceCorrectAttempts + 1;
@@ -335,6 +424,14 @@
                 return;
             }
             const { word, sentence } = currentWord;
+            if (currentRoundType === 'syllables' || currentRoundType === 'letters') {
+                if (window.SpellingAudio) {
+                    SpellingAudio.speakEntryWord(currentWord, readText, 'en-US', 0.8);
+                } else {
+                    readText(word, 'en-US', 0.8);
+                }
+                return;
+            }
             const textToRead = sentence ? `Spell the word: ${word}. ${sentence}` : `Spell the word: ${word}`;
             if (window.SpellingAudio) {
                 SpellingAudio.speakEntryPrompt(currentWord, readText, 'en-US', textToRead, 0.8);
@@ -451,16 +548,21 @@
 
         function extraJumbleLetters(word, minCount, maxCount) {
             const targeted = englishSoundSwapLetters(word);
-            const extras = [...targeted];
+            if (window.SpellingJumbleScaffold) {
+                return SpellingJumbleScaffold.uniqueDecoys(targeted, ENGLISH_LETTER_POOL, minCount, maxCount);
+            }
+            const extras = [];
+            const seen = new Set();
+            targeted.forEach(ch => {
+                if (!seen.has(ch)) { seen.add(ch); extras.push(ch); }
+            });
             const randoms = ENGLISH_LETTER_POOL.split('').sort(() => Math.random() - 0.5);
             for (let i = 0; extras.length < maxCount && i < randoms.length; i++) {
+                if (seen.has(randoms[i])) continue;
+                seen.add(randoms[i]);
                 extras.push(randoms[i]);
             }
-            while (extras.length < minCount) extras.push(randoms[extras.length % randoms.length]);
-            if (extras.length > maxCount && extras.length > targeted.length) {
-                return targeted.concat(extras.slice(targeted.length, targeted.length + Math.max(0, maxCount - targeted.length)));
-            }
-            return extras;
+            return extras.slice(0, maxCount);
         }
 
         function renderLetterBank(letterPool) {
@@ -468,18 +570,23 @@
             letterBank.innerHTML = '';
             letterPool.sort(() => Math.random() - 0.5).forEach(letter => {
                 const letterElement = document.createElement('div');
-                letterElement.className = 'letter';
-                letterElement.textContent = letter;
+                const isChunk = String(letter).length > 1 || letter === ' ';
+                letterElement.className = 'letter' + (isChunk ? ' chunk' : '');
+                letterElement.textContent = letter === ' ' ? '␣' : letter;
                 letterElement.onclick = () => handleLetterClick(letterElement, letter);
                 letterBank.appendChild(letterElement);
             });
         }
 
         function createLetterBank() {
+            if (currentRoundType === 'syllables' && Array.isArray(currentWord.syllables)) {
+                renderLetterBank(currentWord.syllables.slice());
+                return;
+            }
             const letters = currentWord.word.split('');
             const extras = (gameMode === 'easy')
-                ? extraJumbleLetters(currentWord.word, 4, 6)
-                : extraJumbleLetters(currentWord.word, 8, 12);
+                ? extraJumbleLetters(currentWord.word, 3, 5)
+                : extraJumbleLetters(currentWord.word, 4, 6);
             renderLetterBank([...letters, ...extras]);
         }
 
@@ -537,7 +644,7 @@
             if (state.letters.length === 0) return;
             state.letters.pop();
             const lastElement = state.elements.pop();
-            const useLetterBank = gameMode !== 'extreme' || isInPracticeMode;
+            const useLetterBank = gameMode !== 'extreme' || isInPracticeMode || currentRoundType !== 'blind';
             if (useLetterBank && lastElement) {
                 lastElement.classList.remove('used');
             } else if (useLetterBank) {
@@ -556,31 +663,56 @@
             document.getElementById('spelledWord').textContent = state.letters.join('');
         }
 
+        function advanceAfterRoundSuccess() {
+            if (wordRoundIndex < wordRounds.length - 1) {
+                wordRoundIndex++;
+                setTimeout(startCurrentRound, 900);
+                return;
+            }
+            setTimeout(nextWord, 1200);
+        }
+
         function handleSubmit() {
             if (isInPracticeMode) return copyRound ? handleCopySubmit() : handlePracticeSubmit();
             const spelledWord = selectedLetters.join('');
-            if (isFirstAttempt) {
+            const ok = spellingAnswersMatch(spelledWord, currentWord.word);
+            const isBlind = currentRoundType === 'blind';
+
+            if (isBlind && isFirstAttempt) {
                 typedAttempts.push({
                     word: currentWord.word,
                     typed: spelledWord,
-                    correct: spellingAnswersMatch(spelledWord, currentWord.word)
+                    correct: ok,
+                    round: currentRoundType
                 });
             }
-            if (spellingAnswersMatch(spelledWord, currentWord.word)) {
+
+            if (ok) {
                 document.getElementById('messageContainer').innerHTML = `<span style="color: #4CAF50; font-weight: bold;">✓ Correct!</span>`;
-                if (isFirstAttempt) {
+                if (isBlind && isFirstAttempt) {
                     correctCount++;
                     updateStarCount();
                 }
-                setTimeout(nextWord, 1200);
-            } else {
-                if (isFirstAttempt) {
-                    incorrectCount++;
-                    missedWords.push(currentWord.word);
-                    isFirstAttempt = false; // Mark that we've had the first attempt
-                }
-                startPracticeMode();
+                advanceAfterRoundSuccess();
+                return;
             }
+
+            if (!isBlind) {
+                document.getElementById('messageContainer').innerHTML =
+                    `<span style="color:#c62828;font-weight:bold;">Try again.</span>`;
+                selectedLetters = [];
+                selectedLetterElements = [];
+                createLetterBank();
+                updateSpelledWord();
+                return;
+            }
+
+            if (isFirstAttempt) {
+                incorrectCount++;
+                missedWords.push(currentWord.word);
+                isFirstAttempt = false;
+            }
+            startPracticeMode();
         }
 
         function startPracticeMode() {
@@ -603,7 +735,7 @@
 
         function createPracticeLetterBank() {
             const letters = currentWord.word.split('');
-            const extras = extraJumbleLetters(currentWord.word, 5, 8);
+            const extras = extraJumbleLetters(currentWord.word, 4, 6);
             renderLetterBank([...letters, ...extras]);
         }
 

@@ -203,7 +203,9 @@
 
         function applyWordList(data) {
             let list = null;
-            if (Array.isArray(data) && data.length > 0 && data[0].word) {
+            if (data && Array.isArray(data.words)) {
+                list = data.words;
+            } else if (Array.isArray(data) && data.length > 0 && data[0].word) {
                 list = data;
             } else if (Array.isArray(data) && data.length > 0) {
                 list = data.map(w => (typeof w === 'string' ? { word: w, sentence: '' } : w));
