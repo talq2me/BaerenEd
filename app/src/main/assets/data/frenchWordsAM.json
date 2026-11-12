@@ -1,10 +1,110 @@
-[
-  {"word":"la ceinture","sentence":"J'attache la ceinture dans la voiture.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_ceinture.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_ceinture__sentence.ogg"}},
-  {"word":"la teinte","sentence":"Le ciel du soir a la teinte rose.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_teinte.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_teinte__sentence.ogg"}},
-  {"word":"peindre","sentence":"J'aime peindre un grand soleil.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/peindre.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/peindre__sentence.ogg"}},
-  {"word":"plein","sentence":"Mon verre est plein de jus.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/plein.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/plein__sentence.ogg"}},
-  {"word":"serein","sentence":"Le lac est calme et serein.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/serein.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/serein__sentence.ogg"}},
-  {"word":"la peinture","sentence":"J'utilise la peinture bleue pour mon dessin.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_peinture.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_peinture__sentence.ogg"}},
-  {"word":"le rein","sentence":"Boire de l'eau aide le rein.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/le_rein.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/le_rein__sentence.ogg"}},
-  {"word":"feindre","sentence":"Mon frère aime feindre d'être un lion.","audio":{"word":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/feindre.ogg","sentence":"https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/feindre__sentence.ogg"}}
-]
+{
+  "start_date": "2026-11-13",
+  "lang": "fr",
+  "words": [
+    {
+      "word": "la ceinture",
+      "sentence": "J'attache la ceinture dans la voiture.",
+      "syllables": [
+        "la",
+        " ",
+        "cein",
+        "tu",
+        "re"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_ceinture.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_ceinture__sentence.ogg"
+      }
+    },
+    {
+      "word": "la teinte",
+      "sentence": "Le ciel du soir a la teinte rose.",
+      "syllables": [
+        "la",
+        " ",
+        "tein",
+        "te"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_teinte.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_teinte__sentence.ogg"
+      }
+    },
+    {
+      "word": "peindre",
+      "sentence": "J'aime peindre un grand soleil.",
+      "syllables": [
+        "pein",
+        "dre"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/peindre.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/peindre__sentence.ogg"
+      }
+    },
+    {
+      "word": "plein",
+      "sentence": "Mon verre est plein de jus.",
+      "syllables": [
+        "plein"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/plein.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/plein__sentence.ogg"
+      }
+    },
+    {
+      "word": "serein",
+      "sentence": "Le lac est calme et serein.",
+      "syllables": [
+        "se",
+        "rein"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/serein.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/serein__sentence.ogg"
+      }
+    },
+    {
+      "word": "la peinture",
+      "sentence": "J'utilise la peinture bleue pour mon dessin.",
+      "syllables": [
+        "la",
+        " ",
+        "pein",
+        "tu",
+        "re"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_peinture.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/la_peinture__sentence.ogg"
+      }
+    },
+    {
+      "word": "le rein",
+      "sentence": "Boire de l'eau aide le rein.",
+      "syllables": [
+        "le",
+        " ",
+        "rein"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/le_rein.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/le_rein__sentence.ogg"
+      }
+    },
+    {
+      "word": "feindre",
+      "sentence": "Mon frère aime feindre d'être un lion.",
+      "syllables": [
+        "fein",
+        "dre"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/feindre.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/AM/feindre__sentence.ogg"
+      }
+    }
+  ]
+}

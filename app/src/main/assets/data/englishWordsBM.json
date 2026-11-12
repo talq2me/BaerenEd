@@ -1,22 +1,258 @@
-[
-  {"word":"scented","sentence":"My grandmother's garden is full of sweet scented roses."},
-  {"word":"adolescent","sentence":"An adolescent is a young person who is growing from a child into an adult."},
-  {"word":"scattered","sentence":"The wind scattered the colourful leaves all over the yard."},
-  {"word":"scissors","sentence":"Please use the scissors carefully when you cut out your poster."},
-  {"word":"scientific","sentence":"We followed the scientific method to test which paper towel was strongest."},
-  {"word":"screaming","sentence":"The kids were screaming with joy on the roller coaster."},
-  {"word":"muscles","sentence":"Running every day makes the muscles in your legs stronger."},
-  {"word":"scalding","sentence":"Be careful, the soup is scalding hot right off the stove."},
-  {"word":"scenery","sentence":"We stopped the car to enjoy the beautiful mountain scenery."},
-  {"word":"crescent","sentence":"A thin crescent moon glowed in the night sky."},
-  {"word":"descending","sentence":"The plane began descending toward the airport."},
-  {"word":"sculpture","sentence":"The artist carved a sculpture of a bear out of wood."},
-  {"word":"escape","sentence":"The hamster tried to escape from its cage during the night."},
-  {"word":"scampered","sentence":"The squirrel scampered up the tree when the dog barked."},
-  {"word":"scenic","sentence":"We took the scenic route along the lake to see the view."},
-  {"word":"miscellaneous","sentence":"The junk drawer is full of miscellaneous things like tape, keys, and batteries."},
-  {"word":"fascinating","sentence":"The documentary about sharks was fascinating to watch."},
-  {"word":"luscious","sentence":"We picked luscious ripe strawberries at the farm."},
-  {"word":"discipline","sentence":"Learning to play the piano well takes discipline and daily practice."},
-  {"word":"conscience","sentence":"His conscience told him to return the wallet he found."}
-]
+{
+  "start_date": "2026-11-02",
+  "lang": "en",
+  "words": [
+    {
+      "word": "scented",
+      "sentence": "My grandmother's garden is full of sweet scented roses.",
+      "syllables": [
+        "scent",
+        "ed"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scented.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scented__sentence.ogg"
+      }
+    },
+    {
+      "word": "adolescent",
+      "sentence": "An adolescent is a young person who is growing from a child into an adult.",
+      "syllables": [
+        "ad",
+        "o",
+        "les",
+        "cent"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/adolescent.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/adolescent__sentence.ogg"
+      }
+    },
+    {
+      "word": "scattered",
+      "sentence": "The wind scattered the colourful leaves all over the yard.",
+      "syllables": [
+        "scat",
+        "tered"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scattered.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scattered__sentence.ogg"
+      }
+    },
+    {
+      "word": "scissors",
+      "sentence": "Please use the scissors carefully when you cut out your poster.",
+      "syllables": [
+        "scis",
+        "sors"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scissors.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scissors__sentence.ogg"
+      }
+    },
+    {
+      "word": "scientific",
+      "sentence": "We followed the scientific method to test which paper towel was strongest.",
+      "syllables": [
+        "sci",
+        "en",
+        "tif",
+        "ic"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scientific.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scientific__sentence.ogg"
+      }
+    },
+    {
+      "word": "screaming",
+      "sentence": "The kids were screaming with joy on the roller coaster.",
+      "syllables": [
+        "scream",
+        "ing"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/screaming.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/screaming__sentence.ogg"
+      }
+    },
+    {
+      "word": "muscles",
+      "sentence": "Running every day makes the muscles in your legs stronger.",
+      "syllables": [
+        "mus",
+        "cles"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/muscles.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/muscles__sentence.ogg"
+      }
+    },
+    {
+      "word": "scalding",
+      "sentence": "Be careful, the soup is scalding hot right off the stove.",
+      "syllables": [
+        "scald",
+        "ing"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scalding.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scalding__sentence.ogg"
+      }
+    },
+    {
+      "word": "scenery",
+      "sentence": "We stopped the car to enjoy the beautiful mountain scenery.",
+      "syllables": [
+        "scen",
+        "er",
+        "y"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenery.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenery__sentence.ogg"
+      }
+    },
+    {
+      "word": "crescent",
+      "sentence": "A thin crescent moon glowed in the night sky.",
+      "syllables": [
+        "cres",
+        "cent"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/crescent.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/crescent__sentence.ogg"
+      }
+    },
+    {
+      "word": "descending",
+      "sentence": "The plane began descending toward the airport.",
+      "syllables": [
+        "de",
+        "scend",
+        "ing"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/descending.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/descending__sentence.ogg"
+      }
+    },
+    {
+      "word": "sculpture",
+      "sentence": "The artist carved a sculpture of a bear out of wood.",
+      "syllables": [
+        "sculp",
+        "ture"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/sculpture.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/sculpture__sentence.ogg"
+      }
+    },
+    {
+      "word": "escape",
+      "sentence": "The hamster tried to escape from its cage during the night.",
+      "syllables": [
+        "es",
+        "cape"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/escape.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/escape__sentence.ogg"
+      }
+    },
+    {
+      "word": "scampered",
+      "sentence": "The squirrel scampered up the tree when the dog barked.",
+      "syllables": [
+        "scam",
+        "pered"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scampered.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scampered__sentence.ogg"
+      }
+    },
+    {
+      "word": "scenic",
+      "sentence": "We took the scenic route along the lake to see the view.",
+      "syllables": [
+        "sce",
+        "nic"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenic.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenic__sentence.ogg"
+      }
+    },
+    {
+      "word": "miscellaneous",
+      "sentence": "The junk drawer is full of miscellaneous things like tape, keys, and batteries.",
+      "syllables": [
+        "mis",
+        "cel",
+        "la",
+        "ne",
+        "ous"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/miscellaneous.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/miscellaneous__sentence.ogg"
+      }
+    },
+    {
+      "word": "fascinating",
+      "sentence": "The documentary about sharks was fascinating to watch.",
+      "syllables": [
+        "fas",
+        "ci",
+        "nat",
+        "ing"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/fascinating.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/fascinating__sentence.ogg"
+      }
+    },
+    {
+      "word": "luscious",
+      "sentence": "We picked luscious ripe strawberries at the farm.",
+      "syllables": [
+        "lus",
+        "cious"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/luscious.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/luscious__sentence.ogg"
+      }
+    },
+    {
+      "word": "discipline",
+      "sentence": "Learning to play the piano well takes discipline and daily practice.",
+      "syllables": [
+        "dis",
+        "ci",
+        "pline"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/discipline.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/discipline__sentence.ogg"
+      }
+    },
+    {
+      "word": "conscience",
+      "sentence": "His conscience told him to return the wallet he found.",
+      "syllables": [
+        "con",
+        "science"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/conscience.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/conscience__sentence.ogg"
+      }
+    }
+  ]
+}
