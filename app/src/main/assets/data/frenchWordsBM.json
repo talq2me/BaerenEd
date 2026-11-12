@@ -1,33 +1,397 @@
-[
-  {"word":"zéro","sentence":"Il y a zéro pomme dans le panier."},
-  {"word":"un","sentence":"J'ai un crayon dans ma trousse."},
-  {"word":"deux","sentence":"Elle a deux chats à la maison."},
-  {"word":"trois","sentence":"Nous avons trois livres sur la table."},
-  {"word":"quatre","sentence":"Il y a quatre chaises dans la classe."},
-  {"word":"cinq","sentence":"Je vois cinq oiseaux dans l'arbre."},
-  {"word":"six","sentence":"Nous avons six crayons de couleur."},
-  {"word":"sept","sentence":"Il y a sept jours dans une semaine."},
-  {"word":"huit","sentence":"Elle a huit billes dans sa poche."},
-  {"word":"neuf","sentence":"Le chat a neuf vies, dit-on."},
-  {"word":"dix","sentence":"Je compte jusqu'à dix avant de courir."},
-  {"word":"onze","sentence":"Il est onze heures du matin."},
-  {"word":"douze","sentence":"Il y a douze œufs dans la boîte."},
-  {"word":"treize","sentence":"Nous sommes treize élèves aujourd'hui."},
-  {"word":"quatorze","sentence":"Elle a quatorze ans cette année."},
-  {"word":"quinze","sentence":"Le cours dure quinze minutes."},
-  {"word":"seize","sentence":"Il y a seize pages dans le livret."},
-  {"word":"vingt","sentence":"J'ai vingt billes dans mon sac."},
-  {"word":"trente","sentence":"Il y a trente jours dans ce mois."},
-  {"word":"quarante","sentence":"Le livre a quarante pages."},
-  {"word":"cinquante","sentence":"Elle a cinquante cents dans sa poche."},
-  {"word":"soixante","sentence":"Nous avons soixante minutes pour finir."},
-  {"word":"cent","sentence":"Il y a cent centimètres dans un mètre."},
-  {"word":"mille","sentence":"Il y a mille mètres dans un kilomètre."},
-  {"word":"trente-cinq","sentence":"J'ai trente-cinq billes dans mon sac."},
-  {"word":"quatre-cent-soixante-douze","sentence":"Le livre a quatre-cent-soixante-douze pages."},
-  {"word":"cinq-cents","sentence":"Cinq-cents, c'est cinq fois cent."},
-  {"word":"quatre-vingts","sentence":"Quatre-vingts, c'est quatre fois vingt."},
-  {"word":"cinq-cent-quarante","sentence":"L'école a cinq-cent-quarante élèves."},
-  {"word":"quatre-vingt-seize","sentence":"Il y a quatre-vingt-seize crayons dans la boîte."},
-  {"word":"deux-mille","sentence":"Il y a deux-mille mètres dans deux kilomètres."}
-]
+{
+  "start_date": "2026-09-23",
+  "lang": "fr",
+  "words": [
+    {
+      "word": "zéro",
+      "sentence": "Il y a zéro pomme dans le panier.",
+      "syllables": [
+        "zé",
+        "ro"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/zero.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/zero__sentence.ogg"
+      }
+    },
+    {
+      "word": "un",
+      "sentence": "J'ai un crayon dans ma trousse.",
+      "syllables": [
+        "un"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/un.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/un__sentence.ogg"
+      }
+    },
+    {
+      "word": "deux",
+      "sentence": "Elle a deux chats à la maison.",
+      "syllables": [
+        "deux"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/deux.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/deux__sentence.ogg"
+      }
+    },
+    {
+      "word": "trois",
+      "sentence": "Nous avons trois livres sur la table.",
+      "syllables": [
+        "trois"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/trois.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/trois__sentence.ogg"
+      }
+    },
+    {
+      "word": "quatre",
+      "sentence": "Il y a quatre chaises dans la classe.",
+      "syllables": [
+        "qua",
+        "tre"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre__sentence.ogg"
+      }
+    },
+    {
+      "word": "cinq",
+      "sentence": "Je vois cinq oiseaux dans l'arbre.",
+      "syllables": [
+        "cinq"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinq.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinq__sentence.ogg"
+      }
+    },
+    {
+      "word": "six",
+      "sentence": "Nous avons six crayons de couleur.",
+      "syllables": [
+        "six"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/six.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/six__sentence.ogg"
+      }
+    },
+    {
+      "word": "sept",
+      "sentence": "Il y a sept jours dans une semaine.",
+      "syllables": [
+        "sept"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/sept.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/sept__sentence.ogg"
+      }
+    },
+    {
+      "word": "huit",
+      "sentence": "Elle a huit billes dans sa poche.",
+      "syllables": [
+        "huit"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/huit.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/huit__sentence.ogg"
+      }
+    },
+    {
+      "word": "neuf",
+      "sentence": "Le chat a neuf vies, dit-on.",
+      "syllables": [
+        "neuf"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/neuf.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/neuf__sentence.ogg"
+      }
+    },
+    {
+      "word": "dix",
+      "sentence": "Je compte jusqu'à dix avant de courir.",
+      "syllables": [
+        "dix"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/dix.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/dix__sentence.ogg"
+      }
+    },
+    {
+      "word": "onze",
+      "sentence": "Il est onze heures du matin.",
+      "syllables": [
+        "on",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/onze.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/onze__sentence.ogg"
+      }
+    },
+    {
+      "word": "douze",
+      "sentence": "Il y a douze œufs dans la boîte.",
+      "syllables": [
+        "dou",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/douze.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/douze__sentence.ogg"
+      }
+    },
+    {
+      "word": "treize",
+      "sentence": "Nous sommes treize élèves aujourd'hui.",
+      "syllables": [
+        "trei",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/treize.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/treize__sentence.ogg"
+      }
+    },
+    {
+      "word": "quatorze",
+      "sentence": "Elle a quatorze ans cette année.",
+      "syllables": [
+        "qua",
+        "tor",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatorze.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatorze__sentence.ogg"
+      }
+    },
+    {
+      "word": "quinze",
+      "sentence": "Le cours dure quinze minutes.",
+      "syllables": [
+        "quin",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quinze.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quinze__sentence.ogg"
+      }
+    },
+    {
+      "word": "seize",
+      "sentence": "Il y a seize pages dans le livret.",
+      "syllables": [
+        "sei",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/seize.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/seize__sentence.ogg"
+      }
+    },
+    {
+      "word": "vingt",
+      "sentence": "J'ai vingt billes dans mon sac.",
+      "syllables": [
+        "vingt"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/vingt.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/vingt__sentence.ogg"
+      }
+    },
+    {
+      "word": "trente",
+      "sentence": "Il y a trente jours dans ce mois.",
+      "syllables": [
+        "tren",
+        "te"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/trente.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/trente__sentence.ogg"
+      }
+    },
+    {
+      "word": "quarante",
+      "sentence": "Le livre a quarante pages.",
+      "syllables": [
+        "qua",
+        "ran",
+        "te"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quarante.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quarante__sentence.ogg"
+      }
+    },
+    {
+      "word": "cinquante",
+      "sentence": "Elle a cinquante cents dans sa poche.",
+      "syllables": [
+        "cin",
+        "quan",
+        "te"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinquante.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinquante__sentence.ogg"
+      }
+    },
+    {
+      "word": "soixante",
+      "sentence": "Nous avons soixante minutes pour finir.",
+      "syllables": [
+        "soi",
+        "xan",
+        "te"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/soixante.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/soixante__sentence.ogg"
+      }
+    },
+    {
+      "word": "cent",
+      "sentence": "Il y a cent centimètres dans un mètre.",
+      "syllables": [
+        "cent"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cent.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cent__sentence.ogg"
+      }
+    },
+    {
+      "word": "mille",
+      "sentence": "Il y a mille mètres dans un kilomètre.",
+      "syllables": [
+        "mil",
+        "le"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/mille.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/mille__sentence.ogg"
+      }
+    },
+    {
+      "word": "trente-cinq",
+      "sentence": "J'ai trente-cinq billes dans mon sac.",
+      "syllables": [
+        "tren",
+        "te",
+        "-",
+        "cinq"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/trente_cinq.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/trente_cinq__sentence.ogg"
+      }
+    },
+    {
+      "word": "quatre-cent-soixante-douze",
+      "sentence": "Le livre a quatre-cent-soixante-douze pages.",
+      "syllables": [
+        "qua",
+        "tre",
+        "-",
+        "cent",
+        "-",
+        "soi",
+        "xan",
+        "te",
+        "-",
+        "dou",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre_cent_soixante_douze.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre_cent_soixante_douze__sentence.ogg"
+      }
+    },
+    {
+      "word": "cinq-cents",
+      "sentence": "Cinq-cents, c'est cinq fois cent.",
+      "syllables": [
+        "cinq",
+        "-",
+        "cents"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinq_cents.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinq_cents__sentence.ogg"
+      }
+    },
+    {
+      "word": "quatre-vingts",
+      "sentence": "Quatre-vingts, c'est quatre fois vingt.",
+      "syllables": [
+        "qua",
+        "tre",
+        "-",
+        "vingts"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre_vingts.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre_vingts__sentence.ogg"
+      }
+    },
+    {
+      "word": "cinq-cent-quarante",
+      "sentence": "L'école a cinq-cent-quarante élèves.",
+      "syllables": [
+        "cinq",
+        "-",
+        "cent",
+        "-",
+        "qua",
+        "ran",
+        "te"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinq_cent_quarante.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/cinq_cent_quarante__sentence.ogg"
+      }
+    },
+    {
+      "word": "quatre-vingt-seize",
+      "sentence": "Il y a quatre-vingt-seize crayons dans la boîte.",
+      "syllables": [
+        "qua",
+        "tre",
+        "-",
+        "vingt",
+        "-",
+        "sei",
+        "ze"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre_vingt_seize.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/quatre_vingt_seize__sentence.ogg"
+      }
+    },
+    {
+      "word": "deux-mille",
+      "sentence": "Il y a deux-mille mètres dans deux kilomètres.",
+      "syllables": [
+        "deux",
+        "-",
+        "mil",
+        "le"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/deux_mille.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/fr/BM/deux_mille__sentence.ogg"
+      }
+    }
+  ]
+}
