@@ -107,9 +107,11 @@
       questionEl.textContent = question.displayText ? (question.text || "") : "";
       const images = document.getElementById("images");
       images.innerHTML = "";
-      ((question.media && question.media.images) || []).forEach(function (src) {
+      const sources = (question.media && question.media.images) || [];
+      sources.forEach(function (src) {
         const img = document.createElement("img");
         img.alt = "";
+        if (sources.length === 1 && /\/review\//i.test(String(src))) img.className = "diagram";
         const pngUrl = Baeren.assetUrl(src);
         const webpUrl = pngUrl.replace(/\.png$/i, ".webp");
         img.src = webpUrl === pngUrl ? pngUrl : webpUrl;
