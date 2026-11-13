@@ -1,0 +1,497 @@
+[
+  {
+    "prompt": {
+      "text": "Regarde le schéma de l'organisation sociale des Iroquoiens vers 1500. Que désigne la lettre A ?",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "La lettre A pointe vers le grand cercle vert qui entoure tous les villages.",
+      "lang": "fr",
+      "displayText": true,
+      "media": {
+        "images": [
+          "images/review/bmEtudesSocialesChap5/organisation_sociale.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "La nation"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Le village"
+      },
+      {
+        "text": "Le clan"
+      },
+      {
+        "text": "La famille"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Regarde le schéma. Que désigne la lettre E ?",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "La lettre E pointe vers l'habitation agrandie dans le cercle rouge.",
+      "lang": "fr",
+      "displayText": true,
+      "media": {
+        "images": [
+          "images/review/bmEtudesSocialesChap5/organisation_sociale.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "La maison longue"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "La palissade"
+      },
+      {
+        "text": "Le village"
+      },
+      {
+        "text": "La nation"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Regarde le schéma. Que désigne la lettre D ?",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "La lettre D pointe vers le petit groupe de personnes à l'entrée de l'habitation.",
+      "lang": "fr",
+      "displayText": true,
+      "media": {
+        "images": [
+          "images/review/bmEtudesSocialesChap5/organisation_sociale.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "La famille"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Le clan"
+      },
+      {
+        "text": "La nation"
+      },
+      {
+        "text": "Le chef de guerre"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Observe la carte des nations iroquoiennes vers 1500.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Quelle nation est située au nord du lac Ontario ?",
+      "lang": "fr",
+      "displayText": true,
+      "media": {
+        "images": [
+          "images/review/bmEtudesSocialesChap5/carte_nations.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "Les Hurons-Wendats"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Les Pétuns"
+      },
+      {
+        "text": "Les Neutres"
+      },
+      {
+        "text": "Les Ériés"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Observe la carte des nations iroquoiennes vers 1500.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "De quelle nation les villages de Stadaconé et Hochelaga font-ils partie ?",
+      "lang": "fr",
+      "displayText": true,
+      "media": {
+        "images": [
+          "images/review/bmEtudesSocialesChap5/carte_nations.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "Les Iroquoiens du Saint-Laurent"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Les Hurons-Wendats"
+      },
+      {
+        "text": "Les Iroquois"
+      },
+      {
+        "text": "Les Wenros"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Complète la phrase, d'après le chapitre 5 sur l'organisation sociale.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Lors du mariage, l'homme va s'installer dans la maison longue de sa ______.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "femme"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "mère"
+      },
+      {
+        "text": "sœur"
+      },
+      {
+        "text": "nation"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "D'après le chapitre 5, combien de personnes une maison longue peut-elle accueillir ?",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Une maison longue peut accueillir :",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "de 25 à 60 personnes"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "de 5 à 10 personnes"
+      },
+      {
+        "text": "environ 200 personnes"
+      },
+      {
+        "text": "tout un village"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Complète la phrase. Les membres d'une nation partagent deux choses.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Les membres d'une nation partagent la même ______ et la même culture.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "langue"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "palissade"
+      },
+      {
+        "text": "monnaie"
+      },
+      {
+        "text": "armée"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Dans toutes les nations iroquoiennes, le clan est très important. Chaque clan est représenté par un animal, et l'esprit de cet animal protège le clan.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Sur ces photos du manuel, quels animaux vois-tu comme exemples ?",
+      "lang": "fr",
+      "displayText": true,
+      "media": {
+        "images": [
+          "images/review/bmEtudesSocialesChap5/animaux_clan.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "un loup, un ours et une tortue"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "un lièvre, un saumon et un chevreuil"
+      },
+      {
+        "text": "un aigle, un bison et un cheval"
+      },
+      {
+        "text": "un orignal, un castor et un renard"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Classe ces groupes de l'organisation sociale des Iroquoiens, du plus petit au plus grand.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Du plus petit groupe au plus grand :",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "Famille"
+      },
+      {
+        "text": "Maison longue"
+      },
+      {
+        "text": "Clan"
+      },
+      {
+        "text": "Village"
+      },
+      {
+        "text": "Nation"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Palissade"
+      },
+      {
+        "text": "Sachem"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Les femmes iroquoiennes ont une grande influence dans la société. Elles participent à la vie politique et transmettent le lien de parenté.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "On dit que la société iroquoienne est :",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "matriarcale"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "patriarcale"
+      },
+      {
+        "text": "nomade"
+      },
+      {
+        "text": "monarchique"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Complète la phrase, d'après le chapitre 6. Les femmes aînées du clan dirigent la maison longue qu'elles habitent. Elles sont les plus âgées et les plus expérimentées.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Les femmes aînées du clan, très respectées, sont appelées les ______.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "mères de clan"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "sachems"
+      },
+      {
+        "text": "chefs de guerre"
+      },
+      {
+        "text": "Hurons-Wendats"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Chaque clan a deux chefs : un chef civil (sachem) et un chef de guerre.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Qui choisit le chef civil (sachem) ?",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "Les femmes aînées (les mères de clan)"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Le chef de guerre"
+      },
+      {
+        "text": "Tous les enfants du village"
+      },
+      {
+        "text": "Le conseil de la nation seulement"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Lis cette responsabilité, puis dis quel chef parle. Regarde aussi les illustrations du manuel.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "« Je prépare les expéditions de guerre et je dirige les guerriers. » Qui parle ?",
+      "lang": "fr",
+      "displayText": true,
+      "media": {
+        "images": [
+          "images/review/bmEtudesSocialesChap5/chefs_civil_guerre.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "Le chef de guerre"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Le chef civil"
+      },
+      {
+        "text": "La mère de clan"
+      },
+      {
+        "text": "Le conseil des aînés"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Complète la phrase. Les chefs n'imposent pas leur décision : ils discutent avec tous les membres du conseil et prennent une décision quand tout le monde est d'accord.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Les décisions sont prises par ______.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "consensus"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "vote majoritaire"
+      },
+      {
+        "text": "décret"
+      },
+      {
+        "text": "silence"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Les Iroquoiens prennent leurs décisions en conseil. Il y a un conseil dans chaque clan, chaque village et chaque nation. Classe ces conseils, du clan vers la nation.",
+      "lang": "fr",
+      "displayText": true
+    },
+    "question": {
+      "text": "Du conseil de clan au conseil de la nation :",
+      "lang": "fr",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "Conseil de clan"
+      },
+      {
+        "text": "Conseil de village"
+      },
+      {
+        "text": "Conseil de nation"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Conseil des enfants"
+      },
+      {
+        "text": "Conseil des guerriers"
+      }
+    ]
+  }
+]
