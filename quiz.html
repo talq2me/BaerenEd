@@ -35,7 +35,8 @@
     const title = params.get("title") || launch;
     const section = params.get("section") || "optional";
     const stars = params.get("stars");
-    const need = Math.max(1, parseInt(params.get("questions") || "5", 10) || 5);
+    const throughAll = params.get("through") === "all";
+    let need = Math.max(1, parseInt(params.get("questions") || "5", 10) || 5);
     document.getElementById("title").textContent = title;
 
     let questions = [];
@@ -45,6 +46,16 @@
     let answers = [];
     let locked = false;
     let current = null;
+
+    function goalReached() {
+      if (throughAll) return index >= questions.length;
+      return correctCount >= need;
+    }
+
+    function scoreLabel() {
+      if (throughAll) return (correctCount + incorrectCount) + " / " + need;
+      return correctCount + " / " + need;
+    }
 
     function localeOf(block) {
       const lang = (block && block.lang || "").toLowerCase();
@@ -161,7 +172,7 @@
           box.appendChild(btn);
         });
       }
-      document.getElementById("score").textContent = correctCount + " / " + need;
+      document.getElementById("score").textContent = scoreLabel();
       document.getElementById("replayBtn").hidden = !(current.prompt && current.prompt.lang);
       if (typedMode) input.focus();
       speakCurrent();
@@ -240,7 +251,7 @@
       if (Baeren.hasDb()) {
         try { await Baeren.saveGameIndex(launch, index); } catch (e) { console.warn(e); }
       }
-      if (correctCount >= need) { await finish(); return; }
+      if (goalReached()) { await finish(); return; }
       setTimeout(showQuestion, wait);
     });
 
@@ -253,6 +264,10 @@
         }
         questions = JSON.parse(await Baeren.loadJson(file));
         if (!questions.length) throw new Error("That game has no questions.");
+        if (throughAll) {
+          need = questions.length;
+          if (index >= questions.length) index = 0;
+        }
         showQuestion();
       } catch (err) {
         document.getElementById("msg").textContent = err.message || String(err);

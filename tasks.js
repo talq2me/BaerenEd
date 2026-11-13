@@ -42,6 +42,9 @@
     } else if (how === "quiz") {
       q.set("file", task.launch + ".json");
       if (task.totalQuestions) q.set("questions", String(task.totalQuestions));
+      if (task.launch === "bmEtudesSocialesChap5" || task.launch === "bmGrammarTestNov17") {
+        q.set("through", "all");
+      }
       location.href = "quiz.html?" + q.toString();
     } else if (how === "spell" || how === "paper") {
       const raw = task.url || "";
