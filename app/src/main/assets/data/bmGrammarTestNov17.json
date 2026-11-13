@@ -1,0 +1,462 @@
+[
+  {
+    "prompt": {
+      "text": "A base word is the main part of a word that carries the meaning. Prefixes and suffixes can be added to it.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "What is the base word in unhelpful?",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "help"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "un"
+      },
+      {
+        "text": "ful"
+      },
+      {
+        "text": "helpful"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "The prefix re- means “again,” and the suffix -ed shows the action already happened. Find the base word.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "The base word in replayed is ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "play"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "replay"
+      },
+      {
+        "text": "played"
+      },
+      {
+        "text": "lay"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A prefix is a word part added to the beginning of a base word. The prefix re- means “again.”",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Add a prefix to view so the word means “to look at again”: ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "review"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "preview"
+      },
+      {
+        "text": "viewer"
+      },
+      {
+        "text": "viewed"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A suffix is a word part added to the end of a base word. The suffix -less means “without.”",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Add a suffix to hope so the word means “without hope”: ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "hopeless"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "hopeful"
+      },
+      {
+        "text": "hoped"
+      },
+      {
+        "text": "hoping"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A prefix is a word part added to the beginning of a base word. It changes the meaning.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "In disappear, the prefix is ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "dis-"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "un-"
+      },
+      {
+        "text": "re-"
+      },
+      {
+        "text": "appear"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A prefix is added to the beginning of a base word, and a suffix is added to the end. Put the three parts of misspelled in order, from prefix to suffix.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Tap the parts of misspelled in order, from prefix to base word to suffix.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "mis-"
+      },
+      {
+        "text": "spell"
+      },
+      {
+        "text": "-ed"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "un-"
+      },
+      {
+        "text": "-ing"
+      },
+      {
+        "text": "full"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A contraction joins two words and leaves out one or more letters. An apostrophe shows where the letters were removed.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Write the contraction: would not → ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "wouldn't"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "wouldnt"
+      },
+      {
+        "text": "willn't"
+      },
+      {
+        "text": "would not"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A compound word is made by joining two or more smaller words to make a new word with its own meaning.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Join the two words to make a compound: fire + fly → ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "firefly"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "fire fly"
+      },
+      {
+        "text": "fire-fly"
+      },
+      {
+        "text": "flying"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A compound word is made by joining two or more smaller words. Put the two smaller words in basketball in order.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "basketball is made of ______ + ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "basket"
+      },
+      {
+        "text": "ball"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "base"
+      },
+      {
+        "text": "ket"
+      },
+      {
+        "text": "balloon"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A contraction joins two words and leaves out letters. An apostrophe takes their place. Put the two words in shouldn’t in order.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "shouldn’t = ______ ______.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "should"
+      },
+      {
+        "text": "not"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "shall"
+      },
+      {
+        "text": "never"
+      },
+      {
+        "text": "would"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Effective verbs are precise, vivid words that create a clear picture. A strong verb often does more work than a weak verb.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Choose the more effective verb: The door (closed / slammed) in the wind.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "slammed"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "closed"
+      },
+      {
+        "text": "opened"
+      },
+      {
+        "text": "tapped"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Effective nouns are precise words that create a clear picture. A precise noun is clearer than a general one.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Choose the more precise noun: A (dog / beagle) howled at the siren.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "beagle"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "dog"
+      },
+      {
+        "text": "animal"
+      },
+      {
+        "text": "pet"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Alliteration is the repetition of the same beginning sound in nearby words.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "Which beginning sound is repeated in “busy bumblebees buzzed”?",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "b"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "s"
+      },
+      {
+        "text": "p"
+      },
+      {
+        "text": "z"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "An idiom is a common expression whose meaning is different from the literal meaning of the words.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "The idiom “a piece of cake” means:",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "something easy"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "a dessert"
+      },
+      {
+        "text": "something very hard"
+      },
+      {
+        "text": "a secret"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Personification gives human qualities or actions to an animal, an object, or an idea. A metaphor compares two unlike things by saying one thing is the other, without using like or as. A comparison that uses like or as is a simile, not a metaphor.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "The moon smiled down on the lake. This sentence is an example of:",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "personification"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "metaphor"
+      },
+      {
+        "text": "simile"
+      },
+      {
+        "text": "alliteration"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A metaphor compares two unlike things by saying one thing is the other, without using like or as.",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "The snow was a white blanket. This sentence is an example of:",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "metaphor"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "personification"
+      },
+      {
+        "text": "simile"
+      },
+      {
+        "text": "idiom"
+      }
+    ]
+  }
+]
