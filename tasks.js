@@ -3,7 +3,7 @@
   const QUIZ = {
     jkmath: 1, gr1MathStrategies: 1, gr3algebra: 1, gr3fractions: 1, gr3math: 1,
     gr3mixedproblems: 1, gr3wordproblems: 1, canadianMoneyEasy: 1, canadianMoneyHard: 1,
-    conjugation: 1, conjugation_limparfait: 1, translation: 1, duologicalGame: 1, frenchStories: 1, bmGrammarTestNov17: 1, bmEtudesSocialesChap5: 1
+    conjugation: 1, conjugation_limparfait: 1, translation: 1, duologicalGame: 1, frenchStories: 1, bmGrammarTestNov17: 1, bmEtudesSocialesChap5: 1, amPronomsPersonnels: 1
   };
   const LATER = { printing: 1, tappableText: 1, storyRead: 1 };
   const SKIP = { boukili: 1, googleReadAlong: 1 };
@@ -42,7 +42,7 @@
     } else if (how === "quiz") {
       q.set("file", task.launch + ".json");
       if (task.totalQuestions) q.set("questions", String(task.totalQuestions));
-      if (task.launch === "bmEtudesSocialesChap5" || task.launch === "bmGrammarTestNov17") {
+      if (task.launch === "bmEtudesSocialesChap5" || task.launch === "bmGrammarTestNov17" || task.launch === "amPronomsPersonnels") {
         q.set("through", "all");
       }
       location.href = "quiz.html?" + q.toString();

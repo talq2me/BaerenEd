@@ -1,0 +1,478 @@
+[
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Maman → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "elle"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "il"
+   },
+   {
+    "text": "ils"
+   },
+   {
+    "text": "elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Adalia et Teo → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "ils"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "elles"
+   },
+   {
+    "text": "il"
+   },
+   {
+    "text": "nous"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "La table → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "elle"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "il"
+   },
+   {
+    "text": "ils"
+   },
+   {
+    "text": "elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Choisis le pronom qui remplace les mots soulignés.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "La souris mange. → ______ mange.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "Elle"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "Il"
+   },
+   {
+    "text": "Ils"
+   },
+   {
+    "text": "Elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Papa et moi → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "nous"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "vous"
+   },
+   {
+    "text": "ils"
+   },
+   {
+    "text": "il"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Écris le pronom personnel qui remplace ces mots.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Le parc → ______",
+   "lang": "fr",
+   "displayText": true
+  },
+  "response": "type",
+  "correctChoices": [
+   {
+    "text": "il"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Mon cahier → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "il"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "elle"
+   },
+   {
+    "text": "ils"
+   },
+   {
+    "text": "elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Choisis le pronom qui remplace les mots soulignés.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Le chien de papa jappe. → ______ jappe.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "Il"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "Elle"
+   },
+   {
+    "text": "Ils"
+   },
+   {
+    "text": "Nous"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Écris le pronom personnel qui remplace ces mots.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Mon ami → ______",
+   "lang": "fr",
+   "displayText": true
+  },
+  "response": "type",
+  "correctChoices": [
+   {
+    "text": "il"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Ma famille → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "elle"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "ils"
+   },
+   {
+    "text": "il"
+   },
+   {
+    "text": "elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Le crayon → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "il"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "elle"
+   },
+   {
+    "text": "ils"
+   },
+   {
+    "text": "elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Mon frère et toi → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "vous"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "nous"
+   },
+   {
+    "text": "ils"
+   },
+   {
+    "text": "il"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Écris le pronom personnel qui remplace ces mots.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Mon amie → ______",
+   "lang": "fr",
+   "displayText": true
+  },
+  "response": "type",
+  "correctChoices": [
+   {
+    "text": "elle"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Les garçons → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "ils"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "il"
+   },
+   {
+    "text": "elle"
+   },
+   {
+    "text": "elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace « Les garçons » par un pronom. Touche les mots dans l'ordre.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Les garçons jouent au parc.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "Ils"
+   },
+   {
+    "text": "jouent"
+   },
+   {
+    "text": "au"
+   },
+   {
+    "text": "parc"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "Elles"
+   },
+   {
+    "text": "Il"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace « Maman » par un pronom. Touche les mots dans l'ordre.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Maman lit un livre.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "Elle"
+   },
+   {
+    "text": "lit"
+   },
+   {
+    "text": "un"
+   },
+   {
+    "text": "livre"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "Il"
+   },
+   {
+    "text": "Elles"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Écris le pronom personnel qui remplace ces mots.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Papa et moi → ______",
+   "lang": "fr",
+   "displayText": true
+  },
+  "response": "type",
+  "correctChoices": [
+   {
+    "text": "nous"
+   }
+  ]
+ },
+ {
+  "prompt": {
+   "text": "Remplace le nom par le bon pronom personnel.",
+   "lang": "fr",
+   "displayText": true
+  },
+  "question": {
+   "text": "Les filles → ?",
+   "lang": "fr",
+   "displayText": true
+  },
+  "correctChoices": [
+   {
+    "text": "elles"
+   }
+  ],
+  "extraChoices": [
+   {
+    "text": "ils"
+   },
+   {
+    "text": "elle"
+   },
+   {
+    "text": "vous"
+   }
+  ]
+ }
+]
