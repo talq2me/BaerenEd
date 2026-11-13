@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Mental Math</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f7fb;
+      color: #1c2430;
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    header {
+      background: #1b3a4b;
+      color: #fff;
+      padding: 12px 16px 14px;
+    }
+    .score-line { margin: 0; font-weight: 800; font-size: 1.15rem; letter-spacing: 0.01em; }
+    .score-line.last { margin-top: 2px; font-weight: 650; font-size: 0.95rem; color: #d6ecff; }
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+    #progress { font-size: 1.05rem; font-weight: 700; }
+    #timer { font-size: 1.8rem; font-weight: 800; }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 16px 16px;
+      max-width: 520px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    #question {
+      margin: 8px 0 4px;
+      font-size: clamp(3rem, 12vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+    #typed {
+      margin: 0;
+      min-height: 3.2rem;
+      font-size: 2.6rem;
+      font-weight: 800;
+      color: #1b3a4b;
+      font-variant-numeric: tabular-nums;
+    }
+    #msg {
+      margin: 4px 0 10px;
+      min-height: 1.6rem;
+      font-size: 1.25rem;
+      font-weight: 750;
+      text-align: center;
+    }
+    #msg.ok { color: #1b7f3a; }
+    #msg.bad { color: #a33; }
+    .pad {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .pad button {
+      font: inherit;
+      font-size: 1.8rem;
+      font-weight: 800;
+      border: 0;
+      border-radius: 14px;
+      background: #fff;
+      color: #1c2430;
+      min-height: 68px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      cursor: pointer;
+    }
+    .pad button:active { transform: scale(0.98); }
+    .pad button.go { background: #1b3a4b; color: #fff; }
+    .pad button:disabled { opacity: 0.45; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 28, 38, 0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 5;
+    }
+    .overlay[hidden] { display: none; }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 22px 22px 18px;
+      width: min(420px, 100%);
+      text-align: center;
+    }
+    .card h2 { margin: 0 0 12px; font-size: 1.4rem; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .stat { background: #f4f7fb; border-radius: 12px; padding: 8px 4px; }
+    .stat b { display: block; font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+    .stat span { color: #567; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+    #resultNote { min-height: 1.4rem; font-weight: 750; margin: 0 0 12px; }
+    #resultNote.ok { color: #1b7f3a; }
+    .card button {
+      font: inherit;
+      font-size: 1.2rem;
+      font-weight: 800;
+      border: 0;
+      border-radius: 12px;
+      background: #1b3a4b;
+      color: #fff;
+      padding: 14px 18px;
+      width: 100%;
+      cursor: pointer;
+    }
+    .card button.secondary { margin-top: 8px; background: #d9e4ee; color: #1c2430; }
+    #saveError { color: #a33; font-size: 0.95rem; margin: 0 0 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <p id="bestLine" class="score-line" hidden></p>
+    <p id="lastLine" class="score-line last" hidden></p>
+    <div class="hud">
+      <span id="progress">1 of 30</span>
+      <span id="timer">0:00.0</span>
+    </div>
+  </header>
+  <main>
+    <p id="question">…</p>
+    <p id="typed"></p>
+    <p id="msg"></p>
+    <div id="pad" class="pad"></div>
+  </main>
+  <div id="done" class="overlay" hidden>
+    <div class="card">
+      <h2>Finished</h2>
+      <div class="stats">
+        <div class="stat"><b id="finTime">0:00.0</b><span>Time</span></div>
+        <div class="stat"><b id="finWrong">0</b><span>Wrong</span></div>
+        <div class="stat"><b id="finAcc">0%</b><span>Accuracy</span></div>
+      </div>
+      <p id="resultNote"></p>
+      <p id="saveError" hidden></p>
+      <button type="button" id="finishBtn">Done</button>
+      <button type="button" id="retrySaveBtn" class="secondary" hidden>Try saving again</button>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const TOTAL = Math.min(60, Math.max(1, parseInt(params.get("totalQuestions") || "30", 10) || 30));
+    const token = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+    const questions = buildQuestions(TOTAL);
+    let index = 0;
+    let digits = "";
+    let locked = false;
+    let answers = [];
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let startedAt = 0;
+    let pausedMs = 0;
+    let pauseBegan = 0;
+    let timerId = 0;
+    let saveChain = Promise.resolve();
+    let finished = false;
+    let saved = false;
+    let completing = false;
+
+    function buildQuestions(count) {
+      const used = {};
+      const list = [];
+      let guard = 0;
+      while (list.length < count && guard < count * 40) {
+        guard += 1;
+        const add = Math.random() < 0.5;
+        let a;
+        let b;
+        let text;
+        let expected;
+        if (add) {
+          const sum = Math.floor(Math.random() * 21);
+          a = Math.floor(Math.random() * (sum + 1));
+          b = sum - a;
+          expected = sum;
+          text = a + " + " + b;
+        } else {
+          a = Math.floor(Math.random() * 21);
+          b = Math.floor(Math.random() * (a + 1));
+          expected = a - b;
+          text = a + " \u2212 " + b;
+        }
+        if (used[text]) continue;
+        used[text] = true;
+        list.push({ text: text, expected: expected });
+      }
+      while (list.length < count) {
+        list.push({ text: "1 + 1", expected: 2 });
+      }
+      return list;
+    }
+
+    function formatClock(ms) {
+      const tenths = Math.floor(Math.max(0, ms) / 100);
+      const minutes = Math.floor(tenths / 600);
+      const seconds = Math.floor(tenths / 10) % 60;
+      const tenth = tenths % 10;
+      return minutes + ":" + String(seconds).padStart(2, "0") + "." + tenth;
+    }
+
+    function formatAccuracy(pct) {
+      const n = Number(pct);
+      if (!Number.isFinite(n)) return "0%";
+      return n.toFixed(1).replace(/\.0$/, "") + "%";
+    }
+
+    function formatScore(row) {
+      if (!row) return "";
+      return formatClock(row.elapsedMs) + " \u00b7 " + formatAccuracy(row.accuracy);
+    }
+
+    function elapsed() {
+      if (!startedAt) return 0;
+      const end = pauseBegan || Date.now();
+      return Math.max(0, end - startedAt - pausedMs);
+    }
+
+    function pauseClock() {
+      if (!pauseBegan) pauseBegan = Date.now();
+    }
+
+    function resumeClock() {
+      if (pauseBegan) {
+        pausedMs += Date.now() - pauseBegan;
+        pauseBegan = 0;
+      }
+    }
+
+    function paintTimer() {
+      document.getElementById("timer").textContent = formatClock(elapsed());
+    }
+
+    function showScoreLines(best, last) {
+      const bestEl = document.getElementById("bestLine");
+      const lastEl = document.getElementById("lastLine");
+      if (best && best.elapsedMs != null) {
+        bestEl.hidden = false;
+        bestEl.textContent = "Best " + formatScore(best);
+      }
+      if (last && best && last.id !== best.id && last.elapsedMs != null) {
+        lastEl.hidden = false;
+        lastEl.textContent = "Last " + formatScore(last);
+      }
+    }
+
+    function connected() {
+      return window.Baeren && typeof Baeren.hasDb === "function" && Baeren.hasDb();
+    }
+
+    function persist(complete) {
+      if (!connected()) {
+        const err = new Error("This browser is not connected, so the score was not saved.");
+        err.offline = true;
+        return Promise.reject(err);
+      }
+      const snapshot = answers.slice();
+      const ms = snapshot.length ? snapshot[snapshot.length - 1].ms : elapsed();
+      const started = new Date(startedAt).toISOString();
+      saveChain = saveChain.then(function () {
+        return saveSnapshot(snapshot, ms, started, complete);
+      }, function () {
+        return saveSnapshot(snapshot, ms, started, complete);
+      });
+      return saveChain;
+    }
+
+    function saveSnapshot(snapshot, ms, started, complete) {
+      if (!connected()) {
+        const err = new Error("This browser is not connected, so the score was not saved.");
+        err.offline = true;
+        return Promise.reject(err);
+      }
+      return Baeren.rpc("af_mental_math_save", {
+        p_profile: Baeren.cfg().profile,
+        p_token: token,
+        p_started_at: started,
+        p_elapsed_ms: ms,
+        p_answers: snapshot,
+        p_complete: complete
+      });
+    }
+
+    function showQuestion() {
+      locked = false;
+      digits = "";
+      const current = questions[index];
+      document.getElementById("question").textContent = current.text;
+      document.getElementById("typed").textContent = "";
+      document.getElementById("msg").textContent = "";
+      document.getElementById("msg").className = "";
+      document.getElementById("progress").textContent = (index + 1) + " of " + TOTAL;
+      if (!startedAt) {
+        startedAt = Date.now();
+        timerId = setInterval(paintTimer, 100);
+      }
+      paintPad();
+    }
+
+    function paintPad() {
+      document.querySelectorAll("#pad button").forEach(function (btn) {
+        btn.disabled = locked;
+      });
+    }
+
+    function setDigits(next) {
+      if (locked) return;
+      digits = next;
+      document.getElementById("typed").textContent = digits;
+    }
+
+    function pressDigit(n) {
+      if (locked || digits.length >= 2) return;
+      setDigits(digits + String(n));
+    }
+
+    function submitAnswer() {
+      if (locked || finished || !digits.length) return;
+      locked = true;
+      paintPad();
+      const current = questions[index];
+      const given = String(parseInt(digits, 10));
+      const ok = Number(given) === current.expected;
+      const ms = elapsed();
+      answers.push({
+        question: current.text,
+        expected: current.expected,
+        given: given,
+        correct: ok,
+        answeredAt: new Date().toISOString(),
+        ms: ms
+      });
+      if (ok) correctCount += 1;
+      else incorrectCount += 1;
+      const msg = document.getElementById("msg");
+      if (ok) {
+        msg.textContent = "Correct";
+        msg.className = "ok";
+      } else {
+        msg.textContent = "Not quite. " + current.expected;
+        msg.className = "bad";
+      }
+      const last = answers.length >= TOTAL;
+      pauseClock();
+      paintTimer();
+      if (last) {
+        finished = true;
+        clearInterval(timerId);
+        openFinish();
+        persist(true).then(function (row) {
+          saved = true;
+          showFinish(row, null);
+        }).catch(function (err) {
+          showFinish(null, err);
+        });
+        return;
+      }
+      persist(false).catch(function (err) {
+        if (!err || !err.offline) console.warn(err);
+      });
+      setTimeout(function () {
+        index += 1;
+        resumeClock();
+        showQuestion();
+      }, ok ? 320 : 700);
+    }
+
+    function openFinish() {
+      document.getElementById("finTime").textContent = formatClock(answers[answers.length - 1].ms);
+      document.getElementById("finWrong").textContent = String(incorrectCount);
+      document.getElementById("finAcc").textContent = formatAccuracy(100 * correctCount / TOTAL);
+      document.getElementById("resultNote").textContent = "Saving…";
+      document.getElementById("finishBtn").disabled = true;
+      document.getElementById("done").hidden = false;
+    }
+
+    function showFinish(row, err) {
+      const note = document.getElementById("resultNote");
+      const errorEl = document.getElementById("saveError");
+      const retry = document.getElementById("retrySaveBtn");
+      const finishBtn = document.getElementById("finishBtn");
+      if (row) {
+        document.getElementById("finTime").textContent = formatClock(row.elapsedMs);
+        document.getElementById("finWrong").textContent = String(row.incorrect);
+        document.getElementById("finAcc").textContent = formatAccuracy(row.accuracy);
+        errorEl.hidden = true;
+        retry.hidden = true;
+        finishBtn.disabled = false;
+        if (row.beat) {
+          note.textContent = "New best!";
+          note.className = "ok";
+        } else if (row.best) {
+          note.textContent = "Best is still " + formatScore(row.best);
+          note.className = "";
+        } else {
+          note.textContent = "";
+        }
+        setTimeout(function () { completeTask(); }, 8000);
+        return;
+      }
+      finishBtn.disabled = !err || !err.offline;
+      retry.hidden = !err || !!err.offline;
+      errorEl.hidden = false;
+      errorEl.textContent = (err && err.message) ? err.message : "Could not save this game.";
+      note.textContent = err && err.offline ? "The time and score above are for this round." : "";
+      note.className = "";
+    }
+
+    function completeTask() {
+      if (completing) return;
+      if (!saved && connected()) return;
+      completing = true;
+      document.getElementById("finishBtn").disabled = true;
+      const correct = correctCount;
+      const incorrect = incorrectCount;
+      if (window.Android && typeof window.Android.gameCompleted === "function") {
+        window.Android.gameCompleted(correct, incorrect);
+        return;
+      }
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "gameCompleted", correct: correct, incorrect: incorrect }, "*");
+      }
+    }
+
+    function loadBest() {
+      if (!connected()) return;
+      Baeren.rpc("af_mental_math_best", { p_profile: Baeren.cfg().profile }).then(function (info) {
+        showScoreLines(info && info.best, info && info.last);
+      }).catch(function (err) {
+        console.warn(err);
+      });
+    }
+
+    const pad = document.getElementById("pad");
+    [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function (n) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = String(n);
+      btn.addEventListener("click", function () { pressDigit(n); });
+      pad.appendChild(btn);
+    });
+    const del = document.createElement("button");
+    del.type = "button";
+    del.textContent = "Del";
+    del.setAttribute("aria-label", "Delete");
+    del.addEventListener("click", function () {
+      if (locked || !digits) return;
+      setDigits(digits.slice(0, -1));
+    });
+    pad.appendChild(del);
+    const zero = document.createElement("button");
+    zero.type = "button";
+    zero.textContent = "0";
+    zero.addEventListener("click", function () { pressDigit(0); });
+    pad.appendChild(zero);
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "go";
+    go.textContent = "Go";
+    go.addEventListener("click", submitAnswer);
+    pad.appendChild(go);
+
+    document.addEventListener("keydown", function (event) {
+      if (finished) return;
+      if (event.key >= "0" && event.key <= "9") {
+        pressDigit(Number(event.key));
+      } else if (event.key === "Backspace") {
+        event.preventDefault();
+        if (!locked && digits) setDigits(digits.slice(0, -1));
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        submitAnswer();
+      }
+    });
+
+    document.getElementById("finishBtn").addEventListener("click", function () {
+      if (!saved && connected()) return;
+      completeTask();
+    });
+
+    document.getElementById("retrySaveBtn").addEventListener("click", function () {
+      document.getElementById("resultNote").textContent = "Saving…";
+      document.getElementById("retrySaveBtn").disabled = true;
+      persist(true).then(function (row) {
+        saved = true;
+        document.getElementById("retrySaveBtn").disabled = false;
+        showFinish(row, null);
+      }).catch(function (err) {
+        document.getElementById("retrySaveBtn").disabled = false;
+        showFinish(null, err);
+      });
+    });
+
+    loadBest();
+    showQuestion();
+  </script>
+</body>
+</html>

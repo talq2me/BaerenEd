@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spelling OCR Detail</title>
+    <title>Spelling / Dictée Detail</title>
     <style>
         * {
             margin: 0;
@@ -361,7 +361,7 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>Spelling OCR</h1>
+                <h1>Spelling / Dictée</h1>
                 <div class="header-meta" id="headerSubtitle">Loading...</div>
             </div>
             <a href="spelling_ocr_report.html" class="back-button">← Back</a>
@@ -436,7 +436,7 @@
             selectedYmd = torontoTodayYmd();
         }
 
-        const gameLabel = game.startsWith('Fr') ? 'French Spelling OCR' : 'English Spelling OCR';
+        const gameLabel = game.startsWith('Fr') ? 'Dictée' : 'Spelling';
         document.getElementById('headerSubtitle').textContent = `${profile} · ${gameLabel}`;
 
         // Load saved configuration

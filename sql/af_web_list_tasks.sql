@@ -1,5 +1,6 @@
--- Call site: web/index.html loadProfile.
--- Today's visible assignments for one profile. Checklist stays in the table and is not listed.
+-- Call site: map.html required and practice lists.
+-- Today's visible assignments for one profile.
+-- Checklist rows are included so the required list can offer a check-off (Rallye Lecture and other site tasks).
 
 CREATE OR REPLACE FUNCTION af_web_list_tasks(p_profile text)
 RETURNS jsonb
@@ -48,6 +49,26 @@ BEGIN
     WHERE a.profile = v_profile
       AND a.enabled
       AND a.section <> 'checklist'
+      AND (
+        a.display_days IS NULL
+        OR btrim(a.display_days) = ''
+        OR position(v_today IN lower(a.display_days)) > 0
+      )
+    UNION ALL
+    SELECT
+      1 AS section_order,
+      a.sort_order,
+      jsonb_build_object(
+        'section', 'checklist',
+        'title', a.title,
+        'launch', 'checklist_' || a.title,
+        'stars', a.stars,
+        'checklist', true
+      ) AS item
+    FROM web_assignments a
+    WHERE a.profile = v_profile
+      AND a.enabled
+      AND a.section = 'checklist'
       AND (
         a.display_days IS NULL
         OR btrim(a.display_days) = ''

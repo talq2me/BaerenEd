@@ -83,13 +83,13 @@ BEGIN
     v_ocr_prefix := 'EngSpellingOCR';
     v_paper_prefix := 'EngSpellingOCRPaper';
     v_xtra_prefix := 'EngSpellingOCRXtra';
-    v_title := 'Eng Spelling OCR';
+    v_title := 'Spelling';
     v_label := 'English';
   ELSIF v_language = 'fr' THEN
     v_ocr_prefix := 'FrSpellingOCR';
     v_paper_prefix := 'FrSpellingOCRPaper';
     v_xtra_prefix := 'FrSpellingOCRXtra';
-    v_title := 'FR Spelling OCR';
+    v_title := 'Dictée';
     v_label := 'French';
   ELSE
     RAISE EXCEPTION 'Invalid language: %', p_language;
@@ -113,7 +113,7 @@ BEGIN
       'phase', 'need_ocr',
       'language', v_language,
       'label', v_label,
-      'message', 'Complete ' || v_label || ' Spelling OCR first.',
+      'message', 'Complete ' || v_title || ' first.',
       'round', NULL,
       'expectedCount', NULL,
       'words', '[]'::jsonb

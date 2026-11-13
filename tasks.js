@@ -9,6 +9,7 @@
   const SKIP = { boukili: 1, googleReadAlong: 1 };
 
   function kind(task) {
+    if (task.checklist || String(task.launch || "").indexOf("checklist_") === 0) return "check";
     if (SKIP[task.launch] || task.chromePage || task.playlistId) return "skip";
     if (task.videoSequence) {
       if (task.section === "required") return "later";
@@ -102,19 +103,37 @@
         btn.appendChild(note);
       } else if (locked) {
         const note = document.createElement("small");
-        note.textContent = copy && copy.phase !== "need_ocr" ? "Checking spelling…" : "Do spelling first";
+        note.textContent = copy && copy.phase !== "need_ocr"
+          ? "Checking spelling…"
+          : (copy && copy.label === "French" ? "Do dictée first" : "Do spelling first");
         btn.appendChild(note);
         btn.addEventListener("click", function () {
-          const language = copy && copy.label ? copy.label : "English";
           const message = copy && copy.message
             ? copy.message
-            : "Complete " + language + " Spelling OCR first.";
+            : "Complete " + (copy && copy.label === "French" ? "Dictée" : "Spelling") + " first.";
           window.alert(message);
         });
       } else if (kind(task) === "later") {
         const note = document.createElement("small");
         note.textContent = "Not converted yet";
         btn.appendChild(note);
+      } else if (kind(task) === "check") {
+        const note = document.createElement("small");
+        note.textContent = "Tap when done";
+        btn.appendChild(note);
+        btn.addEventListener("click", function () {
+          btn.disabled = true;
+          Baeren.rpc("af_update_tasks_checklist_items", {
+            p_profile: Baeren.cfg().profile,
+            p_item_label: title,
+            p_done: true
+          }).then(function () {
+            location.reload();
+          }).catch(function (err) {
+            btn.disabled = false;
+            window.alert(err.message || String(err));
+          });
+        });
       } else {
         if (copy && copy.phase === "practice") {
           const note = document.createElement("small");

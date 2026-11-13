@@ -260,7 +260,9 @@
 
     function lockedMessage(status) {
       if (status && status.message) return status.message;
-      if (!status || status.phase === "need_ocr") return "Complete " + label + " Spelling OCR first.";
+      if (!status || status.phase === "need_ocr") {
+        return "Complete " + (lang === "fr" ? "Dictée" : "Spelling") + " first.";
+      }
       return "Your spelling is still being checked. Try again in a minute.";
     }
 

@@ -18,6 +18,7 @@
     <p id="question" class="question"></p>
     <div id="images" class="images"></div>
     <p id="built" class="built"></p>
+    <input id="typed" class="typed" hidden autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Type the answer">
     <div id="choices" class="choices"></div>
     <div class="row">
       <button type="button" id="deleteBtn">Delete</button>
@@ -50,6 +51,33 @@
       if (lang.startsWith("fr")) return "fr-FR";
       if (lang.startsWith("es")) return "es-ES";
       return "en-US";
+    }
+
+    function wantsTyped(q) {
+      const raw = String((q && (q.response || q.input || q.answerType || q.type)) || "")
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+      return raw === "type" || raw === "typed" || raw === "text" || raw === "write"
+        || raw === "fill" || raw === "fill_in" || raw === "fill_in_the_blank"
+        || raw === "fill_blank" || raw === "short" || raw === "short_answer";
+    }
+
+    function foldAnswer(s) {
+      return String(s || "")
+        .normalize("NFKC")
+        .replace(/[’‘]/g, "'")
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/[.!?]+$/g, "")
+        .toLowerCase();
+    }
+
+    function typedMatches(typed, choices) {
+      const got = foldAnswer(typed);
+      if (!got) return false;
+      const parts = (choices || []).map(function (c) { return c.text; }).filter(Boolean);
+      if (parts.some(function (text) { return foldAnswer(text) === got; })) return true;
+      return parts.length > 1 && foldAnswer(parts.join(" ")) === got;
     }
 
     function speakCurrent() {
@@ -93,29 +121,47 @@
         }
         images.appendChild(img);
       });
-      document.getElementById("built").textContent = "";
+      const typedMode = wantsTyped(current);
+      const built = document.getElementById("built");
+      built.textContent = "";
+      built.hidden = typedMode;
       document.getElementById("msg").textContent = "";
+      const input = document.getElementById("typed");
+      input.value = "";
+      input.disabled = false;
+      input.hidden = !typedMode;
+      document.getElementById("deleteBtn").hidden = typedMode;
       const box = document.getElementById("choices");
       box.innerHTML = "";
-      const all = (current.correctChoices || []).concat(current.extraChoices || []);
-      for (let i = all.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = all[i]; all[i] = all[j]; all[j] = tmp;
-      }
-      all.forEach(function (choice) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = choice.text;
-        btn.addEventListener("click", function () {
-          if (locked || btn.disabled) return;
-          answers.push(choice.text);
-          btn.disabled = true;
-          document.getElementById("built").textContent = answers.join(" ");
+      box.hidden = typedMode;
+      if (typedMode) {
+        const choices = current.correctChoices || [];
+        const numeric = choices.length > 0 && choices.every(function (c) {
+          return /^-?\d+([.,]\d+)?$/.test(String(c.text || "").trim());
         });
-        box.appendChild(btn);
-      });
+        input.inputMode = numeric ? "decimal" : "text";
+      } else {
+        const all = (current.correctChoices || []).concat(current.extraChoices || []);
+        for (let i = all.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = all[i]; all[i] = all[j]; all[j] = tmp;
+        }
+        all.forEach(function (choice) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = choice.text;
+          btn.addEventListener("click", function () {
+            if (locked || btn.disabled) return;
+            answers.push(choice.text);
+            btn.disabled = true;
+            document.getElementById("built").textContent = answers.join(" ");
+          });
+          box.appendChild(btn);
+        });
+      }
       document.getElementById("score").textContent = correctCount + " / " + need;
       document.getElementById("replayBtn").hidden = !(current.prompt && current.prompt.lang);
+      if (typedMode) input.focus();
       speakCurrent();
     }
 
@@ -156,19 +202,44 @@
       document.getElementById("built").textContent = answers.join(" ");
     });
 
+    document.getElementById("typed").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        document.getElementById("submitBtn").click();
+      }
+    });
+
     document.getElementById("submitBtn").addEventListener("click", async function () {
       if (locked || !current) return;
+      const typedMode = wantsTyped(current);
+      const typedValue = document.getElementById("typed").value;
+      if (typedMode && !foldAnswer(typedValue)) {
+        document.getElementById("msg").textContent = "Type an answer.";
+        document.getElementById("typed").focus();
+        return;
+      }
       locked = true;
+      if (typedMode) document.getElementById("typed").disabled = true;
       const expected = (current.correctChoices || []).map(function (c) { return c.text; });
-      const ok = answers.length === expected.length && answers.every(function (a, i) { return a === expected[i]; });
+      const ok = typedMode
+        ? typedMatches(typedValue, current.correctChoices)
+        : answers.length === expected.length && answers.every(function (a, i) { return a === expected[i]; });
       if (ok) correctCount++; else incorrectCount++;
       index++;
-      document.getElementById("msg").textContent = ok ? "Correct" : "Not quite";
+      let wait = 600;
+      if (ok) {
+        document.getElementById("msg").textContent = "Correct";
+      } else if (typedMode && expected[0]) {
+        document.getElementById("msg").textContent = "Not quite. " + expected[0];
+        wait = 1600;
+      } else {
+        document.getElementById("msg").textContent = "Not quite";
+      }
       if (Baeren.hasDb()) {
         try { await Baeren.saveGameIndex(launch, index); } catch (e) { console.warn(e); }
       }
       if (correctCount >= need) { await finish(); return; }
-      setTimeout(showQuestion, 600);
+      setTimeout(showQuestion, wait);
     });
 
     document.getElementById("replayBtn").addEventListener("click", speakCurrent);

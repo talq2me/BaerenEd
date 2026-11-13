@@ -557,6 +557,36 @@ CREATE INDEX IF NOT EXISTS idx_web_assignments_profile ON web_assignments (profi
 ALTER TABLE web_games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE web_assignments ENABLE ROW LEVEL SECURITY;
 
+-- Mental Math: one row per timed run, including every answer.
+CREATE TABLE IF NOT EXISTS mental_math_runs (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    profile TEXT NOT NULL CHECK (profile IN ('AM', 'BM', 'TE')),
+    client_token TEXT NOT NULL UNIQUE,
+    started_at TIMESTAMPTZ NOT NULL,
+    finished_at TIMESTAMPTZ,
+    elapsed_ms INT,
+    correct_count INT NOT NULL DEFAULT 0,
+    incorrect_count INT NOT NULL DEFAULT 0,
+    question_count INT NOT NULL DEFAULT 0,
+    accuracy_pct NUMERIC(5,1),
+    answers JSONB NOT NULL DEFAULT '[]'::jsonb,
+    complete BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS idx_mental_math_runs_profile_finished
+    ON mental_math_runs (profile, finished_at DESC, id DESC)
+    WHERE complete;
+
+ALTER TABLE mental_math_runs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all operations on mental_math_runs" ON mental_math_runs;
+CREATE POLICY "Allow all operations on mental_math_runs" ON mental_math_runs
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON mental_math_runs TO anon, authenticated, service_role;
+
 -- Daily Spin rewards table
 CREATE TABLE IF NOT EXISTS reward_spinner (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

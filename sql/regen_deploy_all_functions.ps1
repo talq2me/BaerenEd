@@ -18,6 +18,8 @@ $files = @(
 
   "af_update_tasks_from_config_checklist.sql",
 
+  "af_update_tasks_from_config_checklist_items.sql",
+
   "af_daily_reset.sql",
 
   "af_get_current_required_tasks.sql",
@@ -166,7 +168,9 @@ $files = @(
 
   "af_web_remove_assignment.sql",
 
-  "af_web_add_assignment.sql"
+  "af_web_add_assignment.sql",
+
+  "af_mental_math.sql"
 
 )
 

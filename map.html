@@ -96,7 +96,11 @@
             done[task.title] = true;
             continue;
           }
-          copyState[task.title] = status || { phase: "need_ocr", label: label, message: "Complete " + label + " Spelling OCR first." };
+          copyState[task.title] = status || {
+            phase: "need_ocr",
+            label: label,
+            message: "Complete " + (lang === "fr" ? "Dictée" : "Spelling") + " first."
+          };
           if (!status || status.phase === "waiting" || status.phase === "pending_submit") needsPoll = true;
         } catch (err) {
           console.warn(err);
@@ -129,8 +133,30 @@
         const rows = await Baeren.rpc("af_web_list_tasks", { p_profile: profile });
         const rpcName = practice ? "af_get_tasks_practice" : "af_get_tasks_required";
         const completion = await Baeren.rpc(rpcName, { p_profile: profile });
-        const done = Tasks.completionMap(completion, !practice);
-        const tasks = (rows || []).filter(function (task) { return task.section === section; });
+        const done = Tasks.completionMap(completion, false);
+        const tasks = (rows || []).filter(function (task) {
+          if (task.section === section) return true;
+          return !practice && (task.section === "checklist" || task.checklist);
+        });
+        if (!practice) {
+          const listed = {};
+          tasks.forEach(function (task) { listed[task.title] = true; });
+          (completion || []).forEach(function (row) {
+            if (!row.is_checklist) return;
+            const title = row.task_name || "";
+            if (!title) return;
+            const status = String(row.completion_status || "").toLowerCase();
+            done[title] = status === "complete" || status === "done";
+            if (listed[title]) return;
+            tasks.push({
+              title: title,
+              launch: row.launch || ("checklist_" + title),
+              stars: row.berry_value,
+              section: "checklist",
+              checklist: true
+            });
+          });
+        }
         let copyState = null;
         let needsPoll = false;
         if (!practice) {

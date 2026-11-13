@@ -61,7 +61,7 @@
     function inject(html, search) {
       const shimBase = new URL(".", location.href).href;
       const searchJson = JSON.stringify(search).replace(/</g, "\\u003c");
-      const extraTitle = lang === "fr" ? "FR Spelling OCR Extra" : "Eng Spelling OCR Extra";
+      const extraTitle = lang === "fr" ? "Dictée Extra" : "Spelling Extra";
       const finish = {
         lang: lang,
         next: next,
@@ -120,7 +120,7 @@
       });
       if (!status || status.phase !== "practice") {
         const label = lang === "fr" ? "French" : "English";
-        showWait(status && status.message ? status.message : "Complete " + label + " Spelling OCR first.");
+        showWait(status && status.message ? status.message : "Complete " + (lang === "fr" ? "Dictée" : "Spelling") + " first.");
         return null;
       }
       const words = [];

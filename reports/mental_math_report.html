@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mental Math</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1c2430;
+      padding: 10px;
+      line-height: 1.35;
+    }
+    .container { max-width: 880px; margin: 0 auto; }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: #5a7a9c;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .header h1 { font-size: 1.05em; margin: 0; }
+    .back-button {
+      color: #fff;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 0.82em;
+      font-weight: 600;
+    }
+    .profiles { display: flex; gap: 8px; margin-bottom: 10px; }
+    .profiles button {
+      flex: 1;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px;
+      font: inherit;
+      font-weight: 700;
+      background: #e2e8f0;
+      cursor: pointer;
+    }
+    .profiles button.on { background: #1b3a4b; color: #fff; }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    .card h2 {
+      margin: 0 0 4px;
+      color: #64748b;
+      font-size: 0.72em;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .note { margin: 0 0 8px; color: #64748b; font-size: 0.8em; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .summary div { background: #f8fafc; border-radius: 8px; padding: 8px; text-align: center; }
+    .summary b { display: block; font-size: 0.98rem; font-variant-numeric: tabular-nums; }
+    .summary span { color: #64748b; font-size: 0.72em; font-weight: 700; text-transform: uppercase; }
+    svg { width: 100%; height: auto; display: block; }
+    .axis { fill: #64748b; font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
+    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid #e2e8f0; }
+    th { color: #64748b; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.03em; }
+    tr.pick { cursor: pointer; }
+    tr.pick.on { background: #e8f0f6; }
+    td.num { font-variant-numeric: tabular-nums; }
+    .answers { list-style: none; margin: 0; padding: 0; }
+    .answers li {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #eef2f6;
+      font-variant-numeric: tabular-nums;
+    }
+    .answers li.bad { color: #a33; }
+    .empty, .error-box { padding: 14px; color: #64748b; }
+    .error-box { background: #ffebee; color: #c62828; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <a class="back-button" href="index.html">Back</a>
+      <h1>Mental Math</h1>
+    </div>
+    <div class="profiles">
+      <button type="button" id="AM" class="on">AM</button>
+      <button type="button" id="BM">BM</button>
+      <button type="button" id="TE">TE</button>
+    </div>
+    <div id="error" class="error-box" hidden></div>
+    <div id="body"></div>
+  </div>
+  <script>
+    const supabaseUrl = function () { return localStorage.getItem("supabaseUrl"); };
+    const supabaseKey = function () { return localStorage.getItem("supabaseKey"); };
+    let profile = "AM";
+    let selectedId = null;
+
+    function showError(msg) {
+      const el = document.getElementById("error");
+      el.hidden = !msg;
+      el.textContent = msg || "";
+    }
+
+    function formatClock(ms) {
+      const tenths = Math.floor(Math.max(0, Number(ms) || 0) / 100);
+      const minutes = Math.floor(tenths / 600);
+      const seconds = Math.floor(tenths / 10) % 60;
+      const tenth = tenths % 10;
+      return minutes + ":" + String(seconds).padStart(2, "0") + "." + tenth;
+    }
+
+    function formatAccuracy(pct) {
+      const n = Number(pct);
+      if (!Number.isFinite(n)) return "0%";
+      return n.toFixed(1).replace(/\.0$/, "") + "%";
+    }
+
+    function formatWhen(iso) {
+      if (!iso) return "";
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Toronto",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      }).format(new Date(iso));
+    }
+
+    function bestRun(runs) {
+      if (!runs.length) return null;
+      return runs.slice().sort(function (a, b) {
+        const acc = Number(b.accuracy) - Number(a.accuracy);
+        if (acc) return acc;
+        return Number(a.elapsedMs) - Number(b.elapsedMs);
+      })[0];
+    }
+
+    function chart(points, yOf, yMax, color, formatY) {
+      const w = 640;
+      const h = 220;
+      const pad = { l: 48, r: 12, t: 16, b: 28 };
+      const innerW = w - pad.l - pad.r;
+      const innerH = h - pad.t - pad.b;
+      const n = points.length;
+      function xAt(i) {
+        if (n === 1) return pad.l + innerW / 2;
+        return pad.l + (innerW * i) / (n - 1);
+      }
+      function yAt(v) {
+        const clamped = Math.max(0, Math.min(yMax, v));
+        return pad.t + innerH - (innerH * clamped) / yMax;
+      }
+      const coords = points.map(function (p, i) { return [xAt(i), yAt(yOf(p))]; });
+      const line = coords.map(function (c, i) { return (i ? "L" : "M") + c[0].toFixed(1) + " " + c[1].toFixed(1); }).join(" ");
+      const dots = coords.map(function (c, i) {
+        const on = points[i].id === selectedId ? "#e53935" : color;
+        return '<circle cx="' + c[0].toFixed(1) + '" cy="' + c[1].toFixed(1) + '" r="5" fill="' + on + '" data-id="' + points[i].id + '"></circle>';
+      }).join("");
+      const yLabels = [0, 0.5, 1].map(function (part) {
+        const value = yMax * part;
+        const y = yAt(value);
+        return '<text class="axis" x="4" y="' + (y + 4).toFixed(1) + '">' + formatY(value) + "</text>";
+      }).join("");
+      const first = formatWhen(points[0].finishedAt);
+      const last = formatWhen(points[n - 1].finishedAt);
+      const xLabels = '<text class="axis" x="' + pad.l + '" y="' + (h - 8) + '">' + first + '</text>'
+        + '<text class="axis" x="' + (w - pad.r) + '" y="' + (h - 8) + '" text-anchor="end">' + (n > 1 ? last : "") + "</text>";
+      return '<svg viewBox="0 0 ' + w + " " + h + '" role="img">'
+        + '<line x1="' + pad.l + '" y1="' + pad.t + '" x2="' + pad.l + '" y2="' + (pad.t + innerH) + '" stroke="#e2e8f0"/>'
+        + '<line x1="' + pad.l + '" y1="' + (pad.t + innerH) + '" x2="' + (pad.l + innerW) + '" y2="' + (pad.t + innerH) + '" stroke="#e2e8f0"/>'
+        + yLabels + '<path d="' + line + '" fill="none" stroke="' + color + '" stroke-width="2"/>' + dots + xLabels
+        + "</svg>";
+    }
+
+    function answerRows(run) {
+      const items = run.answers || [];
+      if (!items.length) return "<p class=\"empty\">No answers stored for this game.</p>";
+      return "<ol class=\"answers\">" + items.map(function (item, i) {
+        const prev = i ? Number(items[i - 1].ms) || 0 : 0;
+        const sec = Math.max(0, (Number(item.ms) || 0) - prev) / 1000;
+        const mark = item.correct ? item.question + " = " + item.given : item.question + " = " + item.given + " (answer " + item.expected + ")";
+        return '<li class="' + (item.correct ? "ok" : "bad") + '"><span>' + (i + 1) + ". " + mark + "</span><span>" + sec.toFixed(1) + "s</span></li>";
+      }).join("") + "</ol>";
+    }
+
+    function render(runs) {
+      const body = document.getElementById("body");
+      if (!runs.length) {
+        body.innerHTML = '<div class="card"><p class="empty">No finished Mental Math games yet.</p></div>';
+        return;
+      }
+      if (!runs.some(function (run) { return run.id === selectedId; })) {
+        selectedId = runs[runs.length - 1].id;
+      }
+      const best = bestRun(runs);
+      const last = runs[runs.length - 1];
+      const selected = runs.find(function (run) { return run.id === selectedId; }) || last;
+      const maxSeconds = Math.max(10, ...runs.map(function (run) { return Number(run.elapsedMs) / 1000; }));
+      const yMax = Math.ceil(maxSeconds / 10) * 10;
+      const timeChart = chart(runs, function (run) { return Number(run.elapsedMs) / 1000; }, yMax, "#1b3a4b", function (v) {
+        return Math.round(v) + "s";
+      });
+      const accChart = chart(runs, function (run) { return Number(run.accuracy); }, 100, "#2e7d32", function (v) {
+        return Math.round(v) + "%";
+      });
+      const rows = runs.slice().reverse().map(function (run) {
+        return '<tr class="pick' + (run.id === selectedId ? " on" : "") + '" data-id="' + run.id + '">'
+          + "<td>" + formatWhen(run.finishedAt) + "</td>"
+          + '<td class="num">' + formatClock(run.elapsedMs) + "</td>"
+          + '<td class="num">' + formatAccuracy(run.accuracy) + "</td>"
+          + '<td class="num">' + run.incorrect + "</td></tr>";
+      }).join("");
+      body.innerHTML = ''
+        + '<div class="card"><div class="summary">'
+        + "<div><b>" + formatClock(best.elapsedMs) + " · " + formatAccuracy(best.accuracy) + "</b><span>Best</span></div>"
+        + "<div><b>" + formatClock(last.elapsedMs) + " · " + formatAccuracy(last.accuracy) + "</b><span>Last</span></div>"
+        + "<div><b>" + runs.length + "</b><span>Games</span></div>"
+        + "</div></div>"
+        + '<div class="card"><h2>Time</h2><p class="note">Each point is one finished game. Older games are on the left. Time is how long they spent answering. The short pause after each answer is not counted.</p>' + timeChart + "</div>"
+        + '<div class="card"><h2>Accuracy</h2><p class="note">First-try correct answers out of the questions in that game. A wrong answer moves on to the next question.</p>' + accChart + "</div>"
+        + '<div class="card"><h2>Games</h2><table><thead><tr><th>When</th><th>Time</th><th>Accuracy</th><th>Wrong</th></tr></thead><tbody>'
+        + rows + "</tbody></table></div>"
+        + '<div class="card"><h2>' + formatWhen(selected.finishedAt) + " · " + formatClock(selected.elapsedMs) + " · " + formatAccuracy(selected.accuracy) + "</h2>"
+        + answerRows(selected) + "</div>";
+      body.querySelectorAll("[data-id]").forEach(function (el) {
+        el.addEventListener("click", function () {
+          selectedId = Number(el.getAttribute("data-id"));
+          render(runs);
+        });
+      });
+    }
+
+    async function load() {
+      showError("");
+      const url = supabaseUrl();
+      const key = supabaseKey();
+      if (!url || !key) {
+        document.getElementById("body").innerHTML = '<div class="card"><p class="empty">Save the Supabase URL and key on the parent home page first.</p></div>';
+        return;
+      }
+      document.getElementById("body").innerHTML = '<div class="card"><p class="empty">Loading…</p></div>';
+      try {
+        const res = await fetch(url.replace(/\/$/, "") + "/rest/v1/rpc/af_mental_math_history", {
+          method: "POST",
+          headers: {
+            apikey: key,
+            Authorization: "Bearer " + key,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ p_profile: profile, p_limit: 180 })
+        });
+        const text = await res.text();
+        if (!res.ok) throw new Error(text || res.statusText);
+        const runs = text ? JSON.parse(text) : [];
+        render(Array.isArray(runs) ? runs : []);
+      } catch (err) {
+        document.getElementById("body").innerHTML = "";
+        showError(err.message || String(err));
+      }
+    }
+
+    document.querySelectorAll(".profiles button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        profile = btn.id;
+        selectedId = null;
+        document.querySelectorAll(".profiles button").forEach(function (other) {
+          other.classList.toggle("on", other === btn);
+        });
+        load();
+      });
+    });
+
+    load();
+  </script>
+</body>
+</html>
