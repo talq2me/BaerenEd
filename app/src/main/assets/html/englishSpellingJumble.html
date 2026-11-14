@@ -277,8 +277,79 @@
             listStartDate = parsed.startDate || null;
             listLang = parsed.lang || 'en';
             refreshScaffoldFlag();
-            startGame();
+            if (copyRound) {
+                attachCopyClips().finally(function () { startGame(); });
+            } else {
+                startGame();
+            }
             return true;
+        }
+
+        function clipWordKey(word) {
+            return normalizeSpellingAnswer(String(word || '')).toLowerCase();
+        }
+
+        function readClipList(fileName) {
+            if (window.Android && typeof window.Android.loadJsonFile === 'function') {
+                try {
+                    const jsonString = window.Android.loadJsonFile(fileName);
+                    if (!jsonString || !String(jsonString).trim()) return Promise.resolve([]);
+                    const data = JSON.parse(jsonString);
+                    const parsed = window.SpellingJumbleScaffold
+                        ? SpellingJumbleScaffold.parseList(data)
+                        : { words: Array.isArray(data && data.words) ? data.words : [] };
+                    return Promise.resolve(parsed.words || []);
+                } catch (error) {
+                    return Promise.resolve([]);
+                }
+            }
+            return fetch(`${GITHUB_DATA}/${fileName}?nocache=${Date.now()}`)
+                .then(response => response.ok ? response.json() : [])
+                .then(data => {
+                    const parsed = window.SpellingJumbleScaffold
+                        ? SpellingJumbleScaffold.parseList(data)
+                        : { words: [] };
+                    return parsed.words || [];
+                })
+                .catch(() => []);
+        }
+
+        function mergeClipEntries(list) {
+            const byWord = {};
+            (list || []).forEach(entry => {
+                if (!entry || !entry.word || !entry.audio) return;
+                byWord[clipWordKey(entry.word)] = entry;
+            });
+            words = words.map(item => {
+                if (item && item.audio && item.audio.word) return item;
+                const found = byWord[clipWordKey(item && item.word)];
+                if (!found) return item;
+                return Object.assign({}, item, {
+                    sentence: item.sentence || found.sentence || '',
+                    syllables: item.syllables || found.syllables,
+                    audio: found.audio
+                });
+            });
+        }
+
+        function attachCopyClips() {
+            let profile = 'AM';
+            try {
+                if (window.Baeren && typeof Baeren.cfg === 'function') {
+                    profile = String(Baeren.cfg().profile || 'AM').toUpperCase();
+                }
+            } catch (error) { /* keep AM */ }
+            const stem = (listLang === 'en' || listLang === 'eng') ? 'englishWords' : 'frenchWords';
+            const files = [];
+            [profile, 'AM', 'BM', 'TE'].forEach(name => {
+                if (name !== 'AM' && name !== 'BM' && name !== 'TE') return;
+                const fileName = stem + name + '.json';
+                if (files.indexOf(fileName) < 0) files.push(fileName);
+            });
+            return files.reduce((chain, fileName) => chain.then(() => {
+                if (words.every(item => item && item.audio && item.audio.word)) return;
+                return readClipList(fileName).then(mergeClipEntries);
+            }), Promise.resolve());
         }
 
         function loadWords(config) {
@@ -417,14 +488,19 @@
             beginWordRounds();
         }
 
-        function playInstruction() {
-            if (copyRound) {
-                const n = practiceCorrectAttempts + 1;
-                readText(`Write the word ${currentWord.word}. Copy ${n} of 3.`, 'en-US', 0.8);
-                return;
-            }
+        function speakListPrompt() {
             const { word, sentence } = currentWord;
-            if (currentRoundType === 'syllables' || currentRoundType === 'letters') {
+            const textToRead = sentence ? `Spell the word: ${word}. ${sentence}` : `Spell the word: ${word}`;
+            if (window.SpellingAudio) {
+                SpellingAudio.speakEntryPrompt(currentWord, readText, 'en-US', textToRead, 0.8);
+            } else {
+                readText(textToRead, 'en-US', 0.8);
+            }
+        }
+
+        function playInstruction() {
+            const { word } = currentWord;
+            if (!copyRound && (currentRoundType === 'syllables' || currentRoundType === 'letters')) {
                 if (window.SpellingAudio) {
                     SpellingAudio.speakEntryWord(currentWord, readText, 'en-US', 0.8);
                 } else {
@@ -432,12 +508,7 @@
                 }
                 return;
             }
-            const textToRead = sentence ? `Spell the word: ${word}. ${sentence}` : `Spell the word: ${word}`;
-            if (window.SpellingAudio) {
-                SpellingAudio.speakEntryPrompt(currentWord, readText, 'en-US', textToRead, 0.8);
-            } else {
-                readText(textToRead, 'en-US', 0.8);
-            }
+            speakListPrompt();
         }
 
         function clearShownWord() {
@@ -730,7 +801,7 @@
             document.getElementById('practiceAttempts').innerHTML = '';
             createPracticeLetterBank();
             updateSpelledWord();
-            readText(`Please spell the word ${currentWord.word} correctly 3 times.`, 'en-US', 0.8);
+            speakListPrompt();
         }
 
         function createPracticeLetterBank() {
