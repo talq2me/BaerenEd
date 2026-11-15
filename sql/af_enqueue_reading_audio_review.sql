@@ -1,6 +1,6 @@
 -- Call site: readAloud.html after the last clip for the day is stored.
 -- Authorization: Bearer token is Vault secret reading_audio_webhook_bearer (no "Bearer " prefix).
--- Different webhook from spelling so the audio bot receives the ping.
+-- Posts to the shared Grok bot webhook (same destination as spelling and EduSiteChecker).
 -- kind=readAloud tells the bot to score audio instead of photos.
 -- Body: {"profile","language","date","kind":"readAloud"}
 
@@ -164,7 +164,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/fea2ec63-4c7f-5c82-ad08-e8e14986505e',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')

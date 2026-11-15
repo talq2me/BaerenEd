@@ -1,5 +1,5 @@
 -- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
--- Fires EduSiteChecker Bot Webhook up to twice per profile per Toronto day when all visible required work is marked done/complete.
+-- Fires the shared Grok bot webhook up to twice per profile per Toronto day when all visible required work is marked done/complete.
 -- Vault secret: edu_site_checker_webhook_bearer (crsr_ token only, no "Bearer " prefix).
 
 CREATE OR REPLACE FUNCTION af_maybe_enqueue_edu_site_checker(p_profile text)
@@ -96,7 +96,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/70a32960-ae8b-5234-b797-bddcebfd118d',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')

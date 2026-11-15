@@ -2,7 +2,7 @@
 -- Does not change choreAudio, piano, or Read to Sibling.
 -- After this, deploy the functions (sql/regen_deploy_all_functions.ps1, then supabase_functions_create.sql,
 -- or run the af_reading_*.sql files and af_upsert_image_upload.sql).
--- The finished game pings the same Grok webhook as spelling OCR (spelling_ocr_webhook_bearer).
+-- The finished game pings the shared Grok bot webhook (Vault secret reading_audio_webhook_bearer).
 
 ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS words_correct INT;
 ALTER TABLE image_uploads ADD COLUMN IF NOT EXISTS words_total INT;

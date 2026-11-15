@@ -2187,7 +2187,7 @@ GRANT EXECUTE ON FUNCTION af_reading_passages_today(text, text, int) TO anon, au
 -- -----------------------------------------------------------------------------
 -- Call site: readAloud.html after the last clip for the day is stored.
 -- Authorization: Bearer token is Vault secret reading_audio_webhook_bearer (no "Bearer " prefix).
--- Different webhook from spelling so the audio bot receives the ping.
+-- Posts to the shared Grok bot webhook (same destination as spelling and EduSiteChecker).
 -- kind=readAloud tells the bot to score audio instead of photos.
 -- Body: {"profile","language","date","kind":"readAloud"}
 
@@ -2351,7 +2351,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/fea2ec63-4c7f-5c82-ad08-e8e14986505e',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')
@@ -3529,7 +3529,7 @@ GRANT EXECUTE ON FUNCTION af_confirm_edu_site_check_batch(text, jsonb, boolean) 
 -- FILE: af_maybe_enqueue_edu_site_checker.sql
 -- -----------------------------------------------------------------------------
 -- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
--- Fires EduSiteChecker Bot Webhook up to twice per profile per Toronto day when all visible required work is marked done/complete.
+-- Fires the shared Grok bot webhook up to twice per profile per Toronto day when all visible required work is marked done/complete.
 -- Vault secret: edu_site_checker_webhook_bearer (crsr_ token only, no "Bearer " prefix).
 
 CREATE OR REPLACE FUNCTION af_maybe_enqueue_edu_site_checker(p_profile text)
@@ -3626,7 +3626,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/70a32960-ae8b-5234-b797-bddcebfd118d',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')
@@ -3918,7 +3918,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')
@@ -4054,7 +4054,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')
@@ -5271,7 +5271,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')
@@ -5409,7 +5409,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')
