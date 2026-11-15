@@ -1,6 +1,6 @@
 # EduSiteChecker webhook
 
-When a child marks **all** visible required tasks and checklist items done for the day, Supabase sends **one** webhook per profile per Toronto day to the Cursor automation **EduSiteChecker Bot Webhook**.
+When a child marks **all** visible required tasks and checklist items done for the day, Supabase sends **one** webhook per profile per Toronto day to the shared Grok bot webhook (the same destination as spelling and read-aloud).
 
 ## One-time Supabase setup
 
@@ -10,7 +10,7 @@ When a child marks **all** visible required tasks and checklist items done for t
 
 Webhook URL (also hard-coded in `af_maybe_enqueue_edu_site_checker.sql`):
 
-`https://api2.cursor.sh/automations/webhook/70a32960-ae8b-5234-b797-bddcebfd118d`
+`https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc`
 
 ## Automation flow
 

@@ -97,7 +97,7 @@ BEGIN
     SELECT r.status INTO v_status
     FROM extensions.http((
       'POST',
-      'https://api2.cursor.sh/automations/webhook/2cb85974-7eea-5dd6-99ad-8d521fa2e7f7',
+      'https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc',
       ARRAY[
         extensions.http_header('Authorization', 'Bearer ' || btrim(v_token)),
         extensions.http_header('Content-Type', 'application/json')

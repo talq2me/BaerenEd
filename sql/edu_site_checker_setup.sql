@@ -1,4 +1,4 @@
--- EduSiteChecker (Cursor Automation "EduSiteChecker Bot Webhook").
+-- EduSiteChecker (posts to the shared Grok bot webhook).
 -- Run once in Supabase SQL Editor after supabase_schema_create.sql, or merge into schema on greenfield deploy.
 -- Vault: create secret edu_site_checker_webhook_bearer with the crsr_ token only (no "Bearer " prefix).
 
