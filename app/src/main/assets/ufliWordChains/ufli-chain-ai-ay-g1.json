@@ -1,0 +1,121 @@
+{
+  "id": "ufli-chain-ai-ay-g1",
+  "concept": "ai-ay",
+  "lang": "eng",
+  "groups": [
+    {
+      "id": "chain-1",
+      "seed": {
+        "word": "main",
+        "prompt": "Write the word main.",
+        "correctChoices": [
+          {
+            "text": "m"
+          },
+          {
+            "text": "a"
+          },
+          {
+            "text": "i"
+          },
+          {
+            "text": "n"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "r"
+          },
+          {
+            "text": "p"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "main",
+          "to": "rain",
+          "prompt": "Say main. Change m to r. Build rain."
+        },
+        {
+          "from": "rain",
+          "to": "pain",
+          "prompt": "Say rain. Change r to p. Build pain."
+        },
+        {
+          "from": "pain",
+          "to": "chain",
+          "prompt": "Say pain. Change p to ch. Build chain.",
+          "correctChoices": [
+            {
+              "text": "c"
+            },
+            {
+              "text": "h"
+            },
+            {
+              "text": "a"
+            },
+            {
+              "text": "i"
+            },
+            {
+              "text": "n"
+            }
+          ],
+          "extraChoices": [
+            {
+              "text": "m"
+            },
+            {
+              "text": "t"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chain-2",
+      "seed": {
+        "word": "day",
+        "prompt": "Write the word day.",
+        "correctChoices": [
+          {
+            "text": "d"
+          },
+          {
+            "text": "a"
+          },
+          {
+            "text": "y"
+          }
+        ],
+        "extraChoices": [
+          {
+            "text": "s"
+          },
+          {
+            "text": "p"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "from": "day",
+          "to": "say",
+          "prompt": "Say day. Change d to s. Build say."
+        },
+        {
+          "from": "say",
+          "to": "pay",
+          "prompt": "Say say. Change s to p. Build pay."
+        },
+        {
+          "from": "pay",
+          "to": "play",
+          "prompt": "Say pay. Add l between p and a. Build play."
+        }
+      ]
+    }
+  ]
+}
