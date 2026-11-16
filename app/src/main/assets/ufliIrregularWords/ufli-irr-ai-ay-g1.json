@@ -1,0 +1,73 @@
+[
+  {
+    "prompt": {
+      "text": "Build the irregular word: today. (I think it will rain today.)",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "today",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "t"
+      },
+      {
+        "text": "o"
+      },
+      {
+        "text": "d"
+      },
+      {
+        "text": "a"
+      },
+      {
+        "text": "y"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "e"
+      },
+      {
+        "text": "i"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Build the irregular word: very. (The kids play a very long game.)",
+      "lang": "eng",
+      "displayText": true
+    },
+    "question": {
+      "text": "very",
+      "lang": "eng",
+      "displayText": true
+    },
+    "correctChoices": [
+      {
+        "text": "v"
+      },
+      {
+        "text": "e"
+      },
+      {
+        "text": "r"
+      },
+      {
+        "text": "y"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "a"
+      },
+      {
+        "text": "o"
+      }
+    ]
+  }
+]
