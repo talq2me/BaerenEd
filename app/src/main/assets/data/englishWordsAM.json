@@ -1,117 +1,117 @@
 {
-  "start_date": "2026-11-09",
+  "start_date": "2026-11-16",
   "lang": "en",
   "words": [
     {
-      "word": "smart",
-      "sentence": "My dog is very smart.",
+      "word": "away",
+      "sentence": "The ball rolled away.",
       "syllables": [
-        "smart"
+        "a",
+        "way"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/smart.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/smart__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/away.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/away__sentence.ogg"
       }
     },
     {
-      "word": "garden",
-      "sentence": "We grow carrots in our garden.",
+      "word": "flake",
+      "sentence": "A flake of snow landed on my glove.",
       "syllables": [
-        "gar",
-        "den"
+        "flake"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/garden.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/garden__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/flake.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/flake__sentence.ogg"
       }
     },
     {
-      "word": "under",
-      "sentence": "The cat is under the bed.",
+      "word": "Sunday",
+      "sentence": "We go to the park on Sunday.",
       "syllables": [
-        "un",
-        "der"
+        "Sun",
+        "day"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/under.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/under__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sunday.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sunday__sentence.ogg"
       }
     },
     {
-      "word": "purse",
-      "sentence": "Mom put her keys in her purse.",
+      "word": "cake",
+      "sentence": "I ate a big piece of cake.",
       "syllables": [
-        "purse"
+        "cake"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/purse.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/purse__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/cake.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/cake__sentence.ogg"
       }
     },
     {
-      "word": "work",
-      "sentence": "Dad goes to work in the morning.",
+      "word": "wait",
+      "sentence": "Please wait for me at the door.",
       "syllables": [
-        "work"
+        "wait"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/work.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/work__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/wait.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/wait__sentence.ogg"
       }
     },
     {
-      "word": "word",
-      "sentence": "Can you spell this word?",
+      "word": "paint",
+      "sentence": "I will paint a picture.",
       "syllables": [
-        "word"
+        "paint"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/word.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/word__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/paint.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/paint__sentence.ogg"
       }
     },
     {
-      "word": "score",
-      "sentence": "Our team got the best score.",
+      "word": "rain",
+      "sentence": "The rain falls on the roof.",
       "syllables": [
-        "score"
+        "rain"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/score.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/score__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/rain.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/rain__sentence.ogg"
       }
     },
     {
-      "word": "herd",
-      "sentence": "A herd of cows is in the field.",
+      "word": "stain",
+      "sentence": "There is a stain on my shirt.",
       "syllables": [
-        "herd"
+        "stain"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/herd.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/herd__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/stain.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/stain__sentence.ogg"
       }
     },
     {
-      "word": "curl",
-      "sentence": "My hair has a curl in it.",
+      "word": "say",
+      "sentence": "What did you say?",
       "syllables": [
-        "curl"
+        "say"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/curl.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/curl__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/say.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/say__sentence.ogg"
       }
     },
     {
-      "word": "shirt",
-      "sentence": "I have a red shirt.",
+      "word": "tray",
+      "sentence": "She carried the food on a tray.",
       "syllables": [
-        "shirt"
+        "tray"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/shirt.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/shirt__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/tray.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/tray__sentence.ogg"
       }
     }
   ]
