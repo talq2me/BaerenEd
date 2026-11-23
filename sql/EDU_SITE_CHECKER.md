@@ -1,83 +1,100 @@
-# EduSiteChecker webhook
+# Edu site progress + daily goals
 
-When a child marks **all** visible required tasks and checklist items done for the day, Supabase sends **one** webhook per profile per Toronto day to the shared Grok bot webhook (the same destination as spelling and read-aloud).
+Scrapers post cumulative (or daily) snapshots. The DB evaluates today’s goals from `web_assignments.verify_kind` / `verify_params`. Kids can mark an edu-site task complete only when that day’s goal is already met (or a parent force-verifies).
 
-## One-time Supabase setup
+The old all-done → Grok webhook scrape path is **disabled**. Vault secret **`edu_site_checker_webhook_bearer`** is the **inbound scraper bearer** (`p_bearer`).
 
-1. Run [`edu_site_checker_setup.sql`](edu_site_checker_setup.sql) if the project was created before `edu_site_checker_runs` was added to [`supabase_schema_create.sql`](supabase_schema_create.sql).
-2. Deploy RPCs (regen [`supabase_functions_create.sql`](supabase_functions_create.sql) or run the new `af_*.sql` files).
-3. In **Supabase Vault**, create secret **`edu_site_checker_webhook_bearer`** with the Cursor automation token only (no `Bearer ` prefix), same pattern as `reading_audio_webhook_bearer`.
+## One-time setup
 
-Webhook URL (also hard-coded in `af_maybe_enqueue_edu_site_checker.sql`):
+1. Run [`edu_site_progress_setup.sql`](edu_site_progress_setup.sql) (tables).
+2. Deploy RPCs (`regen_deploy_all_functions.ps1` → `supabase_functions_create.sql`, or `deploy_edu_site_progress.ps1`).
+3. Vault secret must exist. This project’s secret **name** is **`EduSiteChecker Bot Webhook`** (RPCs also accept `edu_site_checker_webhook_bearer`). The secret **value** is what the scraper sends as `p_bearer` (often a `crsr_` token).
 
-`https://api2.cursor.sh/automations/webhook/f84fbceb-3b8e-5598-a447-b64fc0313ddc`
+## Scraper call
 
-## Automation flow
-
-1. Webhook body: `{"profile":"AM","date":"YYYY-MM-DD","kind":"edu_site_check"}`.
-2. `POST /rest/v1/rpc/af_list_edu_site_check_tasks` with `{"p_profile":"<profile>","p_date":"<date>"}`.
-   - Returns **only tasks scheduled for that calendar day** (same `display_days` / hide rules as the app) **and** with `verify_kind` set on `web_assignments`.
-   - At webhook time the kid has marked everything done, so the list is the set of external sites to check today — not every site in your catalog.
-3. Branch in the bot on each row’s `verify_kind` (e.g. `rallye_lecture`, `anton`, `motoufo`, `xtramath`, `boukili`, `beaver_contest`, `northstar_math`).
-4. **One** callback: `POST .../rpc/af_confirm_edu_site_check_batch` with all results (see below).
-
-## Many sites, certain days only
-
-Configure each task in `web_assignments`:
-
-| Column | Purpose |
-|--------|---------|
-| `verify_kind` | Bot switch key, e.g. `rallye_lecture`, `anton`, `boukili` |
-| `verify_params` | Site-specific JSON, e.g. `{"min_books": 2}`, `{"min_minutes": 15}` |
-| `display_days` | Same as other tasks — if the assignment isn’t visible today, it won’t appear in `af_list_edu_site_check_tasks` |
-
-Tasks **without** `verify_kind` still count toward “all marked done” but are not sent to the bot (in-app games, spelling, etc.).
-
-## Batch callback (preferred)
+```http
+POST https://xvnosesmkoahykndbzgy.supabase.co/rest/v1/rpc/af_upsert_edu_site_progress
+apikey: <supabase anon key>
+Authorization: Bearer <supabase anon key>
+Content-Type: application/json
+```
 
 ```json
 {
-  "p_profile": "AM",
-  "p_clear_marked_on_fail": true,
-  "p_results": [
-    {
-      "task_name": "Read 2 Rallye books",
-      "is_checklist": true,
-      "success": true,
-      "note": null
-    },
-    {
-      "task_name": "Anton",
-      "is_checklist": false,
-      "success": false,
-      "note": "Need at least 1 exercise today"
-    }
-  ]
+  "p_site_kind": "rallye_lecture",
+  "p_bearer": "<vault secret value>",
+  "p_raw": {
+    "student": "BM",
+    "scraped_at": "2026-11-21T16:32:21.207Z",
+    "source_url": "https://rallye-lecture.fr/eleve-resultats/",
+    "livres_lus": 97,
+    "reussite_du_moment_pct": 72,
+    "badges_obtenus": 19,
+    "derniers_livres_count": 4,
+    "derniers_livres_avg_pct": 80,
+    "derniers_livres": []
+  }
 }
 ```
 
-Response: `{"verified":1,"failed":1,"profile":"AM","date":"YYYY-MM-DD"}`.
+### Function signature
 
-With `p_clear_marked_on_fail: true` (default), failures **unmark** the task in `user_data` (`done=false` on checklist, `status=incomplete` on required) and set `verification_status` / `verification_note` so the kid sees what to fix and **all_done** is false again until they redo the work and re-complete the day.
+```sql
+af_upsert_edu_site_progress(
+  p_site_kind text,
+  p_bearer text,
+  p_raw jsonb,
+  p_profile text DEFAULT NULL,
+  p_metrics jsonb DEFAULT NULL,
+  p_value_mode text DEFAULT NULL,
+  p_source text DEFAULT NULL
+) RETURNS jsonb
+```
 
-You can still call `af_confirm_edu_site_check_item` once per task if you prefer; batch is easier for the bot.
+- Profile from `p_profile` or `p_raw.student` (`AM` / `BM` / `TE` only — no real names).
+- Stores full `p_raw` on `edu_site_progress_snapshots.raw`.
+- Extracts metrics (Rallye: `books` ← `livres_lus`, plus `books_today` vs prior day).
+- Evaluates visible-today assignments for that `verify_kind`.
+- Returns `{ profile, snapshot_id, metrics, goals: [...] }`.
 
-## Kid UI
+## Goals on assignments
 
-Stored on each task JSON: `verification_status` (`pending` | `verified` | `failed`), `verification_note`. Showing that in the Android app or reports is a follow-up; the data model is in place.
+| Field | Role |
+|-------|------|
+| `verify_kind` | `rallye_lecture`, `motoufo`, `anton`, `northstar_math`, … |
+| `verify_params` | e.g. `{"metric":"books","target":2,"value_mode":"cumulative"}` |
+| `display_days` | Day visibility (same as other tasks) |
 
-## Re-run same day
+Aliases still work: `min_books`, `min_feathers`, `min_sessions`, `max_incomplete`.
 
-Supabase allows **two** automatic webhook sends per profile per Toronto day (`edu_site_checker_runs.webhook_send_count`). After a failed batch unmarks tasks, the child can complete the day again and trigger a second Grok run.
+Optional `compare`: `gte` (default, need at least target) or `lte` (need at most target).
 
-## Schedule editor
+**Anton:** goal is zero incomplete exercises. Defaults are `metric=incomplete`, `target=0`, `value_mode=daily`, `compare=lte`. Scraper posts e.g.:
 
-In **Checklist / site-verify tasks** and on required/practice rows, use **Site kind** + optional JSON params — same on/off toggle and day picker as other tasks. Saved via `af_web_save_schedule` into `web_assignments.verify_kind` / `verify_params`.
+```json
+{
+  "p_site_kind": "anton",
+  "p_bearer": "<vault secret>",
+  "p_raw": {
+    "student": "BM",
+    "scraped_at": "2026-11-21T16:32:21.207Z",
+    "incomplete": 0
+  }
+}
+```
 
-## Parent reports
+(`incomplete_exercises` is also accepted.) Met when `incomplete <= 0`.
 
-`verification_status` on each task in `user_data` drives the green ✓ on **index.html** and **daily_progress_report.html** (no Grok calls from the browser).
+Goals are **daily only** (America/Toronto calendar day). Cumulative sites need a prior-day snapshot before `*_today` can be computed.
 
-## Manual test
+## Kid Complete
 
-After Vault is configured, complete the last required item for a profile in the app, then check `edu_site_checker_runs` for `webhook_sent = true` for today’s date.
+`af_update_task_completion` / `af_update_tasks_checklist_items` reject complete/done for rows with `verify_kind` unless `edu_site_daily_goals.goal_met` or `parent_override` for today.
+
+## Parent override
+
+Task Manager → **Force verify** → `af_parent_override_edu_site_goal(p_profile, p_task_title, p_is_checklist)`.
+
+## Run ledger
+
+`edu_site_checker_runs.status = complete` when every visible-today `verify_kind` task has `goal_met` (via `af_maybe_complete_edu_site_checker_run`). No outbound webhook yet.

@@ -188,6 +188,21 @@
             background: #ffebee;
             color: #c62828;
         }
+        .mark-complete-btn {
+            border: none;
+            background: #15803d;
+            color: white;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.78em;
+            font-weight: 600;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+        .mark-complete-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
         .site-verify-banner {
             font-size: 0.82em;
             margin: 0 0 8px;
@@ -683,6 +698,7 @@
                     throw new Error(`No data found for profile: ${kid}`);
                 }
 
+                document.getElementById('error').style.display = 'none';
                 reportUserData = data[0];
                 reportAssignments = assignmentRows;
                 spellingPhotoRows = spellingRows;
@@ -1039,6 +1055,108 @@
             return '';
         }
 
+        function starsToMinutes(stars) {
+            const n = Number(stars) || 0;
+            if (n <= 0) return 0;
+            if (n === 1) return 1;
+            if (n === 2) return 3;
+            if (n === 3) return 5;
+            const fullSetsOf3 = Math.floor(n / 3);
+            const remainingStars = n % 3;
+            return (fullSetsOf3 * 5) + (remainingStars === 1 ? 1 : remainingStars === 2 ? 3 : 0);
+        }
+
+        function appendMarkComplete(li, title, isChecklist, stored) {
+            if (stored && stored.verification_status === 'verified') return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mark-complete-btn';
+            btn.textContent = 'Mark complete';
+            btn.addEventListener('click', function () {
+                markEduSiteComplete(title, isChecklist, btn);
+            });
+            li.appendChild(btn);
+        }
+
+        async function callEduOverride(title, isChecklist) {
+            const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_parent_override_edu_site_goal`, {
+                method: 'POST',
+                headers: restHeaders,
+                body: JSON.stringify({
+                    p_profile: kid,
+                    p_task_title: title,
+                    p_is_checklist: !!isChecklist
+                })
+            });
+            if (response.ok) return '';
+            return (await response.text()) || response.statusText;
+        }
+
+        // If the site check failed, mark the row done first so the override is not blocked, then verify it.
+        async function patchEduDone(title, isChecklist) {
+            const userData = reportUserData || {};
+            const assignment = (reportAssignments || []).find(function (row) {
+                return row && row.title === title && row.section === (isChecklist ? 'checklist' : 'required');
+            }) || {};
+            const body = { last_updated: nowEST() };
+            if (isChecklist) {
+                const items = Object.assign({}, userData.checklist_items || {});
+                const prev = items[title] || {};
+                const stars = Number(prev.stars != null ? prev.stars : assignment.stars) || 0;
+                const wasDone = prev.done === true;
+                items[title] = Object.assign({}, prev, { done: true });
+                body.checklist_items = items;
+                if (!wasDone && stars > 0) {
+                    body.berries_earned = (Number(userData.berries_earned) || 0) + stars;
+                    body.banked_mins = (Number(userData.banked_mins) || 0) + starsToMinutes(stars);
+                }
+            } else {
+                const tasks = Object.assign({}, userData.required_tasks || {});
+                const prev = tasks[title] || {};
+                const stars = Number(prev.stars != null ? prev.stars : assignment.stars) || 0;
+                const wasDone = prev.status === 'complete' || prev.completed === true;
+                tasks[title] = Object.assign({}, prev, { status: 'complete', stars: prev.stars || stars || 1 });
+                body.required_tasks = tasks;
+                if (!wasDone && stars > 0) {
+                    body.berries_earned = (Number(userData.berries_earned) || 0) + stars;
+                    body.banked_mins = (Number(userData.banked_mins) || 0) + starsToMinutes(stars);
+                }
+            }
+            const response = await fetch(`${supabaseUrl}/rest/v1/user_data?profile=eq.${encodeURIComponent(kid)}`, {
+                method: 'PATCH',
+                headers: Object.assign({ 'Prefer': 'return=minimal' }, restHeaders),
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) {
+                throw new Error((await response.text()) || response.statusText);
+            }
+        }
+
+        async function markEduSiteComplete(title, isChecklist, btn) {
+            if (btn) btn.disabled = true;
+            const errorEl = document.getElementById('error');
+            try {
+                let errText = await callEduOverride(title, isChecklist);
+                if (errText && /goal not met/i.test(errText)) {
+                    await patchEduDone(title, isChecklist);
+                    errText = await callEduOverride(title, isChecklist);
+                }
+                if (errText) throw new Error(errText);
+                await fetchReportData();
+            } catch (error) {
+                console.error(error);
+                if (errorEl) {
+                    errorEl.style.display = 'block';
+                    errorEl.textContent = '';
+                    const strong = document.createElement('strong');
+                    strong.textContent = `Could not complete ${title}: `;
+                    errorEl.appendChild(strong);
+                    errorEl.appendChild(document.createTextNode(error.message || 'unknown error'));
+                }
+                if (btn) btn.disabled = false;
+            }
+        }
+
         function renderSiteVerifyBanner(userData) {
             const banner = document.getElementById('siteVerifyBanner');
             if (!banner) return;
@@ -1150,6 +1268,9 @@
                         <span class="task-name">${taskName} ${isComplete ? '✓' : ''}${siteMark}</span>
                         <span class="task-info">${answerInfo}</span>
                     `;
+                    if (verifyKindForAssignment(taskKey, 'required')) {
+                        appendMarkComplete(li, taskKey, false, task);
+                    }
                     requiredTasksList.appendChild(li);
                 });
             }
@@ -1187,8 +1308,21 @@
                     const note = stored.verification_note && stored.verification_status === 'failed'
                         ? ` — ${stored.verification_note}` : '';
                     li.innerHTML = `<span class="task-name">${row.title}${done ? ' ✓' : ''}${siteMark}${note}</span>`;
+                    if (String(row.verifyKind || row.verify_kind || '').trim()) {
+                        appendMarkComplete(li, row.title, true, stored);
+                    }
                     checklistList.appendChild(li);
                 });
+                const needsParent = checklistToday.some(function (row) {
+                    if (!String(row.verifyKind || row.verify_kind || '').trim()) return false;
+                    const stored = checklistData[row.title] || {};
+                    return stored.verification_status !== 'verified';
+                });
+                if (needsParent) {
+                    checklistSection.classList.add('open');
+                    const toggle = checklistSection.querySelector('.section-toggle');
+                    if (toggle) toggle.setAttribute('aria-expanded', 'true');
+                }
             } else if (checklistSection) {
                 checklistSection.style.display = 'none';
             }

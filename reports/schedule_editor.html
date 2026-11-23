@@ -458,7 +458,7 @@
                 <div class="card-body">
                     <p class="hint">Same on/off and day controls as required tasks. Use the fields under each checklist item only when Grok should verify an external site.</p>
                     <ul class="hint-list">
-                        <li><strong>Site kind</strong> — only for Grok EduSiteChecker (examples: <code>rallye_lecture</code>, <code>xtramath</code>, <code>anton</code>, <code>motoufo</code>, <code>boukili</code>). Leave empty for normal checklist/chores — no site check; the task behaves as before.</li>
+                        <li><strong>Site kind</strong> — edu-site scraper goals (examples: <code>rallye_lecture</code>, <code>motoufo</code>, <code>anton</code>, <code>northstar_math</code>). Leave empty for normal checklist/chores — Complete is not gated on scrape data.</li>
                         <li><strong>Params JSON</strong> — optional extras for the bot (example: <code>{"min_books":2}</code>). Leave empty if you don’t need rules. Do not put <code>{}</code>; an empty box means no params.</li>
                     </ul>
                     <div class="week-grid" id="checklistWeek"></div>
@@ -1222,7 +1222,7 @@
                             <span class="site-field-label">Site kind</span>
                             <input type="text" class="verify-kind" list="verifyKindList" placeholder="e.g. rallye_lecture" value="${escapeAttr(verifyKind)}" data-field="verifyKind" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Leave empty = no Grok site check">
                         </div>
-                        <p class="site-field-help">Only for Grok EduSiteChecker. Leave empty for normal checklist items — no website verification.</p>
+                        <p class="site-field-help">Edu-site scraper goal key. Leave empty for normal checklist items — no scrape verification.</p>
                         <div class="site-field-row">
                             <span class="site-field-label">Params JSON</span>
                             <input type="text" class="verify-params" placeholder='e.g. {"min_books":2}' value="${escapeAttr(verifyParamsStr)}" data-field="verifyParams" data-bucket="${bucket}" data-key="${escapeAttr(rowKey)}" title="Optional bot rules; leave empty if none">

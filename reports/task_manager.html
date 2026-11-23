@@ -203,6 +203,18 @@
             color: #666;
         }
 
+        .force-verify-btn {
+            margin-top: 6px;
+            border: none;
+            background: #15803d;
+            color: white;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.78em;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
         .toggle-switch {
             position: relative;
             display: inline-block;
@@ -525,11 +537,25 @@
             TE: { berries_earned: 0, banked_mins: 0 }
         };
 
-        // Required assignments that are on today, from web_assignments.
+        // Required + edu-site checklist assignments that are on today, from web_assignments.
         let visibleRequired = {
             AM: [],
             BM: [],
             TE: []
+        };
+
+        // Today's edu_site_daily_goals keyed by profile -> task_title
+        let dailyGoals = {
+            AM: {},
+            BM: {},
+            TE: {}
+        };
+
+        // Completion state at load, so Save only overrides site checks the parent just turned on.
+        let loadedComplete = {
+            AM: {},
+            BM: {},
+            TE: {}
         };
 
         function torontoDayToken() {
@@ -559,10 +585,85 @@
                 throw new Error(`af_web_report_assignments ${profile}: ${response.status}`);
             }
             const rows = await response.json();
-            return (Array.isArray(rows) ? rows : []).filter(row =>
-                row && row.section === 'required' && row.enabled !== false && shownToday(row.displayDays)
-            );
+            return (Array.isArray(rows) ? rows : []).filter(row => {
+                if (!row || row.enabled === false || !shownToday(row.displayDays || row.display_days)) return false;
+                if (!row.verifyKind && row.verify_kind) row.verifyKind = row.verify_kind;
+                if (row.section === 'required') return true;
+                // Edu-site checklist tasks are not required rows, but parents still need to complete them.
+                return row.section === 'checklist' && String(row.verifyKind || '').trim() !== '';
+            });
         }
+
+        function torontoYmd() {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Toronto',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).formatToParts(new Date());
+            const get = (t) => parts.find(p => p.type === t).value;
+            return `${get('year')}-${get('month')}-${get('day')}`;
+        }
+
+        async function fetchDailyGoals(supabaseUrl, supabaseKey, profile) {
+            const ymd = torontoYmd();
+            const url = `${supabaseUrl}/rest/v1/edu_site_daily_goals?profile=eq.${encodeURIComponent(profile)}&goal_date=eq.${ymd}&select=task_title,site_kind,metric,target,measured_value,goal_met,parent_override,note`;
+            const response = await fetch(url, {
+                headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) {
+                console.warn(`edu_site_daily_goals ${profile}: ${response.status}`);
+                return {};
+            }
+            const rows = await response.json();
+            const map = {};
+            (Array.isArray(rows) ? rows : []).forEach(row => {
+                if (row && row.task_title) map[row.task_title] = row;
+            });
+            return map;
+        }
+
+        async function forceVerifyEduSite(profile, taskTitle, isChecklist) {
+            const supabaseUrl = localStorage.getItem('supabaseUrl');
+            const supabaseKey = localStorage.getItem('supabaseKey');
+            if (!supabaseUrl || !supabaseKey) {
+                alert('Configure Supabase URL and API Key first');
+                return;
+            }
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_parent_override_edu_site_goal`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        p_profile: profile,
+                        p_task_title: taskTitle,
+                        p_is_checklist: !!isChecklist
+                    })
+                });
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(errText || response.statusText);
+                }
+                await loadTasks();
+                document.getElementById('success').style.display = 'block';
+                document.getElementById('success').innerHTML =
+                    `<strong>Override saved:</strong> ${taskTitle} marked verified/complete for ${profile}.`;
+            } catch (error) {
+                console.error(error);
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML =
+                    `<strong>Force verify failed:</strong> ${error.message}`;
+            }
+        }
+        window.forceVerifyEduSite = forceVerifyEduSite;
 
         // Fetch tasks and checklist items from Supabase
         async function loadTasks() {
@@ -608,6 +709,9 @@
                 visibleRequired.AM = [];
                 visibleRequired.BM = [];
                 visibleRequired.TE = [];
+                dailyGoals.AM = {};
+                dailyGoals.BM = {};
+                dailyGoals.TE = {};
 
                 // Process each profile
                 data.forEach(profileData => {
@@ -626,6 +730,14 @@
                 visibleRequired.AM = lists[0];
                 visibleRequired.BM = lists[1];
                 visibleRequired.TE = lists[2];
+
+                const goals = await Promise.all(['AM', 'BM', 'TE'].map(profile =>
+                    fetchDailyGoals(supabaseUrl, supabaseKey, profile)
+                ));
+                dailyGoals.AM = goals[0];
+                dailyGoals.BM = goals[1];
+                dailyGoals.TE = goals[2];
+                snapshotLoadedComplete();
 
                 displayTasks();
                 document.getElementById('loading').style.display = 'none';
@@ -651,18 +763,28 @@
             const tasksList = document.getElementById(`${profile.toLowerCase()}Tasks`);
             tasksList.innerHTML = '';
 
-            const visibleRequiredTasks = {};
+            const visibleRows = [];
             for (const row of visibleRequired[profile] || []) {
                 const title = String(row.title || '').trim();
                 if (!title) continue;
-                const stored = (data.required_tasks || {})[title] || {};
-                visibleRequiredTasks[title] = {
-                    ...stored,
-                    stars: row.stars != null ? row.stars : (stored.stars || 1)
-                };
+                const isChecklist = row.section === 'checklist';
+                const stored = isChecklist
+                    ? ((data.checklist_items || {})[title] || {})
+                    : ((data.required_tasks || {})[title] || {});
+                visibleRows.push({
+                    title,
+                    row,
+                    isChecklist,
+                    task: {
+                        ...stored,
+                        stars: row.stars != null ? row.stars : (stored.stars || 1)
+                    },
+                    verifyKind: String(row.verifyKind || '').trim(),
+                    verifyParams: row.verifyParams || {}
+                });
             }
 
-            const totalItems = Object.keys(visibleRequiredTasks).length;
+            const totalItems = visibleRows.length;
             
             if (totalItems === 0) {
                 tasksList.innerHTML = '<li class="no-tasks">No visible required tasks found for this profile today</li>';
@@ -673,9 +795,10 @@
             let completeCount = 0;
             let incompleteCount = 0;
 
-            // Display required tasks
-            Object.entries(visibleRequiredTasks).forEach(([taskKey, task]) => {
-                const isComplete = task && (task.status === 'complete' || task.completed === true);
+            visibleRows.forEach(({ title: taskKey, task, isChecklist, verifyKind, verifyParams }) => {
+                const isComplete = isChecklist
+                    ? !!(task && task.done === true)
+                    : !!(task && (task.status === 'complete' || task.completed === true));
                 
                 if (isComplete) completeCount++;
                 else incompleteCount++;
@@ -687,16 +810,38 @@
                 const correct = task?.correct || 0;
                 const incorrect = task?.incorrect || 0;
                 const questions = task?.questions || 0;
-                const details = questions > 0 ? `${correct} ✅ ${incorrect} ❌ (${questions} questions)` : '';
+                let details = questions > 0 ? `${correct} ✅ ${incorrect} ❌ (${questions} questions)` : '';
+
+                const goal = (dailyGoals[profile] || {})[taskKey];
+                const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                let eduBits = '';
+                if (verifyKind) {
+                    const target = goal?.target ?? verifyParams?.target ?? verifyParams?.min_books ?? verifyParams?.min_feathers ?? verifyParams?.min_sessions;
+                    const measured = goal?.measured_value;
+                    const met = !!(goal && (goal.goal_met || goal.parent_override));
+                    const metric = goal?.metric || verifyParams?.metric || '';
+                    eduBits = `<div class="task-details">site: ${verifyKind}` +
+                        (metric || target != null ? ` · ${metric || 'goal'} ${measured != null ? measured : '?'} / ${target != null ? target : '?'}` : '') +
+                        (met ? ' · verified' : ' · not met') +
+                        (goal?.note ? ` · ${goal.note}` : '') +
+                        `</div>`;
+                }
+
+                const toggleType = isChecklist ? 'checklist_items' : 'required_tasks';
+                const toggleFn = isChecklist
+                    ? `toggleChecklistItem('${profile}', '${esc(taskKey)}', this.checked)`
+                    : `toggleTask('${profile}', '${esc(taskKey)}', this.checked, 'required_tasks')`;
 
                 li.innerHTML = `
                     <div class="task-info">
-                        <div class="task-name">${taskName}</div>
+                        <div class="task-name">${taskName}${verifyKind ? ' <span style="opacity:.7;font-size:.85em">[' + verifyKind + ']</span>' : ''}</div>
                         ${details ? `<div class="task-details">${details}</div>` : ''}
+                        ${eduBits}
+                        ${verifyKind && !((isChecklist ? task.done === true : (task.status === 'complete' || task.completed === true)) && task.verification_status === 'verified') ? `<button type="button" class="force-verify-btn" onclick="forceVerifyEduSite('${profile}', '${esc(taskKey)}', ${isChecklist})">Mark complete</button>` : ''}
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" ${isComplete ? 'checked' : ''} 
-                               onchange="toggleTask('${profile}', '${taskKey}', this.checked, 'required_tasks')">
+                               onchange="${toggleFn}">
                         <span class="toggle-slider"></span>
                     </label>
                 `;
@@ -913,6 +1058,69 @@
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Failed to update ${profile}: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+
+            await verifyCompletedEduSites(profile, data);
+        }
+
+        function isRowComplete(row, data) {
+            const title = String((row && row.title) || '').trim();
+            const isChecklist = row && row.section === 'checklist';
+            const stored = isChecklist
+                ? ((data.checklist_items || {})[title] || {})
+                : ((data.required_tasks || {})[title] || {});
+            return isChecklist
+                ? stored.done === true
+                : (stored.status === 'complete' || stored.completed === true);
+        }
+
+        function snapshotLoadedComplete() {
+            ['AM', 'BM', 'TE'].forEach(function (profile) {
+                const done = {};
+                (visibleRequired[profile] || []).forEach(function (row) {
+                    const title = String((row && row.title) || '').trim();
+                    if (title) done[title] = isRowComplete(row, taskData[profile]);
+                });
+                loadedComplete[profile] = done;
+            });
+        }
+
+        // Site-check tasks live in checklist, not required. Saving them complete also
+        // records a parent override so a failed or missing scrape does not block them.
+        async function verifyCompletedEduSites(profile, data) {
+            const supabaseUrl = localStorage.getItem('supabaseUrl');
+            const supabaseKey = localStorage.getItem('supabaseKey');
+            const rows = visibleRequired[profile] || [];
+            for (const row of rows) {
+                const kind = String((row && (row.verifyKind || row.verify_kind)) || '').trim();
+                const title = String((row && row.title) || '').trim();
+                if (!kind || !title) continue;
+                const isChecklist = row.section === 'checklist';
+                const stored = isChecklist
+                    ? ((data.checklist_items || {})[title] || {})
+                    : ((data.required_tasks || {})[title] || {});
+                const complete = isChecklist
+                    ? stored.done === true
+                    : (stored.status === 'complete' || stored.completed === true);
+                if (!complete || stored.verification_status === 'verified') continue;
+                if (loadedComplete[profile] && loadedComplete[profile][title]) continue;
+                const response = await fetch(`${supabaseUrl}/rest/v1/rpc/af_parent_override_edu_site_goal`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        p_profile: profile,
+                        p_task_title: title,
+                        p_is_checklist: isChecklist
+                    })
+                });
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(errText || `Could not complete ${title}`);
+                }
             }
         }
 

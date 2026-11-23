@@ -18,11 +18,15 @@ DROP FUNCTION IF EXISTS af_daily_reset(text);
 DROP FUNCTION IF EXISTS af_delete_behavior_log(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_upload_by_id(bigint);
 DROP FUNCTION IF EXISTS af_delete_image_uploads_ilike(text, text);
+DROP FUNCTION IF EXISTS af_edu_site_extract_metrics(text, jsonb, jsonb, text);
+DROP FUNCTION IF EXISTS af_edu_site_goal_met_today(text, text);
+DROP FUNCTION IF EXISTS af_edu_site_resolve_goal_params(text, jsonb);
 DROP FUNCTION IF EXISTS af_enqueue_reading_audio_review(text, text, date);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_jumble_review(text, text, date);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_ocr_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_paper_review(text, text, date, int);
 DROP FUNCTION IF EXISTS af_enqueue_spelling_xtra_review(text, text, date, int);
+DROP FUNCTION IF EXISTS af_eval_edu_site_goal(text, text, date);
 DROP FUNCTION IF EXISTS af_get_battle_hub_counts(text);
 DROP FUNCTION IF EXISTS af_get_behavior_log(text, timestamp, timestamp);
 DROP FUNCTION IF EXISTS af_get_current_required_tasks(text);
@@ -52,8 +56,13 @@ DROP FUNCTION IF EXISTS af_list_unverified_spelling(text, text, date, text);
 DROP FUNCTION IF EXISTS af_log_behavior(text, text, text);
 DROP FUNCTION IF EXISTS af_mark_spelling_xtra_complete(text, text, date);
 DROP FUNCTION IF EXISTS af_maybe_advance_spelling_pools(text);
+DROP FUNCTION IF EXISTS af_maybe_complete_edu_site_checker_run(text);
 DROP FUNCTION IF EXISTS af_maybe_enqueue_edu_site_checker(text);
 DROP FUNCTION IF EXISTS af_maybe_record_collector_card_day(text);
+DROP FUNCTION IF EXISTS af_mental_math_best(text);
+DROP FUNCTION IF EXISTS af_mental_math_history(text, int);
+DROP FUNCTION IF EXISTS af_mental_math_save(text, text, timestamptz, int, jsonb, boolean);
+DROP FUNCTION IF EXISTS af_parent_override_edu_site_goal(text, text, boolean);
 DROP FUNCTION IF EXISTS af_payout_collector_cards(text, int);
 DROP FUNCTION IF EXISTS af_push_profile_config_to_github(text, jsonb, text, jsonb);
 DROP FUNCTION IF EXISTS af_reading_language(text);
@@ -79,12 +88,14 @@ DROP FUNCTION IF EXISTS af_update_tasks_checklist_items(text, text, boolean);
 DROP FUNCTION IF EXISTS af_update_tasks_chores(text, int, boolean);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_bonus(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_checklist(text);
+DROP FUNCTION IF EXISTS af_update_tasks_from_config_checklist_items(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_practice(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_from_config_required(text, jsonb);
 DROP FUNCTION IF EXISTS af_update_tasks_photo_chores(text, text);
 DROP FUNCTION IF EXISTS af_update_tasks_practice(text, text, int, int, int, int, int);
 DROP FUNCTION IF EXISTS af_update_tasks_required(text, text, text, int, int, int);
 DROP FUNCTION IF EXISTS af_upsert_device(text, text, text, text, text, text, text, boolean);
+DROP FUNCTION IF EXISTS af_upsert_edu_site_progress(text, text, jsonb, text, jsonb, text, text);
 DROP FUNCTION IF EXISTS af_upsert_image_upload(text, text, text);
 DROP FUNCTION IF EXISTS af_upsert_settings_row(text, text, boolean, boolean, integer);
 DROP FUNCTION IF EXISTS af_upsert_user_data_columns(text, jsonb);
@@ -710,6 +721,142 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_checklist(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_update_tasks_from_config_checklist_items.sql
+-- -----------------------------------------------------------------------------
+-- Call sites (BaerenEd Android, this repo):
+--   app/src/main/java/com/talq2me/baerened/SupabaseInterface.kt  -  invokeAfUpdateChecklistItemsFromConfig (RPC af_update_tasks_from_config_checklist_items).
+--   app/src/main/java/com/talq2me/baerened/DbProfileSessionLoader.kt  -  chained after profile load / config refresh.
+--
+-- When the schedule editor has enabled checklist rows (Rallye Lecture and other site tasks),
+-- those rows are the checklist. Opening the trainer map must not replace them with the
+-- GitHub profile file. Profiles with no schedule-editor checklist still use that file.
+
+CREATE OR REPLACE FUNCTION af_update_tasks_from_config_checklist_items(p_profile text, p_config_json jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  github_url text;
+  config_json jsonb;
+  http_status int;
+  existing_checklist jsonb;
+  merged_checklist jsonb;
+  web_checklist jsonb;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+
+  github_url := 'https://talq2me.github.io/BaerenEd-Android-App/app/src/main/assets/config/' || v_profile || '_config.json';
+
+  IF p_config_json IS NOT NULL AND p_config_json != 'null'::jsonb THEN
+    config_json := p_config_json;
+  ELSE
+    SELECT r.status, r.content::jsonb INTO http_status, config_json FROM http_get(github_url) r LIMIT 1;
+    IF http_status != 200 OR config_json IS NULL THEN
+      RAISE WARNING 'af_update_tasks_from_config_checklist_items: failed to fetch config for %', p_profile;
+      config_json := NULL;
+    END IF;
+  END IF;
+
+  SELECT COALESCE(checklist_items, '{}'::jsonb) INTO existing_checklist
+  FROM user_data
+  WHERE profile = v_profile;
+
+  IF existing_checklist IS NULL THEN
+    existing_checklist := '{}'::jsonb;
+  END IF;
+
+  IF config_json IS NULL THEN
+    merged_checklist := existing_checklist;
+  ELSE
+    SELECT COALESCE(
+      (
+        SELECT jsonb_object_agg(
+          it->>'label',
+          jsonb_strip_nulls(jsonb_build_object(
+            'done', COALESCE((existing_checklist->(it->>'label')->>'done')::boolean, false),
+            'stars', COALESCE((it->>'stars')::int, 0),
+            'id', it->'id',
+            'showdays', it->'showdays',
+            'hidedays', it->'hidedays',
+            'displayDays', it->'displayDays',
+            'launch', to_jsonb('checklist_' || COALESCE(it->>'id', it->>'label')),
+            'verification_status', existing_checklist->(it->>'label')->'verification_status',
+            'verification_note', existing_checklist->(it->>'label')->'verification_note',
+            'verified_at', existing_checklist->(it->>'label')->'verified_at'
+          ))
+        )
+        FROM jsonb_array_elements(config_json->'sections') AS sec
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(sec->'items', '[]'::jsonb)) AS it
+        WHERE NULLIF(btrim(it->>'label'), '') IS NOT NULL
+          AND sec->'items' IS NOT NULL
+          AND jsonb_array_length(COALESCE(sec->'items', '[]'::jsonb)) > 0
+      ),
+      '{}'::jsonb
+    ) INTO merged_checklist;
+  END IF;
+
+  SELECT COALESCE(
+    (
+      SELECT jsonb_object_agg(
+        a.title,
+        jsonb_strip_nulls(jsonb_build_object(
+          'done', COALESCE((existing_checklist->a.title->>'done')::boolean, false),
+          'stars', COALESCE(a.stars, 0),
+          'id', COALESCE(
+            merged_checklist->a.title->'id',
+            existing_checklist->a.title->'id',
+            to_jsonb(a.title)
+          ),
+          'displayDays', to_jsonb(NULLIF(btrim(a.display_days), '')),
+          'launch', to_jsonb(
+            'checklist_' || COALESCE(
+              NULLIF(merged_checklist->a.title->>'id', ''),
+              NULLIF(existing_checklist->a.title->>'id', ''),
+              a.title
+            )
+          ),
+          'verification_status', existing_checklist->a.title->'verification_status',
+          'verification_note', existing_checklist->a.title->'verification_note',
+          'verified_at', existing_checklist->a.title->'verified_at'
+        ))
+      )
+      FROM (
+        SELECT DISTINCT ON (title)
+          title, stars, display_days
+        FROM web_assignments
+        WHERE profile = v_profile
+          AND section = 'checklist'
+          AND enabled
+          AND NULLIF(btrim(title), '') IS NOT NULL
+        ORDER BY title, sort_order DESC
+      ) a
+    ),
+    '{}'::jsonb
+  ) INTO web_checklist;
+
+  IF web_checklist IS NOT NULL AND web_checklist <> '{}'::jsonb THEN
+    merged_checklist := web_checklist;
+  ELSE
+    merged_checklist := COALESCE(merged_checklist, existing_checklist, '{}'::jsonb);
+  END IF;
+
+  UPDATE user_data
+  SET
+    checklist_items = merged_checklist,
+    last_updated = (NOW() AT TIME ZONE 'America/Toronto')
+  WHERE profile = v_profile;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_update_tasks_from_config_checklist_items(text, jsonb) TO anon, authenticated, service_role;
 
 
 -- -----------------------------------------------------------------------------
@@ -3244,6 +3391,714 @@ GRANT EXECUTE ON FUNCTION af_get_required_progress_today(text) TO anon, authenti
 
 
 -- -----------------------------------------------------------------------------
+-- FILE: af_edu_site_resolve_goal_params.sql
+-- -----------------------------------------------------------------------------
+-- Resolve verify_params (+ site defaults) into metric / target / value_mode / compare.
+-- compare: gte (need at least target) | lte (need at most target, e.g. Anton incomplete=0)
+-- Used by af_eval_edu_site_goal.
+
+CREATE OR REPLACE FUNCTION af_edu_site_resolve_goal_params(
+  p_site_kind text,
+  p_verify_params jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_kind text := lower(btrim(COALESCE(p_site_kind, '')));
+  v_params jsonb := COALESCE(p_verify_params, '{}'::jsonb);
+  v_metric text;
+  v_target numeric;
+  v_mode text;
+  v_compare text;
+BEGIN
+  v_metric := NULLIF(btrim(COALESCE(v_params->>'metric', '')), '');
+  v_mode := lower(NULLIF(btrim(COALESCE(v_params->>'value_mode', '')), ''));
+  v_compare := lower(NULLIF(btrim(COALESCE(v_params->>'compare', '')), ''));
+
+  IF v_params ? 'target' AND (v_params->>'target') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+    v_target := (v_params->>'target')::numeric;
+  END IF;
+
+  -- Aliases
+  IF v_target IS NULL AND v_params ? 'min_books' AND (v_params->>'min_books') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+    v_metric := COALESCE(v_metric, 'books');
+    v_target := (v_params->>'min_books')::numeric;
+  END IF;
+  IF v_target IS NULL AND v_params ? 'min_sessions' AND (v_params->>'min_sessions') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+    v_metric := COALESCE(v_metric, 'sessions');
+    v_target := (v_params->>'min_sessions')::numeric;
+  END IF;
+  IF v_target IS NULL AND v_params ? 'min_feathers' AND (v_params->>'min_feathers') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+    v_metric := COALESCE(v_metric, 'feathers');
+    v_target := (v_params->>'min_feathers')::numeric;
+  END IF;
+  IF v_target IS NULL AND v_params ? 'min_minutes' AND (v_params->>'min_minutes') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+    v_metric := COALESCE(v_metric, 'minutes');
+    v_target := (v_params->>'min_minutes')::numeric;
+  END IF;
+  IF v_target IS NULL AND v_params ? 'max_incomplete' AND (v_params->>'max_incomplete') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+    v_metric := COALESCE(v_metric, 'incomplete');
+    v_target := (v_params->>'max_incomplete')::numeric;
+    v_compare := COALESCE(v_compare, 'lte');
+    v_mode := COALESCE(v_mode, 'daily');
+  END IF;
+
+  -- Site defaults
+  IF v_kind = 'motoufo' THEN
+    v_metric := COALESCE(v_metric, 'feathers');
+    v_mode := COALESCE(v_mode, 'cumulative');
+    v_compare := COALESCE(v_compare, 'gte');
+  ELSIF v_kind = 'rallye_lecture' THEN
+    v_metric := COALESCE(v_metric, 'books');
+    v_mode := COALESCE(v_mode, 'cumulative');
+    v_compare := COALESCE(v_compare, 'gte');
+  ELSIF v_kind = 'xtramath' THEN
+    v_metric := COALESCE(v_metric, 'sessions');
+    v_mode := COALESCE(v_mode, 'daily');
+    v_compare := COALESCE(v_compare, 'gte');
+  ELSIF v_kind = 'anton' THEN
+    v_metric := COALESCE(v_metric, 'incomplete');
+    v_mode := COALESCE(v_mode, 'daily');
+    v_compare := COALESCE(v_compare, 'lte');
+    IF v_target IS NULL THEN
+      v_target := 0;
+    END IF;
+  ELSIF v_kind = 'northstar_math' THEN
+    v_mode := COALESCE(v_mode, 'cumulative');
+    v_compare := COALESCE(v_compare, 'gte');
+  ELSE
+    v_mode := COALESCE(v_mode, 'cumulative');
+    v_compare := COALESCE(v_compare, 'gte');
+  END IF;
+
+  IF v_metric IS NULL OR v_metric = '' THEN
+    v_metric := 'value';
+  END IF;
+  IF v_mode NOT IN ('cumulative', 'daily') THEN
+    v_mode := 'cumulative';
+  END IF;
+  IF v_compare NOT IN ('gte', 'lte') THEN
+    v_compare := 'gte';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'metric', v_metric,
+    'target', v_target,
+    'value_mode', v_mode,
+    'compare', v_compare
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_edu_site_resolve_goal_params(text, jsonb) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_edu_site_extract_metrics.sql
+-- -----------------------------------------------------------------------------
+-- Site-specific extraction: raw scrape JSON (+ optional flat metrics) -> metrics jsonb + value_mode.
+-- Does not compute *_today (caller diffs against prior snapshot).
+
+CREATE OR REPLACE FUNCTION af_edu_site_extract_metrics(
+  p_site_kind text,
+  p_raw jsonb,
+  p_metrics jsonb DEFAULT NULL,
+  p_value_mode text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_kind text := lower(btrim(COALESCE(p_site_kind, '')));
+  v_raw jsonb := COALESCE(p_raw, '{}'::jsonb);
+  v_in jsonb := COALESCE(p_metrics, '{}'::jsonb);
+  v_metrics jsonb := '{}'::jsonb;
+  v_mode text := lower(NULLIF(btrim(COALESCE(p_value_mode, '')), ''));
+BEGIN
+  IF v_kind = 'rallye_lecture' THEN
+    v_metrics := jsonb_strip_nulls(jsonb_build_object(
+      'books', CASE
+        WHEN (v_raw->>'livres_lus') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_raw->>'livres_lus')::numeric
+        WHEN (v_in->>'books') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_in->>'books')::numeric
+        ELSE NULL
+      END,
+      'reussite_du_moment_pct', CASE
+        WHEN (v_raw->>'reussite_du_moment_pct') ~ '^-?[0-9]+(\.[0-9]+)?$'
+          THEN (v_raw->>'reussite_du_moment_pct')::numeric
+        ELSE NULL
+      END,
+      'badges_obtenus', CASE
+        WHEN (v_raw->>'badges_obtenus') ~ '^-?[0-9]+(\.[0-9]+)?$'
+          THEN (v_raw->>'badges_obtenus')::numeric
+        ELSE NULL
+      END,
+      'derniers_livres_count', CASE
+        WHEN (v_raw->>'derniers_livres_count') ~ '^-?[0-9]+(\.[0-9]+)?$'
+          THEN (v_raw->>'derniers_livres_count')::numeric
+        ELSE NULL
+      END,
+      'derniers_livres_avg_pct', CASE
+        WHEN (v_raw->>'derniers_livres_avg_pct') ~ '^-?[0-9]+(\.[0-9]+)?$'
+          THEN (v_raw->>'derniers_livres_avg_pct')::numeric
+        ELSE NULL
+      END
+    ));
+    v_mode := COALESCE(v_mode, 'cumulative');
+  ELSIF v_kind = 'motoufo' THEN
+    v_metrics := jsonb_strip_nulls(jsonb_build_object(
+      'feathers', CASE
+        WHEN (v_raw->>'feathers') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_raw->>'feathers')::numeric
+        WHEN (v_in->>'feathers') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_in->>'feathers')::numeric
+        WHEN (v_raw->>'total_feathers') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_raw->>'total_feathers')::numeric
+        WHEN (v_in->>'total_feathers') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_in->>'total_feathers')::numeric
+        ELSE NULL
+      END
+    ));
+    IF v_metrics = '{}'::jsonb AND v_in <> '{}'::jsonb THEN
+      v_metrics := v_in;
+    END IF;
+    v_mode := COALESCE(v_mode, 'cumulative');
+  ELSIF v_kind = 'anton' THEN
+    -- Daily count of incomplete exercises (goal: incomplete <= 0).
+    v_metrics := jsonb_strip_nulls(jsonb_build_object(
+      'incomplete', CASE
+        WHEN (v_raw->>'incomplete') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_raw->>'incomplete')::numeric
+        WHEN (v_in->>'incomplete') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_in->>'incomplete')::numeric
+        WHEN (v_raw->>'incomplete_exercises') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_raw->>'incomplete_exercises')::numeric
+        WHEN (v_in->>'incomplete_exercises') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_in->>'incomplete_exercises')::numeric
+        ELSE NULL
+      END
+    ));
+    IF v_metrics = '{}'::jsonb AND v_in <> '{}'::jsonb THEN
+      v_metrics := v_in;
+    END IF;
+    v_mode := COALESCE(v_mode, 'daily');
+  ELSE
+    -- Generic: prefer caller metrics; merge numeric scalars from raw.
+    v_metrics := v_in;
+    IF v_metrics = '{}'::jsonb THEN
+      v_metrics := v_raw - 'student' - 'scraped_at' - 'source_url' - 'derniers_livres';
+    END IF;
+    v_mode := COALESCE(v_mode, 'cumulative');
+  END IF;
+
+  IF v_mode NOT IN ('cumulative', 'daily') THEN
+    v_mode := 'cumulative';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'metrics', COALESCE(v_metrics, '{}'::jsonb),
+    'value_mode', v_mode
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_edu_site_extract_metrics(text, jsonb, jsonb, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_edu_site_goal_met_today.sql
+-- -----------------------------------------------------------------------------
+-- True if today's edu_site_daily_goals row for this task is goal_met or parent_override.
+
+CREATE OR REPLACE FUNCTION af_edu_site_goal_met_today(
+  p_profile text,
+  p_task_title text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_title text := btrim(COALESCE(p_task_title, ''));
+  v_date date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  v_ok boolean := false;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') OR v_title = '' THEN
+    RETURN false;
+  END IF;
+
+  SELECT COALESCE(g.goal_met, false) OR COALESCE(g.parent_override, false)
+    INTO v_ok
+  FROM edu_site_daily_goals g
+  WHERE g.profile = v_profile
+    AND g.goal_date = v_date
+    AND g.task_title = v_title;
+
+  RETURN COALESCE(v_ok, false);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_edu_site_goal_met_today(text, text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_maybe_complete_edu_site_checker_run.sql
+-- -----------------------------------------------------------------------------
+-- Mark edu_site_checker_runs complete when every visible-today verify_kind task has goal_met
+-- (or parent_override). No outbound webhook in this path.
+
+CREATE OR REPLACE FUNCTION af_maybe_complete_edu_site_checker_run(p_profile text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_date date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  v_pending int := 0;
+  v_total int := 0;
+  v_status text;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'invalid_profile');
+  END IF;
+
+  SELECT
+    count(*)::int,
+    count(*) FILTER (
+      WHERE NOT COALESCE(g.goal_met, false) AND NOT COALESCE(g.parent_override, false)
+    )::int
+  INTO v_total, v_pending
+  FROM af_get_tasks_required(v_profile) AS t
+  INNER JOIN web_assignments wa
+    ON wa.profile = v_profile
+   AND wa.title = t.task_name
+   AND wa.section = CASE WHEN t.is_checklist THEN 'checklist' ELSE 'required' END
+   AND wa.enabled
+   AND btrim(COALESCE(wa.verify_kind, '')) <> ''
+  LEFT JOIN edu_site_daily_goals g
+    ON g.profile = v_profile
+   AND g.goal_date = v_date
+   AND g.task_title = t.task_name;
+
+  INSERT INTO edu_site_checker_runs (profile, check_date, status, webhook_sent, webhook_send_count)
+  VALUES (v_profile, v_date, 'incomplete', false, 0)
+  ON CONFLICT (profile, check_date) DO NOTHING;
+
+  IF v_total > 0 AND v_pending = 0 THEN
+    v_status := 'complete';
+  ELSE
+    v_status := 'incomplete';
+  END IF;
+
+  UPDATE edu_site_checker_runs
+  SET status = v_status
+  WHERE profile = v_profile
+    AND check_date = v_date;
+
+  RETURN jsonb_build_object(
+    'profile', v_profile,
+    'date', to_char(v_date, 'YYYY-MM-DD'),
+    'status', v_status,
+    'verify_tasks', v_total,
+    'pending', v_pending
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_maybe_complete_edu_site_checker_run(text) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_eval_edu_site_goal.sql
+-- -----------------------------------------------------------------------------
+-- Evaluate daily goals for visible-today assignments matching p_site_kind.
+-- Uses latest snapshot for today vs prior-day baseline when value_mode = cumulative.
+
+CREATE OR REPLACE FUNCTION af_eval_edu_site_goal(
+  p_profile text,
+  p_site_kind text,
+  p_date date DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_kind text := lower(btrim(COALESCE(p_site_kind, '')));
+  v_date date := COALESCE(p_date, (NOW() AT TIME ZONE 'America/Toronto')::date);
+  v_now timestamp(3) := (NOW() AT TIME ZONE 'America/Toronto');
+  r record;
+  v_resolved jsonb;
+  v_metric text;
+  v_target numeric;
+  v_mode text;
+  v_compare text;
+  v_snap jsonb;
+  v_baseline jsonb;
+  v_current numeric;
+  v_base numeric;
+  v_measured numeric;
+  v_met boolean;
+  v_note text;
+  v_today_key text;
+  req jsonb;
+  chk jsonb;
+  patch jsonb;
+  v_results jsonb := '[]'::jsonb;
+  v_section text;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_kind = '' THEN
+    RAISE EXCEPTION 'p_site_kind is required';
+  END IF;
+
+  SELECT COALESCE(required_tasks, '{}'::jsonb), COALESCE(checklist_items, '{}'::jsonb)
+    INTO req, chk
+  FROM user_data
+  WHERE profile = v_profile
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Unknown profile: %', p_profile;
+  END IF;
+
+  -- Latest snapshot for this site on/before goal date (prefer same day).
+  SELECT s.metrics INTO v_snap
+  FROM edu_site_progress_snapshots s
+  WHERE s.profile = v_profile
+    AND lower(s.site_kind) = v_kind
+    AND s.snapshot_date <= v_date
+  ORDER BY s.snapshot_date DESC, s.id DESC
+  LIMIT 1;
+
+  SELECT s.metrics INTO v_baseline
+  FROM edu_site_progress_snapshots s
+  WHERE s.profile = v_profile
+    AND lower(s.site_kind) = v_kind
+    AND s.snapshot_date < v_date
+  ORDER BY s.snapshot_date DESC, s.id DESC
+  LIMIT 1;
+
+  FOR r IN
+    SELECT
+      t.task_name,
+      t.is_checklist,
+      wa.verify_params,
+      wa.section
+    FROM af_get_tasks_required(v_profile) AS t
+    INNER JOIN web_assignments wa
+      ON wa.profile = v_profile
+     AND wa.title = t.task_name
+     AND wa.section = CASE WHEN t.is_checklist THEN 'checklist' ELSE 'required' END
+     AND wa.enabled
+     AND lower(btrim(COALESCE(wa.verify_kind, ''))) = v_kind
+  LOOP
+    v_resolved := af_edu_site_resolve_goal_params(v_kind, r.verify_params);
+    v_metric := v_resolved->>'metric';
+    v_mode := v_resolved->>'value_mode';
+    v_compare := COALESCE(NULLIF(v_resolved->>'compare', ''), 'gte');
+    v_target := CASE
+      WHEN (v_resolved->>'target') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_resolved->>'target')::numeric
+      ELSE NULL
+    END;
+    v_today_key := v_metric || '_today';
+    v_section := CASE WHEN r.is_checklist THEN 'checklist' ELSE 'required' END;
+    v_note := NULL;
+    v_met := false;
+    v_measured := NULL;
+    v_base := NULL;
+    v_current := NULL;
+
+    IF v_snap IS NULL THEN
+      v_note := 'no snapshot yet';
+    ELSIF v_target IS NULL THEN
+      v_note := 'no target in verify_params';
+    ELSIF v_mode = 'daily' THEN
+      IF (v_snap->>v_metric) ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+        v_measured := (v_snap->>v_metric)::numeric;
+      ELSIF (v_snap->>v_today_key) ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+        v_measured := (v_snap->>v_today_key)::numeric;
+      END IF;
+      IF v_measured IS NULL THEN
+        v_note := 'metric missing in snapshot: ' || v_metric;
+      ELSE
+        IF v_compare = 'lte' THEN
+          v_met := v_measured <= v_target;
+          IF NOT v_met THEN
+            v_note := format('need %s <= %s, have %s', v_metric, v_target, v_measured);
+          END IF;
+        ELSE
+          v_met := v_measured >= v_target;
+          IF NOT v_met THEN
+            v_note := format('need %s %s today, have %s', v_target, v_metric, v_measured);
+          END IF;
+        END IF;
+      END IF;
+    ELSE
+      -- cumulative: prefer precomputed *_today on snapshot; else diff vs prior day
+      IF (v_snap->>v_today_key) ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+        v_measured := (v_snap->>v_today_key)::numeric;
+        IF v_baseline IS NOT NULL AND (v_baseline->>v_metric) ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+          v_base := (v_baseline->>v_metric)::numeric;
+        END IF;
+        IF (v_snap->>v_metric) ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+          v_current := (v_snap->>v_metric)::numeric;
+        END IF;
+      ELSIF (v_snap->>v_metric) ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+        v_current := (v_snap->>v_metric)::numeric;
+        IF v_baseline IS NULL OR NOT ((v_baseline->>v_metric) ~ '^-?[0-9]+(\.[0-9]+)?$') THEN
+          v_note := 'need prior snapshot';
+          v_measured := NULL;
+        ELSE
+          v_base := (v_baseline->>v_metric)::numeric;
+          v_measured := v_current - v_base;
+        END IF;
+      ELSE
+        v_note := 'metric missing in snapshot: ' || v_metric;
+      END IF;
+
+      IF v_measured IS NOT NULL AND v_target IS NOT NULL THEN
+        IF v_compare = 'lte' THEN
+          v_met := v_measured <= v_target;
+          IF NOT v_met AND v_note IS NULL THEN
+            v_note := format('need %s <= %s, have %s', v_metric, v_target, v_measured);
+          END IF;
+        ELSE
+          v_met := v_measured >= v_target;
+          IF NOT v_met AND v_note IS NULL THEN
+            v_note := format('need %s %s today, have %s', v_target, v_metric, v_measured);
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+    -- Preserve parent_override if already set
+    INSERT INTO edu_site_daily_goals AS g (
+      profile, goal_date, site_kind, task_title, section,
+      target, metric, value_mode, measured_value, baseline_value,
+      goal_met, parent_override, note, evaluated_at
+    ) VALUES (
+      v_profile, v_date, v_kind, r.task_name, v_section,
+      v_target, v_metric, v_mode, v_measured, v_base,
+      v_met, false, v_note, v_now
+    )
+    ON CONFLICT (profile, goal_date, task_title) DO UPDATE SET
+      site_kind = EXCLUDED.site_kind,
+      section = EXCLUDED.section,
+      target = EXCLUDED.target,
+      metric = EXCLUDED.metric,
+      value_mode = EXCLUDED.value_mode,
+      measured_value = EXCLUDED.measured_value,
+      baseline_value = EXCLUDED.baseline_value,
+      goal_met = CASE WHEN g.parent_override THEN true ELSE EXCLUDED.goal_met END,
+      note = CASE WHEN g.parent_override THEN COALESCE(g.note, EXCLUDED.note) ELSE EXCLUDED.note END,
+      evaluated_at = EXCLUDED.evaluated_at;
+
+    SELECT COALESCE(g.goal_met, false) OR COALESCE(g.parent_override, false), g.note
+      INTO v_met, v_note
+    FROM edu_site_daily_goals g
+    WHERE g.profile = v_profile AND g.goal_date = v_date AND g.task_title = r.task_name;
+
+    patch := jsonb_build_object(
+      'verification_status', CASE WHEN v_met THEN 'verified' ELSE 'failed' END,
+      'verified_at', v_now,
+      'verification_note', v_note
+    );
+
+    IF r.is_checklist THEN
+      chk := jsonb_set(chk, ARRAY[r.task_name], COALESCE(chk->r.task_name, '{}'::jsonb) || patch, true);
+    ELSE
+      req := jsonb_set(req, ARRAY[r.task_name], COALESCE(req->r.task_name, '{}'::jsonb) || patch, true);
+    END IF;
+
+    v_results := v_results || jsonb_build_array(jsonb_build_object(
+      'task_title', r.task_name,
+      'section', v_section,
+      'metric', v_metric,
+      'target', v_target,
+      'measured_value', v_measured,
+      'baseline_value', v_base,
+      'goal_met', v_met,
+      'note', v_note
+    ));
+  END LOOP;
+
+  UPDATE user_data
+  SET
+    required_tasks = req,
+    checklist_items = chk,
+    last_updated = v_now
+  WHERE profile = v_profile;
+
+  PERFORM af_maybe_complete_edu_site_checker_run(v_profile);
+
+  RETURN v_results;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_eval_edu_site_goal(text, text, date) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_upsert_edu_site_progress.sql
+-- -----------------------------------------------------------------------------
+-- Scraper entrypoint: validate bearer, store snapshot, evaluate daily goals.
+-- POST /rest/v1/rpc/af_upsert_edu_site_progress
+-- Body: { "p_site_kind":"rallye_lecture", "p_bearer":"crsr_…", "p_raw":{...} }
+-- Vault secret: edu_site_checker_webhook_bearer
+
+DROP FUNCTION IF EXISTS af_upsert_edu_site_progress(text, text, jsonb, text, jsonb, text, text);
+
+CREATE OR REPLACE FUNCTION af_upsert_edu_site_progress(
+  p_site_kind text,
+  p_bearer text,
+  p_raw jsonb,
+  p_profile text DEFAULT NULL,
+  p_metrics jsonb DEFAULT NULL,
+  p_value_mode text DEFAULT NULL,
+  p_source text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, vault
+AS $$
+DECLARE
+  v_token text;
+  v_kind text := lower(btrim(COALESCE(p_site_kind, '')));
+  v_raw jsonb := COALESCE(p_raw, '{}'::jsonb);
+  v_profile text;
+  v_extracted jsonb;
+  v_metrics jsonb;
+  v_mode text;
+  v_metric text;
+  v_today_key text;
+  v_current numeric;
+  v_baseline numeric;
+  v_snap_at timestamp(3);
+  v_snap_date date;
+  v_source text;
+  v_id bigint;
+  v_goals jsonb;
+  v_toronto_now timestamp(3) := (NOW() AT TIME ZONE 'America/Toronto');
+BEGIN
+  IF v_kind = '' THEN
+    RAISE EXCEPTION 'p_site_kind is required';
+  END IF;
+
+  -- Dashboard may use either the snake_case id or the UI label as vault.secrets.name
+  SELECT decrypted_secret INTO v_token
+  FROM vault.decrypted_secrets
+  WHERE name IN ('edu_site_checker_webhook_bearer', 'EduSiteChecker Bot Webhook')
+  ORDER BY CASE name
+    WHEN 'edu_site_checker_webhook_bearer' THEN 0
+    ELSE 1
+  END
+  LIMIT 1;
+
+  IF v_token IS NULL OR btrim(v_token) = '' THEN
+    RAISE EXCEPTION 'Edu site scraper bearer not configured in Vault (expected name edu_site_checker_webhook_bearer or EduSiteChecker Bot Webhook)';
+  END IF;
+  IF btrim(COALESCE(p_bearer, '')) IS DISTINCT FROM btrim(v_token) THEN
+    RAISE EXCEPTION 'Invalid bearer';
+  END IF;
+
+  v_profile := upper(btrim(COALESCE(NULLIF(btrim(COALESCE(p_profile, '')), ''), COALESCE(v_raw->>'student', ''))));
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile (use AM/BM/TE in p_profile or p_raw.student): %', v_profile;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM user_data WHERE profile = v_profile) THEN
+    RAISE EXCEPTION 'Unknown profile: %', v_profile;
+  END IF;
+
+  v_extracted := af_edu_site_extract_metrics(v_kind, v_raw, p_metrics, p_value_mode);
+  v_metrics := COALESCE(v_extracted->'metrics', '{}'::jsonb);
+  v_mode := COALESCE(v_extracted->>'value_mode', 'cumulative');
+
+  -- Snapshot time: scraped_at (UTC) -> Toronto wall, else now
+  IF NULLIF(btrim(COALESCE(v_raw->>'scraped_at', '')), '') IS NOT NULL THEN
+    BEGIN
+      v_snap_at := ((v_raw->>'scraped_at')::timestamptz AT TIME ZONE 'America/Toronto');
+    EXCEPTION WHEN OTHERS THEN
+      v_snap_at := v_toronto_now;
+    END;
+  ELSE
+    v_snap_at := v_toronto_now;
+  END IF;
+  v_snap_date := v_snap_at::date;
+
+  v_source := NULLIF(btrim(COALESCE(p_source, '')), '');
+  IF v_source IS NULL THEN
+    v_source := NULLIF(btrim(COALESCE(v_raw->>'source_url', '')), '');
+  END IF;
+
+  -- Compute *_today vs latest prior calendar day (not same-day). Missing baseline => omit *_today.
+  IF v_mode = 'cumulative' THEN
+    FOR v_metric IN
+      SELECT m
+      FROM unnest(ARRAY['books', 'feathers', 'sessions', 'minutes', 'value']) AS m
+      WHERE v_metrics ? m
+        AND (v_metrics->>m) ~ '^-?[0-9]+(\.[0-9]+)?$'
+    LOOP
+      v_current := (v_metrics->>v_metric)::numeric;
+      SELECT CASE
+        WHEN (s.metrics->>v_metric) ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (s.metrics->>v_metric)::numeric
+        ELSE NULL
+      END
+        INTO v_baseline
+      FROM edu_site_progress_snapshots s
+      WHERE s.profile = v_profile
+        AND lower(s.site_kind) = v_kind
+        AND s.snapshot_date < v_snap_date
+      ORDER BY s.snapshot_date DESC, s.id DESC
+      LIMIT 1;
+
+      IF v_baseline IS NOT NULL THEN
+        v_today_key := v_metric || '_today';
+        v_metrics := v_metrics || jsonb_build_object(v_today_key, v_current - v_baseline);
+      END IF;
+    END LOOP;
+  END IF;
+
+  INSERT INTO edu_site_progress_snapshots (
+    profile, site_kind, snapshot_at, snapshot_date, metrics, value_mode, source, raw
+  ) VALUES (
+    v_profile, v_kind, v_snap_at, v_snap_date, v_metrics, v_mode, v_source, v_raw
+  )
+  ON CONFLICT (profile, site_kind, snapshot_date) DO UPDATE SET
+    snapshot_at = EXCLUDED.snapshot_at,
+    metrics = EXCLUDED.metrics,
+    value_mode = EXCLUDED.value_mode,
+    source = EXCLUDED.source,
+    raw = EXCLUDED.raw
+  RETURNING id INTO v_id;
+
+  v_goals := af_eval_edu_site_goal(v_profile, v_kind, v_snap_date);
+
+  RETURN jsonb_build_object(
+    'profile', v_profile,
+    'snapshot_id', v_id,
+    'snapshot_date', to_char(v_snap_date, 'YYYY-MM-DD'),
+    'metrics', v_metrics,
+    'value_mode', v_mode,
+    'goals', COALESCE(v_goals, '[]'::jsonb)
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_upsert_edu_site_progress(text, text, jsonb, text, jsonb, text, text)
+  TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
 -- FILE: af_list_edu_site_check_tasks.sql
 -- -----------------------------------------------------------------------------
 -- Call site: EduSiteChecker Cursor Automation after webhook ping.
@@ -3528,9 +4383,9 @@ GRANT EXECUTE ON FUNCTION af_confirm_edu_site_check_batch(text, jsonb, boolean) 
 -- -----------------------------------------------------------------------------
 -- FILE: af_maybe_enqueue_edu_site_checker.sql
 -- -----------------------------------------------------------------------------
--- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
--- Fires the shared Grok bot webhook up to twice per profile per Toronto day when all visible required work is marked done/complete.
--- Vault secret: edu_site_checker_webhook_bearer (crsr_ token only, no "Bearer " prefix).
+-- DEPRECATED for automatic use: scrapers now call af_upsert_edu_site_progress; completion no longer enqueues Grok.
+-- Kept for manual/future webhook experiments. Vault edu_site_checker_webhook_bearer is the inbound scraper bearer.
+-- Former call sites (af_update_task_completion / af_update_tasks_checklist_items) no longer invoke this.
 
 CREATE OR REPLACE FUNCTION af_maybe_enqueue_edu_site_checker(p_profile text)
 RETURNS void
@@ -3592,11 +4447,15 @@ BEGIN
 
   SELECT decrypted_secret INTO v_token
   FROM vault.decrypted_secrets
-  WHERE name = 'edu_site_checker_webhook_bearer'
+  WHERE name IN ('edu_site_checker_webhook_bearer', 'EduSiteChecker Bot Webhook')
+  ORDER BY CASE name
+    WHEN 'edu_site_checker_webhook_bearer' THEN 0
+    ELSE 1
+  END
   LIMIT 1;
 
   IF v_token IS NULL OR btrim(v_token) = '' THEN
-    RAISE WARNING 'edu_site_checker_webhook_bearer not configured in Supabase Vault';
+    RAISE WARNING 'Edu site bearer not configured in Vault (edu_site_checker_webhook_bearer or EduSiteChecker Bot Webhook)';
     RETURN;
   END IF;
 
@@ -5828,6 +6687,8 @@ DECLARE
   required_old_status text;
   required_db_stars int;
   earned_stars int := 0;
+  v_verify_kind text;
+  v_goal_note text;
 BEGIN
   normalized_section := COALESCE(NULLIF(trim(lower(p_section_id)), ''), 'optional');
 
@@ -5837,6 +6698,30 @@ BEGIN
       INTO required_old_status, required_db_stars
       FROM user_data
       WHERE profile = p_profile;
+
+    IF COALESCE(required_old_status, 'incomplete') <> 'complete' THEN
+      SELECT NULLIF(btrim(COALESCE(wa.verify_kind, '')), '')
+        INTO v_verify_kind
+      FROM web_assignments wa
+      WHERE wa.profile = p_profile
+        AND wa.title = p_task_title
+        AND wa.section = 'required'
+        AND wa.enabled
+      LIMIT 1;
+
+      IF v_verify_kind IS NOT NULL THEN
+        IF NOT af_edu_site_goal_met_today(p_profile, p_task_title) THEN
+          SELECT g.note INTO v_goal_note
+          FROM edu_site_daily_goals g
+          WHERE g.profile = p_profile
+            AND g.goal_date = (NOW() AT TIME ZONE 'America/Toronto')::date
+            AND g.task_title = p_task_title;
+          RAISE EXCEPTION 'Edu site goal not met for %: %',
+            p_task_title,
+            COALESCE(v_goal_note, 'scraper has not verified today''s target yet');
+        END IF;
+      END IF;
+    END IF;
 
     PERFORM af_update_tasks_required(
       p_profile,
@@ -5877,7 +6762,6 @@ BEGIN
   IF normalized_section = 'required' THEN
     PERFORM af_maybe_advance_spelling_pools(p_profile);
     PERFORM af_maybe_record_collector_card_day(p_profile);
-    PERFORM af_maybe_enqueue_edu_site_checker(p_profile);
   END IF;
 
   RETURN earned_stars;
@@ -5917,10 +6801,36 @@ DECLARE
   item_stars int;
   add_berries int := 0;
   add_mins int := 0;
+  v_verify_kind text;
+  v_goal_note text;
 BEGIN
   SELECT COALESCE(checklist_items, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
   existing := cur->p_item_label;
   old_done := COALESCE((existing->>'done')::boolean, false);
+
+  IF p_done AND NOT old_done THEN
+    SELECT NULLIF(btrim(COALESCE(wa.verify_kind, '')), '')
+      INTO v_verify_kind
+    FROM web_assignments wa
+    WHERE wa.profile = p_profile
+      AND wa.title = p_item_label
+      AND wa.section = 'checklist'
+      AND wa.enabled
+    LIMIT 1;
+
+    IF v_verify_kind IS NOT NULL THEN
+      IF NOT af_edu_site_goal_met_today(p_profile, p_item_label) THEN
+        SELECT g.note INTO v_goal_note
+        FROM edu_site_daily_goals g
+        WHERE g.profile = p_profile
+          AND g.goal_date = (NOW() AT TIME ZONE 'America/Toronto')::date
+          AND g.task_title = p_item_label;
+        RAISE EXCEPTION 'Edu site goal not met for %: %',
+          p_item_label,
+          COALESCE(v_goal_note, 'scraper has not verified today''s target yet');
+      END IF;
+    END IF;
+  END IF;
 
   new_item := COALESCE(existing, '{}'::jsonb) || jsonb_build_object('done', p_done);
 
@@ -5943,12 +6853,149 @@ BEGIN
   IF p_done AND NOT old_done THEN
     PERFORM af_maybe_advance_spelling_pools(p_profile);
     PERFORM af_maybe_record_collector_card_day(p_profile);
-    PERFORM af_maybe_enqueue_edu_site_checker(p_profile);
   END IF;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_update_tasks_checklist_items(text, text, boolean) TO anon, authenticated, service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- FILE: af_parent_override_edu_site_goal.sql
+-- -----------------------------------------------------------------------------
+-- Parent Task Manager: force-verify an edu-site task for today and mark it complete/done.
+
+CREATE OR REPLACE FUNCTION af_parent_override_edu_site_goal(
+  p_profile text,
+  p_task_title text,
+  p_is_checklist boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile text := upper(btrim(COALESCE(p_profile, '')));
+  v_title text := btrim(COALESCE(p_task_title, ''));
+  v_date date := (NOW() AT TIME ZONE 'America/Toronto')::date;
+  v_now timestamp(3) := (NOW() AT TIME ZONE 'America/Toronto');
+  v_kind text;
+  v_section text;
+  v_params jsonb;
+  v_resolved jsonb;
+BEGIN
+  IF v_profile NOT IN ('AM', 'BM', 'TE') THEN
+    RAISE EXCEPTION 'Invalid profile: %', p_profile;
+  END IF;
+  IF v_title = '' THEN
+    RAISE EXCEPTION 'p_task_title is required';
+  END IF;
+
+  v_section := CASE WHEN COALESCE(p_is_checklist, false) THEN 'checklist' ELSE 'required' END;
+
+  SELECT lower(btrim(COALESCE(wa.verify_kind, ''))), COALESCE(wa.verify_params, '{}'::jsonb)
+    INTO v_kind, v_params
+  FROM web_assignments wa
+  WHERE wa.profile = v_profile
+    AND wa.title = v_title
+    AND wa.section = v_section
+    AND wa.enabled
+  LIMIT 1;
+
+  IF v_kind IS NULL OR v_kind = '' THEN
+    -- Fall back: any section with this title + verify_kind
+    SELECT lower(btrim(COALESCE(wa.verify_kind, ''))), COALESCE(wa.verify_params, '{}'::jsonb), wa.section
+      INTO v_kind, v_params, v_section
+    FROM web_assignments wa
+    WHERE wa.profile = v_profile
+      AND wa.title = v_title
+      AND wa.enabled
+      AND btrim(COALESCE(wa.verify_kind, '')) <> ''
+    LIMIT 1;
+  END IF;
+
+  IF v_kind IS NULL OR v_kind = '' THEN
+    RAISE EXCEPTION 'No verify_kind assignment for task: %', v_title;
+  END IF;
+
+  v_resolved := af_edu_site_resolve_goal_params(v_kind, v_params);
+
+  INSERT INTO edu_site_daily_goals AS g (
+    profile, goal_date, site_kind, task_title, section,
+    target, metric, value_mode, measured_value, baseline_value,
+    goal_met, parent_override, note, evaluated_at
+  ) VALUES (
+    v_profile, v_date, v_kind, v_title, v_section,
+    CASE WHEN (v_resolved->>'target') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (v_resolved->>'target')::numeric ELSE NULL END,
+    v_resolved->>'metric',
+    COALESCE(v_resolved->>'value_mode', 'cumulative'),
+    NULL, NULL,
+    true, true, 'parent override', v_now
+  )
+  ON CONFLICT (profile, goal_date, task_title) DO UPDATE SET
+    site_kind = EXCLUDED.site_kind,
+    section = EXCLUDED.section,
+    goal_met = true,
+    parent_override = true,
+    note = 'parent override',
+    evaluated_at = EXCLUDED.evaluated_at;
+
+  IF v_section = 'checklist' THEN
+    PERFORM af_update_tasks_checklist_items(v_profile, v_title, true);
+  ELSE
+    PERFORM af_update_task_completion(v_profile, v_title, 'required', NULL, NULL, NULL, NULL);
+  END IF;
+
+  -- Ensure verification_status is verified even if complete path wrote first
+  IF v_section = 'checklist' THEN
+    UPDATE user_data
+    SET checklist_items = jsonb_set(
+          COALESCE(checklist_items, '{}'::jsonb),
+          ARRAY[v_title],
+          COALESCE(checklist_items->v_title, '{}'::jsonb) || jsonb_build_object(
+            'verification_status', 'verified',
+            'verification_note', 'parent override',
+            'verified_at', v_now,
+            'done', true
+          ),
+          true
+        ),
+        last_updated = v_now
+    WHERE profile = v_profile;
+  ELSE
+    UPDATE user_data
+    SET required_tasks = jsonb_set(
+          COALESCE(required_tasks, '{}'::jsonb),
+          ARRAY[v_title],
+          COALESCE(required_tasks->v_title, '{}'::jsonb) || jsonb_build_object(
+            'verification_status', 'verified',
+            'verification_note', 'parent override',
+            'verified_at', v_now,
+            'status', 'complete'
+          ),
+          true
+        ),
+        last_updated = v_now
+    WHERE profile = v_profile;
+  END IF;
+
+  PERFORM af_maybe_complete_edu_site_checker_run(v_profile);
+
+  RETURN jsonb_build_object(
+    'profile', v_profile,
+    'task_title', v_title,
+    'section', v_section,
+    'site_kind', v_kind,
+    'date', to_char(v_date, 'YYYY-MM-DD'),
+    'goal_met', true,
+    'parent_override', true
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION af_parent_override_edu_site_goal(text, text, boolean)
+  TO anon, authenticated, service_role;
 
 
 -- -----------------------------------------------------------------------------
@@ -6813,8 +7860,9 @@ GRANT EXECUTE ON FUNCTION af_delete_behavior_log(bigint) TO anon, authenticated,
 -- -----------------------------------------------------------------------------
 -- FILE: af_web_list_tasks.sql
 -- -----------------------------------------------------------------------------
--- Call site: web/index.html loadProfile.
--- Today's visible assignments for one profile. Checklist stays in the table and is not listed.
+-- Call site: map.html required and practice lists.
+-- Today's visible assignments for one profile.
+-- Checklist rows are included so the required list can offer a check-off (Rallye Lecture and other site tasks).
 
 CREATE OR REPLACE FUNCTION af_web_list_tasks(p_profile text)
 RETURNS jsonb
@@ -7259,7 +8307,6 @@ $$;
 GRANT EXECUTE ON FUNCTION af_web_add_assignment(text, text, text, text, text, int, int, text, boolean) TO anon, authenticated, service_role;
 
 
-
 -- -----------------------------------------------------------------------------
 -- FILE: af_mental_math.sql
 -- -----------------------------------------------------------------------------
@@ -7570,3 +8617,5 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION af_mental_math_history(text, int) TO anon, authenticated, service_role;
+
+

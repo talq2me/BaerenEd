@@ -25,10 +25,36 @@ DECLARE
   item_stars int;
   add_berries int := 0;
   add_mins int := 0;
+  v_verify_kind text;
+  v_goal_note text;
 BEGIN
   SELECT COALESCE(checklist_items, '{}'::jsonb) INTO cur FROM user_data WHERE profile = p_profile;
   existing := cur->p_item_label;
   old_done := COALESCE((existing->>'done')::boolean, false);
+
+  IF p_done AND NOT old_done THEN
+    SELECT NULLIF(btrim(COALESCE(wa.verify_kind, '')), '')
+      INTO v_verify_kind
+    FROM web_assignments wa
+    WHERE wa.profile = p_profile
+      AND wa.title = p_item_label
+      AND wa.section = 'checklist'
+      AND wa.enabled
+    LIMIT 1;
+
+    IF v_verify_kind IS NOT NULL THEN
+      IF NOT af_edu_site_goal_met_today(p_profile, p_item_label) THEN
+        SELECT g.note INTO v_goal_note
+        FROM edu_site_daily_goals g
+        WHERE g.profile = p_profile
+          AND g.goal_date = (NOW() AT TIME ZONE 'America/Toronto')::date
+          AND g.task_title = p_item_label;
+        RAISE EXCEPTION 'Edu site goal not met for %: %',
+          p_item_label,
+          COALESCE(v_goal_note, 'scraper has not verified today''s target yet');
+      END IF;
+    END IF;
+  END IF;
 
   new_item := COALESCE(existing, '{}'::jsonb) || jsonb_build_object('done', p_done);
 
@@ -51,7 +77,6 @@ BEGIN
   IF p_done AND NOT old_done THEN
     PERFORM af_maybe_advance_spelling_pools(p_profile);
     PERFORM af_maybe_record_collector_card_day(p_profile);
-    PERFORM af_maybe_enqueue_edu_site_checker(p_profile);
   END IF;
 END;
 $$;

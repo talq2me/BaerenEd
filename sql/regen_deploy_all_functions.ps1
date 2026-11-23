@@ -90,6 +90,18 @@ $files = @(
 
   "af_get_required_progress_today.sql",
 
+  "af_edu_site_resolve_goal_params.sql",
+
+  "af_edu_site_extract_metrics.sql",
+
+  "af_edu_site_goal_met_today.sql",
+
+  "af_maybe_complete_edu_site_checker_run.sql",
+
+  "af_eval_edu_site_goal.sql",
+
+  "af_upsert_edu_site_progress.sql",
+
   "af_list_edu_site_check_tasks.sql",
 
   "af_confirm_edu_site_check_item.sql",
@@ -131,6 +143,8 @@ $files = @(
   "af_update_task_completion.sql",
 
   "af_update_tasks_checklist_items.sql",
+
+  "af_parent_override_edu_site_goal.sql",
 
   "af_update_tasks_chores.sql",
 

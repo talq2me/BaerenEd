@@ -47,6 +47,8 @@ DECLARE
   required_old_status text;
   required_db_stars int;
   earned_stars int := 0;
+  v_verify_kind text;
+  v_goal_note text;
 BEGIN
   normalized_section := COALESCE(NULLIF(trim(lower(p_section_id)), ''), 'optional');
 
@@ -56,6 +58,30 @@ BEGIN
       INTO required_old_status, required_db_stars
       FROM user_data
       WHERE profile = p_profile;
+
+    IF COALESCE(required_old_status, 'incomplete') <> 'complete' THEN
+      SELECT NULLIF(btrim(COALESCE(wa.verify_kind, '')), '')
+        INTO v_verify_kind
+      FROM web_assignments wa
+      WHERE wa.profile = p_profile
+        AND wa.title = p_task_title
+        AND wa.section = 'required'
+        AND wa.enabled
+      LIMIT 1;
+
+      IF v_verify_kind IS NOT NULL THEN
+        IF NOT af_edu_site_goal_met_today(p_profile, p_task_title) THEN
+          SELECT g.note INTO v_goal_note
+          FROM edu_site_daily_goals g
+          WHERE g.profile = p_profile
+            AND g.goal_date = (NOW() AT TIME ZONE 'America/Toronto')::date
+            AND g.task_title = p_task_title;
+          RAISE EXCEPTION 'Edu site goal not met for %: %',
+            p_task_title,
+            COALESCE(v_goal_note, 'scraper has not verified today''s target yet');
+        END IF;
+      END IF;
+    END IF;
 
     PERFORM af_update_tasks_required(
       p_profile,
@@ -96,7 +122,6 @@ BEGIN
   IF normalized_section = 'required' THEN
     PERFORM af_maybe_advance_spelling_pools(p_profile);
     PERFORM af_maybe_record_collector_card_day(p_profile);
-    PERFORM af_maybe_enqueue_edu_site_checker(p_profile);
   END IF;
 
   RETURN earned_stars;

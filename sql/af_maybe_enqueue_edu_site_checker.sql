@@ -1,6 +1,6 @@
--- Call sites: af_update_task_completion (required), af_update_tasks_checklist_items (mark done).
--- Fires the shared Grok bot webhook up to twice per profile per Toronto day when all visible required work is marked done/complete.
--- Vault secret: edu_site_checker_webhook_bearer (crsr_ token only, no "Bearer " prefix).
+-- DEPRECATED for automatic use: scrapers now call af_upsert_edu_site_progress; completion no longer enqueues Grok.
+-- Kept for manual/future webhook experiments. Vault edu_site_checker_webhook_bearer is the inbound scraper bearer.
+-- Former call sites (af_update_task_completion / af_update_tasks_checklist_items) no longer invoke this.
 
 CREATE OR REPLACE FUNCTION af_maybe_enqueue_edu_site_checker(p_profile text)
 RETURNS void
@@ -62,11 +62,15 @@ BEGIN
 
   SELECT decrypted_secret INTO v_token
   FROM vault.decrypted_secrets
-  WHERE name = 'edu_site_checker_webhook_bearer'
+  WHERE name IN ('edu_site_checker_webhook_bearer', 'EduSiteChecker Bot Webhook')
+  ORDER BY CASE name
+    WHEN 'edu_site_checker_webhook_bearer' THEN 0
+    ELSE 1
+  END
   LIMIT 1;
 
   IF v_token IS NULL OR btrim(v_token) = '' THEN
-    RAISE WARNING 'edu_site_checker_webhook_bearer not configured in Supabase Vault';
+    RAISE WARNING 'Edu site bearer not configured in Vault (edu_site_checker_webhook_bearer or EduSiteChecker Bot Webhook)';
     RETURN;
   END IF;
 
