@@ -1,117 +1,116 @@
 {
-  "start_date": "2026-11-16",
+  "start_date": "2026-11-23",
   "lang": "en",
   "words": [
     {
-      "word": "away",
-      "sentence": "The ball rolled away.",
+      "word": "seed",
+      "sentence": "The seed grew into a tall flower.",
       "syllables": [
-        "a",
-        "way"
+        "seed"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/away.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/away__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/seed.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/seed__sentence.ogg"
       }
     },
     {
-      "word": "flake",
-      "sentence": "A flake of snow landed on my glove.",
+      "word": "clean",
+      "sentence": "I clean my room every Saturday.",
       "syllables": [
-        "flake"
+        "clean"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/flake.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/flake__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/clean.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/clean__sentence.ogg"
       }
     },
     {
-      "word": "Sunday",
-      "sentence": "We go to the park on Sunday.",
+      "word": "sleep",
+      "sentence": "I go to sleep at eight o'clock.",
       "syllables": [
-        "Sun",
-        "day"
+        "sleep"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sunday.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sunday__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sleep.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sleep__sentence.ogg"
       }
     },
     {
-      "word": "cake",
-      "sentence": "I ate a big piece of cake.",
+      "word": "mean",
+      "sentence": "What does this word mean?",
       "syllables": [
-        "cake"
+        "mean"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/cake.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/cake__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/mean.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/mean__sentence.ogg"
       }
     },
     {
-      "word": "wait",
-      "sentence": "Please wait for me at the door.",
+      "word": "roam",
+      "sentence": "Cows roam freely in the big field.",
       "syllables": [
-        "wait"
+        "roam"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/wait.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/wait__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/roam.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/roam__sentence.ogg"
       }
     },
     {
-      "word": "paint",
-      "sentence": "I will paint a picture.",
+      "word": "soap",
+      "sentence": "Wash your hands with soap and water.",
       "syllables": [
-        "paint"
+        "soap"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/paint.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/paint__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/soap.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/soap__sentence.ogg"
       }
     },
     {
-      "word": "rain",
-      "sentence": "The rain falls on the roof.",
+      "word": "toe",
+      "sentence": "I stubbed my toe on the chair.",
       "syllables": [
-        "rain"
+        "toe"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/rain.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/rain__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/toe.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/toe__sentence.ogg"
       }
     },
     {
-      "word": "stain",
-      "sentence": "There is a stain on my shirt.",
+      "word": "snow",
+      "sentence": "We built a fort out of snow.",
       "syllables": [
-        "stain"
+        "snow"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/stain.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/stain__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/snow.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/snow__sentence.ogg"
       }
     },
     {
-      "word": "say",
-      "sentence": "What did you say?",
+      "word": "throw",
+      "sentence": "Please throw the ball to me.",
       "syllables": [
-        "say"
+        "throw"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/say.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/say__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/throw.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/throw__sentence.ogg"
       }
     },
     {
-      "word": "tray",
-      "sentence": "She carried the food on a tray.",
+      "word": "oatmeal",
+      "sentence": "I eat oatmeal for breakfast.",
       "syllables": [
-        "tray"
+        "oat",
+        "meal"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/tray.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/tray__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/oatmeal.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/oatmeal__sentence.ogg"
       }
     }
   ]
