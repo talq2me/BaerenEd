@@ -1,0 +1,362 @@
+[
+  {
+    "prompt": {
+      "text": "If there are 7 cars in a train, how many cars are there in 3 trains?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "21"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "7"
+      },
+      {
+        "text": "14"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "24"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Find the sum of the values of the shapes based on the given information.",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Nov_2026_Grade_2_q2.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "None of these"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "In the picture, a window is made of small square panes set out in equal rows. How many small panes does the window have altogether?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Nov_2026_Grade_2_q3.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "18"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "12"
+      },
+      {
+        "text": "15"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "24"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Mia is making paper flowers for a card. She glues 4 petals onto every flower, and she makes 6 flowers. How many petals does Mia glue on altogether?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "24"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "10"
+      },
+      {
+        "text": "18"
+      },
+      {
+        "text": "20"
+      },
+      {
+        "text": "28"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A red box and a blue box hold 18 pencils altogether. Nobody knows how many pencils are in each box. Now 4 pencils are put into the red box and 4 pencils are put into the blue box. How many pencils do the two boxes hold altogether now?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "26"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "20"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "24"
+      },
+      {
+        "text": "25"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Kim is sticking square tiles on a wall in rows. The bottom row has 1 tile. Every row above has exactly one more tile than the row below it. In each row the colours go red, blue, red, blue, and so on, always starting with a red tile at the left-hand end. How will the tenth row from the bottom look?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Nov_2026_Grade_2_q6.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "10 tiles: 5 red and 5 blue, starting with red and ending with blue"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "10 tiles, all of them red"
+      },
+      {
+        "text": "10 tiles: 6 red and 4 blue, starting and ending with red"
+      },
+      {
+        "text": "10 tiles: 4 red and 6 blue, starting with blue"
+      },
+      {
+        "text": "9 tiles: 5 red and 4 blue, starting and ending with red"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A teacher opens 4 boxes of crayons. There are 6 crayons in each box. Seventeen children each take one crayon. How many crayons are left?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "5"
+      },
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "The clock in the picture shows the time Tomas finished his swimming lesson. He ate his lunch three hours before that. What time did Tomas eat his lunch?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Nov_2026_Grade_2_q8.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "12:00"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6:30"
+      },
+      {
+        "text": "11:00"
+      },
+      {
+        "text": "11:30"
+      },
+      {
+        "text": "12:30"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "The picture shows square stones in a pond. A frog may land only on the white stones; the grey stones are too slippery. The frog begins on the stone marked S and wants to reach the stone marked T. Each jump goes to the stone directly above, below, to the left or to the right of the stone it is on. What is the number of jumps on the frog's shortest way?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Nov_2026_Grade_2_q9.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "9"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "3"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Nadia is making one full square out of small square tiles, all the same size. The grey tiles shown are already stuck down and cannot be moved. She wants to complete the smallest full square that fits around them. How many more tiles does Nadia need?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Nov_2026_Grade_2_q10.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "17"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "7"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "16"
+      },
+      {
+        "text": "25"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Nadia's raffle ticket is number 7924. All the other tickets in the box are four-digit numbers written with the same digits 2, 4, 7 and 9. Which of these ticket numbers is the smallest one that is bigger than 7924?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "7942"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "2479"
+      },
+      {
+        "text": "4279"
+      },
+      {
+        "text": "7249"
+      },
+      {
+        "text": "7492"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Seen from above, a toy train runs clockwise round and round a circular track. A pond and a shed stand inside the circle of track. A barn and a windmill stand outside the circle. Which of these does the driver pass on his left-hand side?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "the barn and the windmill"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "the pond and the shed"
+      },
+      {
+        "text": "the pond and the barn"
+      },
+      {
+        "text": "the shed and the windmill"
+      },
+      {
+        "text": "the pond, the shed, the barn and the windmill"
+      }
+    ]
+  }
+]

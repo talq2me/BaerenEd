@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Regenerates edusites pack manifests when quiz folders change, and stages them.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Only run when edusites content is part of this commit (or manifests themselves).
+if ! git diff --cached --name-only | grep -qE '(^|/)edusites/'; then
+  exit 0
+fi
+
+if command -v python >/dev/null 2>&1; then
+  PY=python
+elif command -v python3 >/dev/null 2>&1; then
+  PY=python3
+else
+  echo "pre-commit: python not found; cannot refresh edusite manifests" >&2
+  exit 1
+fi
+
+"$PY" scripts/make_edusite_manifests.py
+
+# Stage any manifest.json under edusites (new or updated).
+while IFS= read -r -d '' f; do
+  git add -- "$f"
+done < <(find app/src/main/assets/edusites -type f -name manifest.json -print0 2>/dev/null)
+
+exit 0

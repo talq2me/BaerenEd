@@ -1,0 +1,362 @@
+[
+  {
+    "prompt": {
+      "text": "A basket holds 18 pieces of fruit. Eleven of them are apples and the rest are pears. How many pears are in the basket?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "29"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Which of these gives the largest answer that is still less than 20?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "24-5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "13+7"
+      },
+      {
+        "text": "9+9"
+      },
+      {
+        "text": "30-13"
+      },
+      {
+        "text": "6+8"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Aria lays straws along every line of the grid shown. Each straw is exactly as long as one side of a small square, and no straw lies on top of another. How many straws does Aria need?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Oct_2026_Grade_2_q3.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "24"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "12"
+      },
+      {
+        "text": "22"
+      },
+      {
+        "text": "26"
+      },
+      {
+        "text": "36"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "In a park, paths join some places together. One path joins the Gate to the Fountain. One path joins the Fountain to the Oak Tree. One path joins the Pond to the Bridge. One path joins the Bridge to the Bandstand. One path joins the Bandstand to the Swings. Rosa starts at the Gate and may walk only along these paths. Which of these places can she reach?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Oct_2026_Grade_2_q4.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "Fountain or the Oak Tree"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "the Bridge"
+      },
+      {
+        "text": "the Pond"
+      },
+      {
+        "text": "the Swings"
+      },
+      {
+        "text": "the Bandstand"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "The thick line in the picture is a footpath. Omar starts at the bottom end of the footpath and walks along it all the way to the other end. As he walks he writes down every letter that is on his right-hand side, in the order he passes them. What does Omar write down?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Oct_2026_Grade_2_q5.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "MSP"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "TR"
+      },
+      {
+        "text": "MRP"
+      },
+      {
+        "text": "MSRP"
+      },
+      {
+        "text": "MTSRP"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Two years ago the sum of the ages of Evan and Kim was 12 years. What is the sum of their ages now?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "16"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "13"
+      },
+      {
+        "text": "14"
+      },
+      {
+        "text": "18"
+      },
+      {
+        "text": "20"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Jasmine is reading a book with 59 pages. She has read 24 pages so far. How many more pages must she read to finish reading the book?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "35"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "32"
+      },
+      {
+        "text": "33"
+      },
+      {
+        "text": "34"
+      },
+      {
+        "text": "36"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Which number comes between 22 and 24?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "23"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "25"
+      },
+      {
+        "text": "26"
+      },
+      {
+        "text": "21"
+      },
+      {
+        "text": "22"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A garden is laid out as the squares in the picture. The white squares are stepping squares Nina may stand on, and the grey squares are flower beds she must stay off. Nina starts on the square marked N and wants to reach the square marked F. One step takes her from a white square to another white square that shares a side with it. Taking the shortest way, how many steps does Nina take?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Oct_2026_Grade_2_q9.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "9"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Five children sit in a row on a long bench. Each child is turned to face either the left end of the bench or the right end. Counting the children from the left, the 1st child faces the left end, the 2nd child faces the right end, the 3rd child faces the right end, the 4th child faces the left end and the 5th child faces the right end. A child can see only the children on the side they are turned towards, and waves once to every child they can see. How many waves are there altogether?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Oct_2026_Grade_2_q10.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "8"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "6"
+      },
+      {
+        "text": "7"
+      },
+      {
+        "text": "10"
+      },
+      {
+        "text": "20"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A fruit stand has a rack of six crates: two rows of three, seen from the front. Six kinds of fruit are in them, one kind in each crate: apples, pears, plums, lemons, bananas and grapes. The apples, the pears and the plums are all in the same row, with the pears to the right of the apples and to the left of the plums. The lemons are in the crate directly above the plums. The grapes are in the crate between the lemons and the bananas. Which fruit is in the top left crate?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Oct_2026_Grade_2_q11.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "Bananas"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Grapes"
+      },
+      {
+        "text": "Apples"
+      },
+      {
+        "text": "Lemons"
+      },
+      {
+        "text": "Pears"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "At a party there are four gift bags. Three of the bags have a three-letter name written on them: TUT, UNT and NTU. The fourth bag's name is hidden under a bow. Each bag also has one number tag, and the four tags are 252, 582, 825 and 828. A tag belongs to a bag when its digits stand for that bag's letters in the same order: the same letter is always shown by the same digit, and two different letters never share a digit. Each tag belongs to exactly one bag. What name is hidden under the bow?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "NTN"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "TNT"
+      },
+      {
+        "text": "NUN"
+      },
+      {
+        "text": "NNT"
+      },
+      {
+        "text": "UTU"
+      }
+    ]
+  }
+]

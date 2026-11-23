@@ -1,0 +1,356 @@
+[
+  {
+    "prompt": {
+      "text": "Steve writes a single digit number in each of the four circles such that the sum of the digits in any two connected circles is equal to the sum of any other connected pair. If two of the numbers are shown in the image, what is the number in the circle X?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Mar_2026_Grade_2_q1.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "1"
+      },
+      {
+        "text": "2"
+      },
+      {
+        "text": "3"
+      },
+      {
+        "text": "4"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Mike has 7 toys. Lisa has 2 more toys than Mike. Tom has 9 toys. Which person has the same number of toys as Lisa?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "Tom"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "Mike"
+      },
+      {
+        "text": "Sue"
+      },
+      {
+        "text": "Tom and Mike"
+      },
+      {
+        "text": "None"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Which of the following gives us the highest number not greater than 15",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "7+7"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4+9"
+      },
+      {
+        "text": "3+9"
+      },
+      {
+        "text": "7+9"
+      },
+      {
+        "text": "8+9"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "John and Jack are twins. Each of them invited 4 friends to their birthday party. Later, 3 friends went home early. How many friends stayed until the end of the party?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "5"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "4"
+      },
+      {
+        "text": "1"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "10"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Sam has a piece of cardboard as shown at the top. He wants to combine them with one more piece to make a square. Which of the pieces (A, B, C, D, or E) is the missing piece he needs?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Mar_2026_Grade_2_q5.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "E"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "B"
+      },
+      {
+        "text": "C"
+      },
+      {
+        "text": "D"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Sam and Kevin added their ages and found the sum as 11. What number will they get three years from now?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "17"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "11"
+      },
+      {
+        "text": "14"
+      },
+      {
+        "text": "8"
+      },
+      {
+        "text": "12"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Liam's first day of school is four days after one week after September 1st. When does Liam start school?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "September 12th"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "September 8th"
+      },
+      {
+        "text": "September 10th"
+      },
+      {
+        "text": "September 11th"
+      },
+      {
+        "text": "September 13th"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Mr. Bunny picked 15 flowers from his garden\n- 9 flowers were yellow\n- 8 flowers were daisies\n- Some flowers were both yellow AND daisies\nHow many flowers were both yellow and daisies?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "2"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "1"
+      },
+      {
+        "text": "3"
+      },
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Farmer Barnaby is looking into his barn. He counts exactly 11 heads belonging to Chickens and Cows as shown in the image. How many legs can he count for all the chickens and cows combined?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Mar_2026_Grade_2_q9.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "30"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "32"
+      },
+      {
+        "text": "28"
+      },
+      {
+        "text": "26"
+      },
+      {
+        "text": "34"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "A number is drawn using small identical squares as shown in the top. Which option shows the mirror image of the number at the top if a mirror was placed to the right of the number?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Mar_2026_Grade_2_q10.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "A"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "B"
+      },
+      {
+        "text": "C"
+      },
+      {
+        "text": "D"
+      },
+      {
+        "text": "E"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Five puppies named Bella, Max, Rosie, Charlie and Daisy each sleep in their own doghouse in a row:\nHere are the clues:\n- Bella and Max each have only one neighbour\n- Rosie lives in the house with flowers\n- Charlie does not have a tree behind his house\n- Max lives right next to Charlie\nWhich house does Daisy live in?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "Test_Review_Northstar_Mar_2026_Grade_2_q11.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "D"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "B"
+      },
+      {
+        "text": "C"
+      },
+      {
+        "text": "E"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Children are lining up for the ice cream truck \n- Mia knows that 4 children are standing in front of her\n- Noah knows there are 8 children in the line altogether\n- Mia is standing just in front of Noah\nHow many children are behind Noah?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {},
+    "correctChoices": [
+      {
+        "text": "2"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "1"
+      },
+      {
+        "text": "3"
+      },
+      {
+        "text": "4"
+      },
+      {
+        "text": "5"
+      }
+    ]
+  }
+]
