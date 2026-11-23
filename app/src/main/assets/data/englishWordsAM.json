@@ -1,117 +1,116 @@
 {
-  "start_date": "2026-11-09",
+  "start_date": "2026-11-23",
   "lang": "en",
   "words": [
     {
-      "word": "smart",
-      "sentence": "My dog is very smart.",
+      "word": "seed",
+      "sentence": "The seed grew into a tall flower.",
       "syllables": [
-        "smart"
+        "seed"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/smart.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/smart__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/seed.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/seed__sentence.ogg"
       }
     },
     {
-      "word": "garden",
-      "sentence": "We grow carrots in our garden.",
+      "word": "clean",
+      "sentence": "I clean my room every Saturday.",
       "syllables": [
-        "gar",
-        "den"
+        "clean"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/garden.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/garden__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/clean.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/clean__sentence.ogg"
       }
     },
     {
-      "word": "under",
-      "sentence": "The cat is under the bed.",
+      "word": "sleep",
+      "sentence": "I go to sleep at eight o'clock.",
       "syllables": [
-        "un",
-        "der"
+        "sleep"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/under.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/under__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sleep.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/sleep__sentence.ogg"
       }
     },
     {
-      "word": "purse",
-      "sentence": "Mom put her keys in her purse.",
+      "word": "mean",
+      "sentence": "What does this word mean?",
       "syllables": [
-        "purse"
+        "mean"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/purse.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/purse__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/mean.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/mean__sentence.ogg"
       }
     },
     {
-      "word": "work",
-      "sentence": "Dad goes to work in the morning.",
+      "word": "roam",
+      "sentence": "Cows roam freely in the big field.",
       "syllables": [
-        "work"
+        "roam"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/work.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/work__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/roam.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/roam__sentence.ogg"
       }
     },
     {
-      "word": "word",
-      "sentence": "Can you spell this word?",
+      "word": "soap",
+      "sentence": "Wash your hands with soap and water.",
       "syllables": [
-        "word"
+        "soap"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/word.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/word__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/soap.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/soap__sentence.ogg"
       }
     },
     {
-      "word": "score",
-      "sentence": "Our team got the best score.",
+      "word": "toe",
+      "sentence": "I stubbed my toe on the chair.",
       "syllables": [
-        "score"
+        "toe"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/score.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/score__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/toe.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/toe__sentence.ogg"
       }
     },
     {
-      "word": "herd",
-      "sentence": "A herd of cows is in the field.",
+      "word": "snow",
+      "sentence": "We built a fort out of snow.",
       "syllables": [
-        "herd"
+        "snow"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/herd.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/herd__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/snow.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/snow__sentence.ogg"
       }
     },
     {
-      "word": "curl",
-      "sentence": "My hair has a curl in it.",
+      "word": "throw",
+      "sentence": "Please throw the ball to me.",
       "syllables": [
-        "curl"
+        "throw"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/curl.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/curl__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/throw.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/throw__sentence.ogg"
       }
     },
     {
-      "word": "shirt",
-      "sentence": "I have a red shirt.",
+      "word": "oatmeal",
+      "sentence": "I eat oatmeal for breakfast.",
       "syllables": [
-        "shirt"
+        "oat",
+        "meal"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/shirt.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/shirt__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/oatmeal.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/AM/oatmeal__sentence.ogg"
       }
     }
   ]
