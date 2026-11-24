@@ -1,0 +1,40 @@
+{
+  "tests": [
+    {
+      "id": "2017BCCContest5_6",
+      "quiz": "2017BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2018BCCContest5_6",
+      "quiz": "2018BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2019BCCContest5_6",
+      "quiz": "2019BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2020BCCContest5_6",
+      "quiz": "2020BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2021BCCContest5_6",
+      "quiz": "2021BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2022BCCContest5_6",
+      "quiz": "2022BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2023BCCContest5_6",
+      "quiz": "2023BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2024BCCContest5_6",
+      "quiz": "2024BCCContest5_6_quiz.json"
+    },
+    {
+      "id": "2025BCCContest5_6",
+      "quiz": "2025BCCContest5_6_quiz.json"
+    }
+  ]
+}

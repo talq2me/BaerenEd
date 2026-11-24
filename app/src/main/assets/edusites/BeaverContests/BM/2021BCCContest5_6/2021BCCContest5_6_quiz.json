@@ -1,0 +1,362 @@
+[
+  {
+    "prompt": {
+      "text": "Strawberry",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q1.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "D"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "B"
+      },
+      {
+        "text": "C"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Overlapping Coins",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q2.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "B"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "C"
+      },
+      {
+        "text": "D"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Robot Arm",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q3.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "A. The ball originally in bin A is now in bin B, and the ball originally in bin B is now in bin A."
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "B. Both balls are in bin A."
+      },
+      {
+        "text": "C. Bin A is empty."
+      },
+      {
+        "text": "D. Nothing has changed. Each ball is back in its original bin."
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Fruit Road",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q4.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "B. 3"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A. 2"
+      },
+      {
+        "text": "C. 4"
+      },
+      {
+        "text": "D. 5"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Picking Up Carrots",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q5.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "A. R →S →T →P →Q →S →P →R"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "B. R →P →Q →S →R →P →T →S →P →R"
+      },
+      {
+        "text": "C. R →S →P →Q →P →T →S →R"
+      },
+      {
+        "text": "D. R →P →Q →S →T →P →R"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Presents",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q6.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "C"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "B"
+      },
+      {
+        "text": "D"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Coin Bag",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q7.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "C"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "B"
+      },
+      {
+        "text": "D"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Necklaces",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q8.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "D"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "B"
+      },
+      {
+        "text": "C"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Do They Meet?",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q9.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "D. The beavers could meet on pad C5."
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A. The beavers will never meet."
+      },
+      {
+        "text": "B. The beavers could meet on pad C2."
+      },
+      {
+        "text": "C. The beavers could meet on pad F4."
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Paintings",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q10.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "B. Quy"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A. Pia"
+      },
+      {
+        "text": "C. Raz"
+      },
+      {
+        "text": "D. Stu"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Shapes",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q11.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "C. 6"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A. 4"
+      },
+      {
+        "text": "B. 5"
+      },
+      {
+        "text": "D. 7"
+      }
+    ]
+  },
+  {
+    "prompt": {
+      "text": "Upcycling",
+      "lang": "en",
+      "displayText": true
+    },
+    "question": {
+      "media": {
+        "images": [
+          "q12.png"
+        ]
+      }
+    },
+    "correctChoices": [
+      {
+        "text": "B. 2"
+      }
+    ],
+    "extraChoices": [
+      {
+        "text": "A. 1"
+      },
+      {
+        "text": "C. 3"
+      },
+      {
+        "text": "D. 4"
+      }
+    ]
+  }
+]
