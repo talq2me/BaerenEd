@@ -74,14 +74,67 @@
     return resetReady[profile];
   }
 
+  const AUTH_KEY = "baerenAuth";
+  let refreshing = null;
+
+  function storedAuth() {
+    try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch (e) { return null; }
+  }
+
+  function isSignedIn() {
+    const a = storedAuth();
+    return Boolean(a && a.refresh_token);
+  }
+
+  async function authRequest(grantType, body) {
+    const c = cfg();
+    if (!c.url || !c.key) throw new Error("Supabase is not configured in this browser.");
+    const res = await fetch(`${c.url}/auth/v1/token?grant_type=${grantType}`, {
+      method: "POST",
+      headers: { apikey: c.key, "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(text || res.statusText);
+    const data = JSON.parse(text);
+    localStorage.setItem(AUTH_KEY, JSON.stringify({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + (Number(data.expires_in) || 3600) * 1000
+    }));
+    return data;
+  }
+
+  function signIn(email, password) {
+    return authRequest("password", { email: email, password: password });
+  }
+
+  async function accessToken() {
+    const auth = storedAuth();
+    if (auth && auth.access_token && auth.expires_at - 60000 > Date.now()) return auth.access_token;
+    if (!auth || !auth.refresh_token) throw new Error("Not signed in. Open the setup page and sign in.");
+    // Refresh tokens rotate, so concurrent requests share one refresh call.
+    if (!refreshing) {
+      refreshing = authRequest("refresh_token", { refresh_token: auth.refresh_token })
+        .catch(function () {
+          localStorage.removeItem(AUTH_KEY);
+          throw new Error("Session expired. Sign in again on the setup page.");
+        })
+        .finally(function () { refreshing = null; });
+    }
+    const data = await refreshing;
+    return data.access_token;
+  }
+
   async function rpc(name, body) {
     const c = cfg();
     if (!c.url || !c.key) throw new Error("Supabase is not configured in this browser.");
+    const token = await accessToken();
     const res = await fetch(`${c.url}/rest/v1/rpc/${name}`, {
       method: "POST",
       headers: {
         apikey: c.key,
-        Authorization: `Bearer ${c.key}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body || {})
@@ -206,6 +259,33 @@
     }).catch(finish);
   }
 
+  // Pages that build their own fetch headers send "Authorization: Bearer <anon key>".
+  // This swaps that header for the signed-in token on Supabase requests. Until someone
+  // signs in, the anon key is still sent, so nothing breaks during the switch.
+  function installAuthFetch() {
+    if (global.fetch.__baerenAuth) return;
+    const nativeFetch = global.fetch.bind(global);
+    async function authFetch(input, init) {
+      const url = typeof input === "string" ? input : "";
+      const c = cfg();
+      const headers = init && init.headers;
+      const isHeadersObject = typeof Headers !== "undefined" && headers instanceof Headers;
+      if (c.url && c.key && url.indexOf(c.url + "/") === 0 && headers && !isHeadersObject && isSignedIn()) {
+        const name = Object.prototype.hasOwnProperty.call(headers, "Authorization") ? "Authorization"
+          : (Object.prototype.hasOwnProperty.call(headers, "authorization") ? "authorization" : "");
+        if (name && headers[name] === "Bearer " + c.key) {
+          const token = await accessToken();
+          init = Object.assign({}, init, { headers: Object.assign({}, headers, { [name]: "Bearer " + token }) });
+        }
+      }
+      return nativeFetch(input, init);
+    }
+    authFetch.__baerenAuth = true;
+    global.fetch = authFetch;
+  }
+
+  installAuthFetch();
+
   function assetUrl(path) {
     if (!path) return "";
     if (/^https?:/i.test(path)) return path;
@@ -219,6 +299,9 @@
     DEFAULT_RATE,
     cfg,
     hasDb,
+    isSignedIn,
+    signIn,
+    accessToken,
     pinOk,
     checkPin,
     saveSetup,

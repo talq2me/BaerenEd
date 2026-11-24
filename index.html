@@ -45,6 +45,10 @@
         <input id="supabaseUrl" autocomplete="off" spellcheck="false">
         <label for="supabaseKey">Supabase API key</label>
         <input id="supabaseKey" autocomplete="off" spellcheck="false">
+        <label for="authEmail">Sign-in email</label>
+        <input id="authEmail" type="email" autocomplete="username" spellcheck="false">
+        <label for="authPassword">Sign-in password</label>
+        <input id="authPassword" type="password" autocomplete="current-password">
         <label for="newPin">New PIN</label>
         <input id="newPin" type="password" inputmode="numeric" autocomplete="off">
         <div class="row"><button type="submit">Save</button></div>
@@ -256,6 +260,7 @@
         document.getElementById("needSetup").hidden = false;
         return;
       }
+      document.getElementById("needSetup").hidden = true;
       await Baeren.ensureDailyReset();
       await loadHub(profile);
     }
@@ -305,13 +310,36 @@
       const url = document.getElementById("supabaseUrl").value.trim();
       const key = document.getElementById("supabaseKey").value.trim();
       const pin = (document.getElementById("newPin").value || document.getElementById("pinEntry").value).trim();
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value;
       if (!url || !key || !pin) {
         document.getElementById("setupMsg").textContent = "URL, key, and PIN are required.";
         return;
       }
+      if (!Baeren.isSignedIn() && (!email || !password)) {
+        document.getElementById("setupMsg").textContent = "Sign-in email and password are required.";
+        return;
+      }
       Baeren.saveSetup(url, key, pin, Baeren.cfg().profile);
+      document.getElementById("authPassword").value = "";
+      if (email && password) {
+        document.getElementById("setupMsg").textContent = "Signing in...";
+        Baeren.signIn(email, password).then(function () {
+          document.getElementById("setupMsg").textContent = "Saved and signed in.";
+          setup.hidden = true;
+          loadProfile(Baeren.cfg().profile).catch(function (err) {
+            document.getElementById("hubMsg").textContent = err.message;
+          });
+        }).catch(function (err) {
+          document.getElementById("setupMsg").textContent = "Saved, but sign-in failed: " + err.message;
+        });
+        return;
+      }
       document.getElementById("setupMsg").textContent = "Saved in this browser.";
       setup.hidden = true;
+      loadProfile(Baeren.cfg().profile).catch(function (err) {
+        document.getElementById("hubMsg").textContent = err.message;
+      });
     });
 
     document.getElementById("rewardBtn").addEventListener("click", async function () {
@@ -484,7 +512,7 @@
       try {
         const c = Baeren.cfg();
         const res = await fetch(c.url + "/rest/v1/reward_spinner?select=id,name,percent&percent=gt.0&order=id.asc", {
-          headers: { apikey: c.key, Authorization: "Bearer " + c.key }
+          headers: { apikey: c.key, Authorization: "Bearer " + (await Baeren.accessToken()) }
         });
         if (res.ok) {
           const fromTable = prizeRows(JSON.parse(await res.text() || "[]"));
