@@ -1,257 +1,244 @@
 {
-  "start_date": "2026-11-02",
+  "start_date": "2026-11-23",
   "lang": "en",
   "words": [
     {
-      "word": "scented",
-      "sentence": "My grandmother's garden is full of sweet scented roses.",
+      "word": "doubt",
+      "sentence": "I have no doubt that you will do well on the test.",
       "syllables": [
-        "scent",
-        "ed"
+        "doubt"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scented.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scented__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/doubt.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/doubt__sentence.ogg"
       }
     },
     {
-      "word": "adolescent",
-      "sentence": "An adolescent is a young person who is growing from a child into an adult.",
+      "word": "knickers",
+      "sentence": "The old photo shows a boy in knickers and long socks.",
       "syllables": [
-        "ad",
-        "o",
-        "les",
-        "cent"
+        "knick",
+        "ers"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/adolescent.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/adolescent__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/knickers.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/knickers__sentence.ogg"
       }
     },
     {
-      "word": "scattered",
-      "sentence": "The wind scattered the colourful leaves all over the yard.",
+      "word": "tombstone",
+      "sentence": "We read the name carved on the old tombstone.",
       "syllables": [
-        "scat",
-        "tered"
+        "tomb",
+        "stone"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scattered.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scattered__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/tombstone.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/tombstone__sentence.ogg"
       }
     },
     {
-      "word": "scissors",
-      "sentence": "Please use the scissors carefully when you cut out your poster.",
+      "word": "lightning",
+      "sentence": "A flash of lightning lit up the dark sky.",
       "syllables": [
-        "scis",
-        "sors"
+        "light",
+        "ning"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scissors.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scissors__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/lightning.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/lightning__sentence.ogg"
       }
     },
     {
-      "word": "scientific",
-      "sentence": "We followed the scientific method to test which paper towel was strongest.",
+      "word": "debt",
+      "sentence": "He worked hard to pay back his debt.",
       "syllables": [
-        "sci",
-        "en",
-        "tif",
-        "ic"
+        "debt"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scientific.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scientific__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/debt.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/debt__sentence.ogg"
       }
     },
     {
-      "word": "screaming",
-      "sentence": "The kids were screaming with joy on the roller coaster.",
+      "word": "softener",
+      "sentence": "Mom poured fabric softener into the washing machine.",
       "syllables": [
-        "scream",
-        "ing"
+        "sof",
+        "ten",
+        "er"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/screaming.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/screaming__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/softener.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/softener__sentence.ogg"
       }
     },
     {
-      "word": "muscles",
-      "sentence": "Running every day makes the muscles in your legs stronger.",
+      "word": "almighty",
+      "sentence": "There was an almighty crash when the tree fell.",
       "syllables": [
-        "mus",
-        "cles"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/muscles.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/muscles__sentence.ogg"
-      }
-    },
-    {
-      "word": "scalding",
-      "sentence": "Be careful, the soup is scalding hot right off the stove.",
-      "syllables": [
-        "scald",
-        "ing"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scalding.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scalding__sentence.ogg"
-      }
-    },
-    {
-      "word": "scenery",
-      "sentence": "We stopped the car to enjoy the beautiful mountain scenery.",
-      "syllables": [
-        "scen",
-        "er",
+        "al",
+        "might",
         "y"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenery.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenery__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/almighty.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/almighty__sentence.ogg"
       }
     },
     {
-      "word": "crescent",
-      "sentence": "A thin crescent moon glowed in the night sky.",
+      "word": "solemn",
+      "sentence": "The class was solemn during the remembrance ceremony.",
       "syllables": [
-        "cres",
-        "cent"
+        "sol",
+        "emn"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/crescent.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/crescent__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/solemn.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/solemn__sentence.ogg"
       }
     },
     {
-      "word": "descending",
-      "sentence": "The plane began descending toward the airport.",
-      "syllables": [
-        "de",
-        "scend",
-        "ing"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/descending.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/descending__sentence.ogg"
-      }
-    },
-    {
-      "word": "sculpture",
-      "sentence": "The artist carved a sculpture of a bear out of wood.",
-      "syllables": [
-        "sculp",
-        "ture"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/sculpture.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/sculpture__sentence.ogg"
-      }
-    },
-    {
-      "word": "escape",
-      "sentence": "The hamster tried to escape from its cage during the night.",
-      "syllables": [
-        "es",
-        "cape"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/escape.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/escape__sentence.ogg"
-      }
-    },
-    {
-      "word": "scampered",
-      "sentence": "The squirrel scampered up the tree when the dog barked.",
-      "syllables": [
-        "scam",
-        "pered"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scampered.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scampered__sentence.ogg"
-      }
-    },
-    {
-      "word": "scenic",
-      "sentence": "We took the scenic route along the lake to see the view.",
-      "syllables": [
-        "sce",
-        "nic"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenic.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/scenic__sentence.ogg"
-      }
-    },
-    {
-      "word": "miscellaneous",
-      "sentence": "The junk drawer is full of miscellaneous things like tape, keys, and batteries.",
-      "syllables": [
-        "mis",
-        "cel",
-        "la",
-        "ne",
-        "ous"
-      ],
-      "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/miscellaneous.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/miscellaneous__sentence.ogg"
-      }
-    },
-    {
-      "word": "fascinating",
-      "sentence": "The documentary about sharks was fascinating to watch.",
+      "word": "fasten",
+      "sentence": "Please fasten your seatbelt before the car starts moving.",
       "syllables": [
         "fas",
-        "ci",
-        "nat",
+        "ten"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/fasten.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/fasten__sentence.ogg"
+      }
+    },
+    {
+      "word": "whistling",
+      "sentence": "The kettle was whistling on the stove.",
+      "syllables": [
+        "whist",
+        "ling"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/whistling.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/whistling__sentence.ogg"
+      }
+    },
+    {
+      "word": "castles",
+      "sentence": "They built sand castles on the beach all afternoon.",
+      "syllables": [
+        "cas",
+        "tles"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/castles.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/castles__sentence.ogg"
+      }
+    },
+    {
+      "word": "column",
+      "sentence": "Write your answers in the second column of the chart.",
+      "syllables": [
+        "col",
+        "umn"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/column.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/column__sentence.ogg"
+      }
+    },
+    {
+      "word": "hymns",
+      "sentence": "The choir sang beautiful hymns at the concert.",
+      "syllables": [
+        "hymns"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/hymns.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/hymns__sentence.ogg"
+      }
+    },
+    {
+      "word": "eyesight",
+      "sentence": "She wears glasses to help her eyesight.",
+      "syllables": [
+        "eye",
+        "sight"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/eyesight.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/eyesight__sentence.ogg"
+      }
+    },
+    {
+      "word": "listening",
+      "sentence": "Listening carefully helps you follow the directions.",
+      "syllables": [
+        "lis",
+        "ten",
         "ing"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/fascinating.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/fascinating__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/listening.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/listening__sentence.ogg"
       }
     },
     {
-      "word": "luscious",
-      "sentence": "We picked luscious ripe strawberries at the farm.",
+      "word": "plumber",
+      "sentence": "The plumber fixed the leaky pipe under the sink.",
       "syllables": [
-        "lus",
-        "cious"
+        "plumb",
+        "er"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/luscious.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/luscious__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/plumber.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/plumber__sentence.ogg"
       }
     },
     {
-      "word": "discipline",
-      "sentence": "Learning to play the piano well takes discipline and daily practice.",
+      "word": "playwright",
+      "sentence": "The playwright wrote a funny play for the school concert.",
       "syllables": [
-        "dis",
-        "ci",
-        "pline"
+        "play",
+        "wright"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/discipline.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/discipline__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/playwright.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/playwright__sentence.ogg"
       }
     },
     {
-      "word": "conscience",
-      "sentence": "His conscience told him to return the wallet he found.",
+      "word": "condemn",
+      "sentence": "The inspector had to condemn the unsafe old building.",
       "syllables": [
         "con",
-        "science"
+        "demn"
       ],
       "audio": {
-        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/conscience.ogg",
-        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/conscience__sentence.ogg"
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/condemn.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/condemn__sentence.ogg"
+      }
+    },
+    {
+      "word": "moisten",
+      "sentence": "Moisten the stamp before you stick it on the envelope.",
+      "syllables": [
+        "mois",
+        "ten"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/moisten.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/moisten__sentence.ogg"
+      }
+    },
+    {
+      "word": "crumbs",
+      "sentence": "Please sweep up the crumbs from the kitchen floor.",
+      "syllables": [
+        "crumbs"
+      ],
+      "audio": {
+        "word": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/crumbs.ogg",
+        "sentence": "https://xvnosesmkoahykndbzgy.supabase.co/storage/v1/object/public/spelling-audio/en/BM/crumbs__sentence.ogg"
       }
     }
   ]
