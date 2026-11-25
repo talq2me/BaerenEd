@@ -2,27 +2,45 @@
 
 Scrapers post cumulative (or daily) snapshots. The DB evaluates today’s goals from `web_assignments.verify_kind` / `verify_params`. Kids can mark an edu-site task complete only when that day’s goal is already met (or a parent force-verifies).
 
-The old all-done → Grok webhook scrape path is **disabled**. Vault secret **`edu_site_checker_webhook_bearer`** is the **inbound scraper bearer** (`p_bearer`).
+The old all-done → Grok webhook scrape path is **disabled**.
+
+The scraper signs in with its own Supabase Auth account and sends that account's access token. The function only accepts a signed-in user whose email matches Vault secret **`edu_site_scraper_email`**.
 
 ## One-time setup
 
-1. Run [`edu_site_progress_setup.sql`](edu_site_progress_setup.sql) (tables).
-2. Deploy RPCs (`regen_deploy_all_functions.ps1` → `supabase_functions_create.sql`, or `deploy_edu_site_progress.ps1`).
-3. Vault secret must exist. This project’s secret **name** is **`EduSiteChecker Bot Webhook`** (RPCs also accept `edu_site_checker_webhook_bearer`). The secret **value** is what the scraper sends as `p_bearer` (often a `crsr_` token).
+1. Create a Supabase Auth user for the scraper (email + password), like the other bot accounts.
+2. In SQL Editor, store that email in Vault (name `edu_site_scraper_email`, value = the email). Example:
+   `select vault.create_secret('<scraper email>', 'edu_site_scraper_email');`
+3. Run [`edu_site_progress_setup.sql`](edu_site_progress_setup.sql) (tables).
+4. Deploy RPCs (`regen_deploy_all_functions.ps1` → `supabase_functions_create.sql`, or `deploy_edu_site_progress.ps1`).
+5. The old Vault secret `edu_site_checker_webhook_bearer` / `EduSiteChecker Bot Webhook` is no longer used by this function and can be deleted once nothing else needs it.
 
 ## Scraper call
+
+1. Sign in (once, then refresh as needed):
+
+```http
+POST https://xvnosesmkoahykndbzgy.supabase.co/auth/v1/token?grant_type=password
+apikey: <supabase anon key>
+Content-Type: application/json
+```
+
+```json
+{ "email": "<scraper email>", "password": "<scraper password>" }
+```
+
+2. Post the snapshot with the returned `access_token`:
 
 ```http
 POST https://xvnosesmkoahykndbzgy.supabase.co/rest/v1/rpc/af_upsert_edu_site_progress
 apikey: <supabase anon key>
-Authorization: Bearer <supabase anon key>
+Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
 
 ```json
 {
   "p_site_kind": "rallye_lecture",
-  "p_bearer": "<vault secret value>",
   "p_raw": {
     "student": "BM",
     "scraped_at": "2026-11-21T16:32:21.207Z",
@@ -42,7 +60,6 @@ Content-Type: application/json
 ```sql
 af_upsert_edu_site_progress(
   p_site_kind text,
-  p_bearer text,
   p_raw jsonb,
   p_profile text DEFAULT NULL,
   p_metrics jsonb DEFAULT NULL,
@@ -74,7 +91,6 @@ Optional `compare`: `gte` (default, need at least target) or `lte` (need at most
 ```json
 {
   "p_site_kind": "anton",
-  "p_bearer": "<vault secret>",
   "p_raw": {
     "student": "BM",
     "scraped_at": "2026-11-21T16:32:21.207Z",

@@ -3949,16 +3949,16 @@ GRANT EXECUTE ON FUNCTION af_eval_edu_site_goal(text, text, date) TO anon, authe
 -- -----------------------------------------------------------------------------
 -- FILE: af_upsert_edu_site_progress.sql
 -- -----------------------------------------------------------------------------
--- Scraper entrypoint: validate bearer, store snapshot, evaluate daily goals.
+-- Scraper entrypoint: check caller, store snapshot, evaluate daily goals.
 -- POST /rest/v1/rpc/af_upsert_edu_site_progress
--- Body: { "p_site_kind":"rallye_lecture", "p_bearer":"crsr_…", "p_raw":{...} }
--- Vault secret: edu_site_checker_webhook_bearer
+-- Headers: apikey: <anon key>, Authorization: Bearer <scraper's Supabase Auth access token>
+-- Body: { "p_site_kind":"rallye_lecture", "p_raw":{...} }
+-- Vault secret: edu_site_scraper_email (the scraper's Supabase Auth account email)
 
 DROP FUNCTION IF EXISTS af_upsert_edu_site_progress(text, text, jsonb, text, jsonb, text, text);
 
 CREATE OR REPLACE FUNCTION af_upsert_edu_site_progress(
   p_site_kind text,
-  p_bearer text,
   p_raw jsonb,
   p_profile text DEFAULT NULL,
   p_metrics jsonb DEFAULT NULL,
@@ -3971,7 +3971,7 @@ SECURITY DEFINER
 SET search_path = public, vault
 AS $$
 DECLARE
-  v_token text;
+  v_scraper_email text;
   v_kind text := lower(btrim(COALESCE(p_site_kind, '')));
   v_raw jsonb := COALESCE(p_raw, '{}'::jsonb);
   v_profile text;
@@ -3993,21 +3993,21 @@ BEGIN
     RAISE EXCEPTION 'p_site_kind is required';
   END IF;
 
-  -- Dashboard may use either the snake_case id or the UI label as vault.secrets.name
-  SELECT decrypted_secret INTO v_token
+  -- Caller must be signed in as the scraper's own account (Bearer = its access token).
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Sign in required';
+  END IF;
+
+  SELECT decrypted_secret INTO v_scraper_email
   FROM vault.decrypted_secrets
-  WHERE name IN ('edu_site_checker_webhook_bearer', 'EduSiteChecker Bot Webhook')
-  ORDER BY CASE name
-    WHEN 'edu_site_checker_webhook_bearer' THEN 0
-    ELSE 1
-  END
+  WHERE name = 'edu_site_scraper_email'
   LIMIT 1;
 
-  IF v_token IS NULL OR btrim(v_token) = '' THEN
-    RAISE EXCEPTION 'Edu site scraper bearer not configured in Vault (expected name edu_site_checker_webhook_bearer or EduSiteChecker Bot Webhook)';
+  IF v_scraper_email IS NULL OR btrim(v_scraper_email) = '' THEN
+    RAISE EXCEPTION 'Edu site scraper email not configured in Vault (secret edu_site_scraper_email)';
   END IF;
-  IF btrim(COALESCE(p_bearer, '')) IS DISTINCT FROM btrim(v_token) THEN
-    RAISE EXCEPTION 'Invalid bearer';
+  IF lower(btrim(COALESCE(auth.jwt() ->> 'email', ''))) IS DISTINCT FROM lower(btrim(v_scraper_email)) THEN
+    RAISE EXCEPTION 'Not allowed for this account';
   END IF;
 
   v_profile := upper(btrim(COALESCE(NULLIF(btrim(COALESCE(p_profile, '')), ''), COALESCE(v_raw->>'student', ''))));
@@ -4094,8 +4094,9 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION af_upsert_edu_site_progress(text, text, jsonb, text, jsonb, text, text)
-  TO anon, authenticated, service_role;
+-- Signed-in scraper only (no anon). Old 7-arg overload is dropped above.
+GRANT EXECUTE ON FUNCTION af_upsert_edu_site_progress(text, jsonb, text, jsonb, text, text)
+  TO authenticated, service_role;
 
 
 -- -----------------------------------------------------------------------------

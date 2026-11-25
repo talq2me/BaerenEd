@@ -1,6 +1,6 @@
 -- Edu site scraper progress + daily goal evaluation.
 -- Run once on existing DBs (also embedded in supabase_schema_create.sql for greenfield).
--- Vault secret edu_site_checker_webhook_bearer is the inbound scraper bearer (p_bearer).
+-- Vault secret edu_site_scraper_email = the scraper's Supabase Auth account (Bearer = its access token).
 
 CREATE TABLE IF NOT EXISTS edu_site_progress_snapshots (
     id BIGSERIAL PRIMARY KEY,

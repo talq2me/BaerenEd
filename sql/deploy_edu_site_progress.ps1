@@ -49,4 +49,4 @@ foreach ($f in $files) {
     }
 }
 
-Write-Host "Edu site progress deploy finished. Vault edu_site_checker_webhook_bearer = scraper p_bearer."
+Write-Host "Edu site progress deploy finished. Vault edu_site_scraper_email must be set to the scraper's Supabase Auth email."
